@@ -4,6 +4,7 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <string.h>
+    #include <time.h>
     #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
 
     #include "Include/curses.h"

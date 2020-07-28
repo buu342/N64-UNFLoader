@@ -124,10 +124,11 @@ void device_sendcmd_everdrive3(ftdi_context_t* cart, char command, int size, cha
 
 void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
 {
-	int	  bytes_done = 0;
-    int	  bytes_left;
-	int	  bytes_do;
-    char* rom_buffer = (char*) malloc(sizeof(int) * 32*1024);
+	int	   bytes_done = 0;
+    int	   bytes_left;
+	int	   bytes_do;
+    char*  rom_buffer = (char*) malloc(sizeof(int) * 32*1024);
+    time_t upload_time = clock();
 
     // Check we managed to malloc
     if (rom_buffer == NULL)
@@ -216,11 +217,12 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Send the PIFboot command
+    Sleep(500);
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive3(cart, 'S', 0, 0);
 
     // Print that we've finished
-    pdprint_replace("ROM successfully uploaded!\n", CRDEF_PROGRAM);
+    pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
     free(rom_buffer);
 }
 

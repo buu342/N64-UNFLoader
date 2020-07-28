@@ -137,12 +137,13 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u8 num
 
 void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 {
-    u32 ram_addr = 0x0;
-    int	bytes_left = size;
-	int	bytes_done = 0;
-	int	bytes_do;
-    int	chunk = 0;
-    u8* rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
+    u32    ram_addr = 0x0;
+    int	   bytes_left = size;
+	int	   bytes_done = 0;
+	int	   bytes_do;
+    int	   chunk = 0;
+    u8*    rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
+    time_t upload_time = clock();
     
     // Check we managed to malloc
     if (rom_buffer == NULL)
@@ -259,7 +260,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 	}
 
     // Print that we've finished
-    pdprint_replace("ROM successfully uploaded!\n", CRDEF_PROGRAM);
+    pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
     free(rom_buffer);
 
     // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
