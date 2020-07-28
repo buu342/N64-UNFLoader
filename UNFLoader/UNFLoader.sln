@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual C++ Express 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UNFLoader", "UNFLoader.vcproj", "{3392CF62-D8DC-4B6E-89D5-8CA6CCD864CA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3392CF62-D8DC-4B6E-89D5-8CA6CCD864CA}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3392CF62-D8DC-4B6E-89D5-8CA6CCD864CA}.Debug|Win32.Build.0 = Debug|Win32
+		{3392CF62-D8DC-4B6E-89D5-8CA6CCD864CA}.Release|Win32.ActiveCfg = Release|Win32
+		{3392CF62-D8DC-4B6E-89D5-8CA6CCD864CA}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
