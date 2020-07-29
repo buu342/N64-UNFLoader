@@ -146,7 +146,7 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
 	device_sendcmd_everdrive3(cart, 'W', 0, 0);
 
     // Upload the ROM
-    while(1)
+    for ( ; ; )
     {
         int i;
 

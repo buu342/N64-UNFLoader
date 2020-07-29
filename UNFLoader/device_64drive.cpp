@@ -196,7 +196,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     // Send chunks to the cart
     pdprint("\n", CRDEF_PROGRAM);
     progressbar_draw("Uploading ROM", 0);
-    while(1)
+    for ( ; ; )
     {
         int i;
 

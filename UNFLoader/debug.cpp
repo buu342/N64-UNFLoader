@@ -17,7 +17,7 @@ void debug_main(ftdi_context_t *cart)
     pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
 
     // Start the debug server loop
-    while (1)
+    for ( ; ; )
 	{
         // If ESC is pressed, stop the loop
 		if (GetAsyncKeyState(VK_ESCAPE))

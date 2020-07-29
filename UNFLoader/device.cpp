@@ -212,7 +212,7 @@ void device_sendrom(char* rompath)
     errno_t err;
     FILE    *file;
 
-    while (1)
+    for ( ; ; )
     {
         unsigned char rom_header[4];
 
