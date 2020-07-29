@@ -241,7 +241,7 @@ void show_help()
     char category = 0;
 
     // Print the introductory message
-    //pdprint("Welcome to the "PROGRAM_NAME_LONG"!\n", CRDEF_PROGRAM); //TODO: find out the cause for error!
+    pdprint("Welcome to the ""PROGRAM_NAME_LONG""!\n", CRDEF_PROGRAM);
     pdprint("This tool is designed to upload ROMs to your N64 Flashcart via USB, to allow\n"
             "homebrew developers to debug their ROMs in realtime with the help of the\n"
             "library provided with this tool.\n\n", CRDEF_PROGRAM);
