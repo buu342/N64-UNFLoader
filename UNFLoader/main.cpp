@@ -200,7 +200,7 @@ void show_title()
     // Print other stuff
     pdprint("\n--------------------------------------------\n", CR_NONE);
     pdprint("Cobbled together by Buu342\n", CR_NONE);
-    pdprint("Compiled on %s\n\n", CR_NONE, __DATE__);
+    pdprint("Compiled on %s\n\n", CR_NONE, __DATE__); //TODO: date is always null?!
 }
 
 
@@ -209,16 +209,16 @@ void show_title()
     Lists all the program arugments
 ==============================*/
 
-void list_args()
+void list_args() //TODO: access violation issue is present in the commented text:
 {
     pdprint("Parameters: <required> [optional]\n", CRDEF_PROGRAM);
     pdprint("  -help\t\t\t   Learn how to use this tool\n", CRDEF_PROGRAM);
     pdprint("  -r <file>\t\t   Upload ROM\n", CRDEF_PROGRAM);
     pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection)\n", CRDEF_PROGRAM);
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1,    "64Drive HW1");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2,    "64Drive HW2");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE3, "EverDrive 3.0");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE7, "EverDrive X7");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1,    "64Drive HW1");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2,    "64Drive HW2");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE3, "EverDrive 3.0");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE7, "EverDrive X7");
     pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only)\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
@@ -241,7 +241,7 @@ void show_help()
     char category = 0;
 
     // Print the introductory message
-    pdprint("Welcome to the ""PROGRAM_NAME_LONG""!\n", CRDEF_PROGRAM);
+    pdprint("Welcome to the %s!\n", CRDEF_PROGRAM, PROGRAM_NAME_LONG);
     pdprint("This tool is designed to upload ROMs to your N64 Flashcart via USB, to allow\n"
             "homebrew developers to debug their ROMs in realtime with the help of the\n"
             "library provided with this tool.\n\n", CRDEF_PROGRAM);

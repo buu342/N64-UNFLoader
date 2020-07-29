@@ -23,7 +23,7 @@ static char* local_printhistory[PRINT_HISTORY_SIZE];
     @param Variadic arguments to print as well
 ==============================*/
 
-void pdprint(char* str, short color, ...)
+void pdprint(char *str, short color, ...)
 {
     int i;
     va_list args;
@@ -52,7 +52,7 @@ void pdprint(char* str, short color, ...)
     @param va_list with the arguments to print
 ==============================*/
 
-static void pdprint_v(char* str, short color, va_list args)
+static void pdprint_v(char *str, short color, va_list args)
 {
     int i;
 
@@ -78,7 +78,7 @@ static void pdprint_v(char* str, short color, va_list args)
     @param Variadic arguments to print as well
 ==============================*/
 
-void pdprint_replace(char* str, short color, ...)
+void pdprint_replace(char *str, short color, ...)
 {
     int i, xpos, ypos;
     va_list args;
@@ -110,7 +110,7 @@ void pdprint_replace(char* str, short color, ...)
     @param Variadic arguments to print as well
 ==============================*/
 
-void terminate(char* reason, ...)
+void terminate(char *reason, ...)
 {
     int i;
     va_list args;
@@ -138,7 +138,7 @@ void terminate(char* reason, ...)
     @param Variadic arguments to print as well
 ==============================*/
 
-static void terminate_v(char* reason, va_list args)
+static void terminate_v(char *reason, va_list args)
 {
     int i;
 
@@ -164,7 +164,7 @@ static void terminate_v(char* reason, va_list args)
     @param Variadic arguments to print as well
 ==============================*/
 
-void testcommand(FT_STATUS status, char* reason, ...)
+void testcommand(FT_STATUS status, char *reason, ...)
 {
     va_list args;
     va_start(args, reason);
@@ -199,7 +199,7 @@ u32 swap_endian(u32 val)
     @param The percentage of completion
 ==============================*/
 
-void progressbar_draw(char* text, float percent)
+void progressbar_draw(char *text, float percent)
 {
     int i;
     int prog_size = 16;
