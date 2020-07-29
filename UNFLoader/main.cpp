@@ -63,8 +63,8 @@ int main(int argc, char* argv[])
     use_default_colors();
 
     // Setup our console
-    //scrollok(stdscr, 1);
-    //idlok(stdscr, 1);
+    scrollok(stdscr, 1);
+    idlok(stdscr, 1);
     resize_term(40, 80);
 
     // Initialize the colors
