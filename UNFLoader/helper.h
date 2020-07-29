@@ -29,7 +29,7 @@
     *********************************/
 
     // Printing
-    void pdprint(char* str, short color, ...);
+    void pdprint(char* str, short color, short num_args, ...);
     void pdprint_replace(char* str, short color, ...);
     void terminate(char* reason, ...);
     void progressbar_draw(char* text, float percent);

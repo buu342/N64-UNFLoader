@@ -23,11 +23,11 @@ static char* local_printhistory[PRINT_HISTORY_SIZE];
     @param Variadic arguments to print as well
 ==============================*/
 
-void pdprint(char* str, short color, ...)
+void pdprint(char* str, short color, short num_args, ...)
 {
     int i;
     va_list args;
-    va_start(args, str);
+    va_start(args, num_args);
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
@@ -119,7 +119,7 @@ void terminate(char* reason, ...)
     // Print why we're ending and pause the program
     if (reason != NULL && strcmp(reason, ""))
         pdprint_v(reason, CRDEF_ERROR, args);
-    pdprint("\nPress any key to continue...", CRDEF_INPUT);
+    pdprint("\nPress any key to continue...", CRDEF_INPUT, 0);
     va_end(args);
     getchar();
 
@@ -145,7 +145,7 @@ static void terminate_v(char* reason, va_list args)
     // Print why we're ending and pause the program
     if (reason != NULL && strcmp(reason, ""))
         pdprint_v(reason, CRDEF_ERROR, args);
-    pdprint("\nPress any key to continue...", CRDEF_INPUT);
+    pdprint("\nPress any key to continue...", CRDEF_INPUT, 0);
     getchar();
 
     // End the program
