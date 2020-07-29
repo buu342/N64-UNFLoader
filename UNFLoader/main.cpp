@@ -63,8 +63,8 @@ int main(int argc, char* argv[])
     use_default_colors();
 
     // Setup our console
-    scrollok(stdscr, 1);
-    idlok(stdscr, 1);
+    //scrollok(stdscr, 1);
+    //idlok(stdscr, 1);
     resize_term(40, 80);
 
     // Initialize the colors
@@ -241,7 +241,7 @@ void show_help()
     char category = 0;
 
     // Print the introductory message
-    pdprint("Welcome to the "PROGRAM_NAME_LONG"!\n", CRDEF_PROGRAM);
+    //pdprint("Welcome to the "PROGRAM_NAME_LONG"!\n", CRDEF_PROGRAM); //TODO: find out the cause for error!
     pdprint("This tool is designed to upload ROMs to your N64 Flashcart via USB, to allow\n"
             "homebrew developers to debug their ROMs in realtime with the help of the\n"
             "library provided with this tool.\n\n", CRDEF_PROGRAM);

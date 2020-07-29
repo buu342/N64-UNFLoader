@@ -12,7 +12,7 @@
 void debug_main(ftdi_context_t *cart)
 {
     char buffer[512];
-    int pending = 0;
+    DWORD pending = 0;
     u8 block_magic[] = { 'D', 'M', 'A', '@' };
     pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
 
