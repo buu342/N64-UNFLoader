@@ -215,8 +215,8 @@ void list_args() //TODO: access violation issue is present in the commented text
     pdprint("  -help\t\t\t   Learn how to use this tool\n", CRDEF_PROGRAM);
     pdprint("  -r <file>\t\t   Upload ROM\n", CRDEF_PROGRAM);
     pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection)\n", CRDEF_PROGRAM);
-    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1,    "64Drive HW1");
-    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2,    "64Drive HW2");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
+    //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
     //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE3, "EverDrive 3.0");
     //pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE7, "EverDrive X7");
     pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only)\n", CRDEF_PROGRAM);
