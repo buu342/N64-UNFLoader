@@ -12,12 +12,12 @@
 void debug_main(ftdi_context_t *cart)
 {
     char buffer[512];
-    int pending = 0;
+    DWORD pending = 0;
     u8 block_magic[] = { 'D', 'M', 'A', '@' };
-    pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
+    pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT, 0);
 
     // Start the debug server loop
-    while (1)
+    for ( ; ; )
 	{
         // If ESC is pressed, stop the loop
 		if (GetAsyncKeyState(VK_ESCAPE))

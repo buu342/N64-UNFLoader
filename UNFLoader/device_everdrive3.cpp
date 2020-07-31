@@ -35,7 +35,7 @@ bool device_test_everdrive3(ftdi_context_t* cart, int index)
         send_buff[3]='T'; 
 
         // Open the device
-        pdprint("Opening the device\n", CRDEF_PROGRAM);
+        pdprint("Opening the device\n", CRDEF_PROGRAM, 0);
         cart->status = FT_Open(index, &cart->handle);
         if(cart->status != FT_OK || !cart->handle)
         {
@@ -139,14 +139,14 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
     bytes_left = size;
 
     // State that we're gonna send
-    pdprint("\n", CRDEF_PROGRAM);
+    pdprint("\n", CRDEF_PROGRAM, 0);
     progressbar_draw("Uploading ROM", 0);
 
     // Send a command saying we're about to write to the cart
 	device_sendcmd_everdrive3(cart, 'W', 0, 0);
 
     // Upload the ROM
-    while(1)
+    for ( ; ; )
     {
         int i;
 

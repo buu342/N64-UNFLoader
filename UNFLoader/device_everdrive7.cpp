@@ -142,7 +142,7 @@ void device_sendrom_everdrive7(ftdi_context_t* cart, FILE *file, u32 size)
     if ((int)size < crc_area)
     {
         char recv_buff[16];
-        pdprint("Filling ROM.\n", CRDEF_PROGRAM);
+        pdprint("Filling ROM.\n", CRDEF_PROGRAM, 0);
         device_sendcmd_everdrive7(cart, 'c', 0x10000000, crc_area, 0);
         device_sendcmd_everdrive7(cart, 't', 0, 0, 0);
         FT_Read(cart->handle, recv_buff, 16, &cart->bytes_read);
@@ -153,14 +153,14 @@ void device_sendrom_everdrive7(ftdi_context_t* cart, FILE *file, u32 size)
     bytes_left = size;
 
     // State that we're gonna send
-    pdprint("\n", CRDEF_PROGRAM);
+    pdprint("\n", CRDEF_PROGRAM, 0);
     progressbar_draw("Uploading ROM", 0);
 
     // Send a command saying we're about to write to the cart
     device_sendcmd_everdrive7(cart, 'W', 0x10000000, size, 0);
 
     // Upload the ROM
-    while(1)
+    for ( ; ; )
     {
         int i;
 
