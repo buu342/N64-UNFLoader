@@ -33,6 +33,7 @@ void debug_assert(expression);
 ### Building the UNFLoader program
 Simply load the project file in Visual Studio 2019 or higher.
 The Include folder should already have everything you need, but if you wish to build/retrieve the libraries yourself:
+
 **pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses)
 * Extract the contents of the zip (preferrably somewhere with no spaces in the file path, like `c:\pdcurses`)
@@ -43,6 +44,7 @@ The Include folder should already have everything you need, but if you wish to b
 * Copy the `pdcurses.lib` that was compiled from the wincon folder to `UNFLoader/Include`, replacing the pdcurses library in there.
 * Copy the `curses.h`, `curspriv.h`, and `panel.h` from the pdcurses directory and put them in `UNFLoader/Include`.
 * Open `curses.h` and uncomment the line with `#define MOUSE_MOVED` to fix a warning due to `wincon.h`.
+
 **ftd2xx.lib**
 * Download the FTDI driver provided in the **Requirements** section and extract the executable form the zip
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
