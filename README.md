@@ -1,9 +1,9 @@
 # UNFLoader
 UNFLoader is a USB ROM uploading (and debugging) tool designed to unify developer flashcarts. 
 Currently supported devices:
-* 64Drive Hardware 1.0 and 2.0
+* [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
 * EverDrive 3.0
-* EverDrive X7
+* [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html)
 
 
 ### Requirements:
@@ -12,10 +12,23 @@ Currently supported devices:
 
 
 ### Using UNFLoader
-Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart, how to debug thread faults, etc...)
+Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart, how to debug thread faults, etc...). The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included debug library). Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
+
 
 ### Using the Debug Library
-Simply include the debug.c and debug.h in your project.
+Assuming you are using libultra, simply include the debug.c and debug.h in your project. You can edit debug.h to enable/disable debug mode (which makes your ROM smaller if disabled).
+Here are the included functions:
+```c
+// Pretty much your standard printf
+void debug_printf(char* message, ...);
+
+// Call this in a loop somewhere to receive USB data
+void debug_poll();
+
+// Stop the program if the expression is false
+void debug_assert(expression);
+```
+
 
 ### Building the UNFLoader program
 Simply load the project file in Visual Studio 2019 or higher.
@@ -35,7 +48,10 @@ The Include folder should already have everything you need, but if you wish to b
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
-Once you have all of these files built and put in the `Include` folder, you're set!
+Once you have all of these files built and put in the `Include` folder, you're set to compile!
 
 ### Credits
-
+Marshallh for providing the 64Drive USB application code which this program was based off of.
+KRIKzz, saturnu and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
+networkfusion and fraser for all the help provided during the development of this project as well as their support.
+The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, CrashOveride, Gravatos, PerKimba, Manfried and Kivan117.
