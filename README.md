@@ -60,6 +60,9 @@ TODO
 
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
+
 KRIKzz, saturnu and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
+
 networkfusion and fraser for all the help provided during the development of this project as well as their support.
+
 The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, CrashOveride, Gravatos, PerKimba, Manfried and Kivan117.
