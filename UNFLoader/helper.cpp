@@ -16,18 +16,18 @@ static char* local_printhistory[PRINT_HISTORY_SIZE];
 
 
 /*==============================
-    pdprint
-    Prints text using PDCurses
-    @param A string to print
+    __pdprint
+    Prints text using PDCurses. Don't use directly.
     @param A color pair to use (use the CR_ macros)
+    @param A string to print
     @param Variadic arguments to print as well
 ==============================*/
 
-void pdprint(char* str, short color, short num_args, ...)
+void __pdprint(short color, char* str, ...)
 {
     int i;
     va_list args;
-    va_start(args, num_args);
+    va_start(args, str);
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
@@ -45,14 +45,14 @@ void pdprint(char* str, short color, short num_args, ...)
 
 
 /*==============================
-    pdprint_v
-    va_list version of pdprint
-    @param A string to print
+    __pdprint_v
+    va_list version of pdprint. Don't use directly.
     @param A color pair to use (use the CR_ macros)
+    @param A string to print
     @param va_list with the arguments to print
 ==============================*/
 
-static void pdprint_v(char* str, short color, va_list args)
+static void __pdprint_v(short color, char* str, va_list args)
 {
     int i;
 
@@ -71,14 +71,14 @@ static void pdprint_v(char* str, short color, va_list args)
 
 
 /*==============================
-    pdprint_replace
-    Same as pdprint but overwrites the previous line
-    @param A string to print
+    __pdprint_replace
+    Same as pdprint but overwrites the previous line. Don't use directly.
     @param A color pair to use (use the CR_ macros)
+    @param A string to print
     @param Variadic arguments to print as well
 ==============================*/
 
-void pdprint_replace(char* str, short color, ...)
+void __pdprint_replace(short color, char* str, ...)
 {
     int i, xpos, ypos;
     va_list args;
@@ -118,8 +118,8 @@ void terminate(char* reason, ...)
 
     // Print why we're ending and pause the program
     if (reason != NULL && strcmp(reason, ""))
-        pdprint_v(reason, CRDEF_ERROR, args);
-    pdprint("\nPress any key to continue...", CRDEF_INPUT, 0);
+        __pdprint_v(CRDEF_ERROR, reason, args);
+    pdprint("\nPress any key to continue...", CRDEF_INPUT);
     va_end(args);
     getchar();
 
@@ -144,8 +144,8 @@ static void terminate_v(char* reason, va_list args)
 
     // Print why we're ending and pause the program
     if (reason != NULL && strcmp(reason, ""))
-        pdprint_v(reason, CRDEF_ERROR, args);
-    pdprint("\nPress any key to continue...", CRDEF_INPUT, 0);
+        __pdprint_v(CRDEF_ERROR, reason, args);
+    pdprint("\nPress any key to continue...", CRDEF_INPUT);
     getchar();
 
     // End the program

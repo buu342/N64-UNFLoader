@@ -66,6 +66,9 @@
     <ClInclude Include="Include\panel.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="helper_internal.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\ftd2xx.lib">

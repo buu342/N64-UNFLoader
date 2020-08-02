@@ -3,7 +3,6 @@
 
     #include <stdio.h>
     #include <stdlib.h>
-    #include <stdarg.h>
     #include <string.h>
     #include <time.h>
     #include <windows.h> // Needed to prevent a macro redefinition due to curses.h

@@ -44,7 +44,7 @@ void device_find(int automode)
 
     // Initialize FTD
     if (automode == CART_NONE)
-        pdprint("Attempting flashcart autodetection.\n", CRDEF_PROGRAM, 0);
+        pdprint("Attempting flashcart autodetection.\n", CRDEF_PROGRAM);
     testcommand(FT_CreateDeviceInfoList(&cart->devices), "Error: USB Device not ready.\n");
 
     // Check if the device exists
@@ -194,7 +194,7 @@ void device_set_everdrive7(ftdi_context_t* cart, int index)
 void device_open()
 {
     funcPointer_open(&local_usb);
-    pdprint("USB connection opened.\n", CRDEF_PROGRAM, 0);
+    pdprint("USB connection opened.\n", CRDEF_PROGRAM);
 }
 
 
@@ -250,7 +250,7 @@ void device_sendrom(char* rompath)
                 // Check if ESC was pressed
                 if (GetAsyncKeyState(VK_ESCAPE) && !escignore)
                 {
-                    pdprint("\nExiting listen mode.\n", CRDEF_PROGRAM, 0);
+                    pdprint("\nExiting listen mode.\n", CRDEF_PROGRAM);
                     return;
                 }
 
@@ -258,7 +258,7 @@ void device_sendrom(char* rompath)
                 if (GetAsyncKeyState(0x52))
                 {
                     resend = true;
-                    pdprint("\nReuploading ROM by request.\n", CRDEF_PROGRAM, 0);
+                    pdprint("\nReuploading ROM by request.\n", CRDEF_PROGRAM);
                     break;
                 }
             }
@@ -270,7 +270,7 @@ void device_sendrom(char* rompath)
         }
         else if (lastmod != 0)
         {
-            pdprint("\nFile change detected. Reuploading ROM.\n", CRDEF_PROGRAM, 0);
+            pdprint("\nFile change detected. Reuploading ROM.\n", CRDEF_PROGRAM);
             lastmod = finfo.st_mtime;
         }
 
@@ -280,7 +280,7 @@ void device_sendrom(char* rompath)
 
         // Complain if the ROM is too small
         if (finfo.st_size < 1052672)
-            pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM, 0); 
+            pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM); 
 
         // Send the ROM
         funcPointer_sendrom(&local_usb, file, finfo.st_size);
@@ -300,7 +300,7 @@ void device_sendrom(char* rompath)
             break;
 
         // Print that we're waiting for changes
-        pdprint("Waiting for file changes. Press ESC to stop. Press R to resend.\n", CRDEF_INPUT, 0);
+        pdprint("Waiting for file changes. Press ESC to stop. Press R to resend.\n", CRDEF_INPUT);
         resend = false;
     }
 }
@@ -314,6 +314,6 @@ void device_sendrom(char* rompath)
 void device_close()
 {
     funcPointer_close(&local_usb);
-    pdprint("USB connection closed.\n", CRDEF_PROGRAM, 0);
+    pdprint("USB connection closed.\n", CRDEF_PROGRAM);
 }
 

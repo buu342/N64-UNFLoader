@@ -194,7 +194,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 	chunk *= 128 * 1024; // Convert to megabytes
 
     // Send chunks to the cart
-    pdprint("\n", CRDEF_PROGRAM, 0);
+    pdprint("\n", CRDEF_PROGRAM);
     progressbar_draw("Uploading ROM", 0);
     for ( ; ; )
     {
@@ -259,12 +259,14 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 		progressbar_draw("Uploading ROM", (float)bytes_done/size);
 	}
 
+    // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
+    FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+    if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
+        terminate("Error: Received wrong CMPlete signal: %c %c %c %02x", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+
     // Print that we've finished
     pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
     free(rom_buffer);
-
-    // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
-    FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
 }
 
 

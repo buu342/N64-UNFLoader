@@ -1,6 +1,8 @@
 #ifndef __HELPER_HEADER
 #define __HELPER_HEADER
 
+    #include "helper_internal.h"
+
 
     /*********************************
                   Macros
@@ -29,8 +31,8 @@
     *********************************/
 
     // Printing
-    void pdprint(char* str, short color, short num_args, ...);
-    void pdprint_replace(char* str, short color, ...);
+    #define pdprint(string, color, ...) __pdprint(color, string, __VA_ARGS__)
+    #define pdprint_replace(string, color, ...) __pdprint_replace(color, string, __VA_ARGS__)
     void terminate(char* reason, ...);
     void progressbar_draw(char* text, float percent);
 

@@ -19,7 +19,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v141_xp</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
@@ -83,6 +83,9 @@
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
+    <PostBuildEvent>
+      <Command>copy "$(TargetPath)" c:\64drive</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="debug.cpp" />
@@ -100,6 +103,7 @@
     <ClInclude Include="device_everdrive3.h" />
     <ClInclude Include="device_everdrive7.h" />
     <ClInclude Include="helper.h" />
+    <ClInclude Include="helper_internal.h" />
     <ClInclude Include="include\curses.h" />
     <ClInclude Include="include\curspriv.h" />
     <ClInclude Include="include\ftd2xx.h" />
