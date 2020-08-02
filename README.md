@@ -50,6 +50,7 @@ The Include folder should already have everything you need, but if you wish to b
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
+
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
 
 
