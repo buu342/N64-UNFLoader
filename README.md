@@ -1,5 +1,9 @@
 # UNFLoader
-A universal N64 flashcart ROM uploader and debug library.
+UNFLoader is a USB ROM uploading (and debugging) tool designed to unify developer flashcarts. 
+Currently supported devices:
+* 64Drive Hardware 1.0 and 2.0
+* EverDrive 3.0
+* EverDrive X7
 
 
 ### Requirements:
@@ -8,10 +12,10 @@ A universal N64 flashcart ROM uploader and debug library.
 
 
 ### Using UNFLoader
-
+Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart, how to debug thread faults, etc...)
 
 ### Using the Debug Library
-
+Simply include the debug.c and debug.h in your project.
 
 ### Building the UNFLoader program
 Simply load the project file in Visual Studio 2019 or higher.
