@@ -20,7 +20,7 @@ Assuming you are using libultra, simply include the debug.c and debug.h in your 
 Here are the included functions:
 ```c
 // Pretty much your standard printf
-void debug_printf(char* message, ...);
+void debug_printf(const char* message, ...);
 
 // Call this in a loop somewhere to receive USB data
 void debug_poll();
