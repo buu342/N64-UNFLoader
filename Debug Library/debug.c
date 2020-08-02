@@ -79,10 +79,32 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-         EverDrive macros
+       EverDrive 3.0 macros
 *********************************/
 
-// TODO
+#define ED3_BASE_ADDRESS   0xA8040000
+
+#define ED3_REGISTER_STATUS  0x04
+#define ED3_REGISTER_DMALEN  0x08
+#define ED3_REGISTER_DMAADD  0x0C
+#define ED3_REGISTER_MSG     0x10
+#define ED3_REGISTER_DMACFG  0x14
+#define ED3_REGISTER_KEY     0x20
+#define ED3_REGISTER_VERSION 0x2C
+
+#define ED3_VERSION 0xA3F0A3F0
+#define ED3_REGKEY 0x1234
+
+
+/*********************************
+       EverDrive X7 macros
+*********************************/
+
+#define ED7_BASE_ADDRESS   0x1F800000
+
+#define ED7_REGISTER_VERSION 0x14
+
+#define ED7_VERSION 0x00000000
 
 
 /*********************************
@@ -104,6 +126,10 @@ static void debug_handleInput();
 static void debug_printRegister(u32 value, char *name, regDesc *desc);
 static void debug_64drive_print(char* message);
 static u8   debug_64drive_poll();
+static void debug_everdrive3_print(char* message);
+static u8   debug_everdrive3_poll();
+static void debug_everdrive7_print(char* message);
+static u8   debug_everdrive7_poll();
 #if USE_FAULTTHREAD
     static void thread_fault(void *arg);
 #endif
@@ -112,6 +138,8 @@ static u8   debug_64drive_poll();
 /*********************************
              Globals
 *********************************/
+        
+volatile u32 *regs_ptr = (u32 *) 0xA8040000;
 
 static s8 debug_cart = CART_NONE;
 static u8 debug_bufferout[BUFFER_SIZE];
@@ -239,50 +267,95 @@ static regDesc fpcsrDesc[] = {
 *********************************/
 
 /*==============================
+    debug_findcart
+    Check if the game is running on a 64Drive or Everdrive.
+==============================*/
+
+static void debug_findcart()
+{
+    u32 buff;
+    
+    // Read the cartridge and check if we have a 64Drive.
+    osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+    if (buff == D64_MAGIC)
+    {
+        debug_cart = CART_64DRIVE;
+        return;
+    }
+    
+    // Read the cartridge and check if we have an EverDrive 3.0
+    osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
+    if (buff == ED3_VERSION)
+    {
+        //u32 keybuf = ED3_REGKEY;
+        
+        volatile u8 val;
+        val = regs_ptr[0];
+        regs_ptr[8] = 0x1234; //unlock everdrive
+        
+        debug_cart = CART_EVERDRIVE3;
+        
+        // Send the key to unlock the ED registers
+        /*memcpy(debug_bufferout, &keybuf, sizeof(keybuf));
+        osWritebackDCacheAll();
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                        ED3_BASE_ADDRESS + ED3_REGISTER_KEY, debug_bufferout, 
+                        sizeof(keybuf), &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);*/
+        
+
+        return;
+    }
+    
+    // Read the cartridge and check if we have an EverDrive 3.0
+    osPiReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
+    if (buff == ED7_VERSION)
+    {
+        debug_cart = CART_EVERDRIVE7;
+        return;
+    }
+}
+
+
+/*==============================
     debug_initialize
     Check if the game is running on a 64Drive or Everdrive.
 ==============================*/
 
 static void debug_initialize()
 {
-    u32 buff;
-    u32 ret;
-    volatile u32 *regs_ptr = (u32 *) 0xA8040000;
-    
     // Initialize the debug related globals
     memset(debug_bufferout, 0, BUFFER_SIZE);
     memset(debug_bufferin, 0, BUFFER_SIZE);
-    
+        
     // Create the message queue
     osCreateMesgQueue(&dmaMessageQ, &dmaMessageBuf, 1);
     
     // Initialize the fault thread
     #if USE_FAULTTHREAD
-        osCreateThread(&faultThread, FAULT_THREAD_ID, thread_fault, 0, (faultThreadStack+FAULT_THREAD_STACK/sizeof(u64)), FAULT_THREAD_PRI);
+        osCreateThread(&faultThread, FAULT_THREAD_ID, thread_fault, 0, 
+                        (faultThreadStack+FAULT_THREAD_STACK/sizeof(u64)), 
+                        FAULT_THREAD_PRI);
         osStartThread(&faultThread);
     #endif
     
-    // Read the cartridge and check if we have a 64Drive.
-    // TODO: add exception handling for other flashcarts
-    osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
-    if (buff == D64_MAGIC)
-        debug_cart = CART_64DRIVE;
-        
-    // ED 3.0
-    osPiReadIo(0xA8040000 + sizeof(u32)*11, &ret);
-        
-    // ED X7
-    osPiReadIo(0x1F800000 + 0x0014, &ret);
-        
+    // Find the flashcart
+    debug_findcart();
+
     // Send the string to the debug cart
     switch(debug_cart)
     {
         case CART_64DRIVE:
             funcPointer_print = debug_64drive_print;
-            funcPointer_poll = debug_64drive_poll;
+            funcPointer_poll  = debug_64drive_poll;
             break;
         case CART_EVERDRIVE3:
-            // TODO
+            funcPointer_print = debug_everdrive3_print;
+            funcPointer_poll  = debug_everdrive3_poll;
+            break;
+        case CART_EVERDRIVE7:
+            funcPointer_print = debug_everdrive7_print;
+            funcPointer_poll  = debug_everdrive7_poll;
             break;
     }
 }
@@ -708,8 +781,10 @@ static void debug_64drive_print(char* message)
     debug_64drive_setwritable(TRUE);
     
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCacheAll();
-	osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, debug_bufferout, length, &dmaMessageQ);
+    osWritebackDCache(debug_bufferout, BUFFER_SIZE);
+	osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                    D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, debug_bufferout, 
+                    length, &dmaMessageQ);
 	(void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     
     // Write the data to the 64Drive
@@ -773,8 +848,10 @@ static u8 debug_64drive_poll()
         remaining = ret & 0xFFFFFF;
         
         // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCacheAll();
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, debug_bufferin, length, &dmaMessageQ);
+        osWritebackDCache(debug_bufferin, BUFFER_SIZE);
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                        D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, debug_bufferin, 
+                        length, &dmaMessageQ);
         (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     }
     while (remaining > 0);
@@ -784,6 +861,113 @@ static u8 debug_64drive_poll()
     debug_64drive_waitdisarmed();
     return 1;
 }
+
+
+/*********************************
+      EverDrive 3.0 functions
+*********************************/
+
+/*==============================
+    debug_everdrive3_wait
+    Wait until the EverDrive 3.0 is ready
+    @return 0 if success or -1 if failure
+==============================*/
+
+static s8 debug_everdrive3_wait()
+{
+    u32 ret;
+    u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
+    
+    // Wait until the cartridge interface is ready
+    do
+    {
+        ret = regs_ptr[1];
+        
+        // Took too long, abort
+        if((timeout++) > 1000000)
+            return -1;
+    }
+    while((ret >> 0) & 1);
+    
+    // Success
+    return 0;
+}
+
+
+/*==============================
+    debug_everdrive3_print
+    Wait until the EverDrive 3.0 is ready
+    @return 0 if success or -1 if failure
+==============================*/
+
+#define ROM_LEN 0x4000000
+#define DMA_BUFF_ADDR (ROM_LEN - 0x100000)
+static void debug_everdrive3_print(char* message)
+{
+    u32 length = strlen(message)+1;
+    volatile u8 val;
+    u32 len = BUFFER_SIZE;
+    u32 ram_buff_addr = DMA_BUFF_ADDR / 2048;
+    u32 header = (length & 0xFFFFFF) | (DATATYPE_TEXT << 24);
+    
+    // Don't allow messages that are too large
+    /*
+    if(length > BUFFER_SIZE)
+        length = BUFFER_SIZE;
+    */
+    
+    // Copy the message to the global buffer
+    debug_bufferout[0] = 'D';
+    debug_bufferout[1] = 'M';
+    debug_bufferout[2] = 'A';
+    debug_bufferout[3] = '@';
+    debug_bufferout[4] = (header >> 24) & 0xFF;
+    debug_bufferout[5] = (header >> 16) & 0xFF;
+    debug_bufferout[6] = (header >> 8)  & 0xFF;
+    debug_bufferout[7] = header & 0xFF;
+    memcpy(debug_bufferout+8, message, length);
+    debug_bufferout[length] = 'C';
+    debug_bufferout[length+1] = 'M';
+    debug_bufferout[length+2] = 'P';
+    debug_bufferout[length+3] = 'H';
+
+    // Set up DMA transfer between RDRAM and the PI
+    osWritebackDCache(debug_bufferout, BUFFER_SIZE);
+    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                   (0xb0000000 + ram_buff_addr * 1024 * 2), debug_bufferout, 
+                    length+12, &dmaMessageQ);
+    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+
+    val = regs_ptr[0];
+    regs_ptr[2] = ((length+12)/BUFFER_SIZE)-1;
+    val = regs_ptr[0];
+    regs_ptr[3] = ram_buff_addr;
+    val = regs_ptr[0];
+    regs_ptr[5] = 4;
+
+    debug_everdrive3_wait();
+}
+
+static u8 debug_everdrive3_poll()
+{
+    return 0;
+}
+
+
+/*********************************
+      EverDrive X7 functions
+*********************************/
+
+static void debug_everdrive7_print(char* message)
+{
+
+}
+
+static u8 debug_everdrive7_poll()
+{
+    return 0;
+}
+
 
 #else
     void debug_printf(char* message, ...){}
