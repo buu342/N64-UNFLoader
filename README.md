@@ -1,5 +1,5 @@
 # UNFLoader
-UNFLoader is a USB ROM uploading (and debugging) tool designed to unify developer flashcarts. 
+UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts. 
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
 * EverDrive 3.0
@@ -49,6 +49,11 @@ The Include folder should already have everything you need, but if you wish to b
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+
+
+### Extending the debug library/loader program
+TODO
+
 
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
