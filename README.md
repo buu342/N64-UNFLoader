@@ -57,11 +57,11 @@ Once you have all of these files built and put in the `Include` folder, you're s
 ### Extending the debug library/loader program
 All data gets sent in the following manner:
 * 4 Bytes with `'D' 'M' 'A' '@'` to signalize data start.
-* 4 Bytes with 1 byte for the command type and 3 for the size of the data.
+* 4 Bytes with 1 byte for the data type and 3 for the size of the data.
 * N bytes with the data.
 * 4 bytes with `'C' 'M' 'P' 'H'` to signalize data end.
 
-The command type mentioned is up to the developer to implement. If you wish to add more command types so that the data is handled differently on the PC side, you must make changed to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Here's a list of default data types:
+The data type mentioned is up to the developer to implement. If you wish to add more data types so that the data is handled differently on the PC side, you must make changes to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Here's a list of default data types:
 ```c
 #define DATATYPE_TEXT       0x01
 #define DATATYPE_RAWBINARY  0x02
