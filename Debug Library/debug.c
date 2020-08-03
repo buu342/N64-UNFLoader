@@ -124,11 +124,11 @@ typedef struct {
 
 static void debug_handleInput();
 static void debug_printRegister(u32 value, char *name, regDesc *desc);
-static void debug_64drive_print(char* message);
+static void debug_64drive_print(const char* message);
 static u8   debug_64drive_poll();
-static void debug_everdrive3_print(char* message);
+static void debug_everdrive3_print(const char* message);
 static u8   debug_everdrive3_poll();
-static void debug_everdrive7_print(char* message);
+static void debug_everdrive7_print(const char* message);
 static u8   debug_everdrive7_poll();
 #if USE_FAULTTHREAD
     static void thread_fault(void *arg);
@@ -151,8 +151,11 @@ OSIoMesg    dmaIOMessageBuf;
 OSMesgQueue dmaMessageQ;
 
 // Function pointers
-void (*funcPointer_print)(char*);
+void (*funcPointer_print)(const char*);
 u8   (*funcPointer_poll)();
+#if OVERWRITE_OSPRINT
+    extern void* __printfunc;
+#endif
 
 // Assertion globals
 int assert_line = 0;
@@ -358,6 +361,10 @@ static void debug_initialize()
             funcPointer_poll  = debug_everdrive7_poll;
             break;
     }
+    
+    #if OVERWRITE_OSPRINT
+        __printfunc = (void*)funcPointer_print;
+    #endif
 }
 
 
@@ -368,7 +375,7 @@ static void debug_initialize()
     @param variadic arguments to print as well
 ==============================*/
 
-void debug_printf(char* message, ...)
+void debug_printf(const char* message, ...)
 {
     int i, j=0, delimcount;
     va_list args;
@@ -755,7 +762,7 @@ static void debug_64drive_waitdisarmed()
     @param A string to print
 ==============================*/
 
-static void debug_64drive_print(char* message)
+static void debug_64drive_print(const char* message)
 {
     u32 i;
     u32 length = strlen(message)+1;
@@ -958,7 +965,7 @@ static u8 debug_everdrive3_poll()
       EverDrive X7 functions
 *********************************/
 
-static void debug_everdrive7_print(char* message)
+static void debug_everdrive7_print(const char* message)
 {
 
 }
@@ -970,7 +977,7 @@ static u8 debug_everdrive7_poll()
 
 
 #else
-    void debug_printf(char* message, ...){}
+    void debug_printf(const char* message, ...){}
     void debug_poll(){}
     void _debug_assert(const char* expression, const char* file, int line){}
 #endif
