@@ -926,10 +926,10 @@ static void debug_everdrive3_print(char* message)
     debug_bufferout[6] = (header >> 8)  & 0xFF;
     debug_bufferout[7] = header & 0xFF;
     memcpy(debug_bufferout+8, message, length);
-    debug_bufferout[length] = 'C';
-    debug_bufferout[length+1] = 'M';
-    debug_bufferout[length+2] = 'P';
-    debug_bufferout[length+3] = 'H';
+    debug_bufferout[length+8] = 'C';
+    debug_bufferout[length+8+1] = 'M';
+    debug_bufferout[length+8+2] = 'P';
+    debug_bufferout[length+8+3] = 'H';
 
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(debug_bufferout, BUFFER_SIZE);
