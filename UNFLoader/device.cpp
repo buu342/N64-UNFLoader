@@ -307,6 +307,19 @@ void device_sendrom(char* rompath)
 
 
 /*==============================
+    device_isopen
+    Checks if the device is open
+    @returns Whether the device is open
+==============================*/
+
+bool device_isopen()
+{
+    ftdi_context_t* cart = &local_usb;
+    return (cart->handle == NULL);
+}
+
+
+/*==============================
     device_close
     Calls the function to close the flashcart
 ==============================*/

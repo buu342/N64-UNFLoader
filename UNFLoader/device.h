@@ -42,6 +42,7 @@
     void device_set_everdrive7(ftdi_context_t* cart, int index);
     void device_open();
     void device_sendrom(char* rompath);
+    bool device_isopen();
     void device_close();
 
 #endif

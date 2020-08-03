@@ -43,10 +43,12 @@ bool device_test_everdrive3(ftdi_context_t* cart, int index)
             terminate("Error: Could not open device.\n");
         }
 
-        // Send the test command
+        // Initialize the USB
         testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
         testcommand(FT_SetTimeouts(cart->handle, 500, 500), "Error: Unable to set flashcart timeouts.\n");
         testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Error: Unable to purge USB contents.\n");
+
+        // Send the test command
         testcommand(FT_Write(cart->handle, send_buff, 512, &cart->bytes_written), "Error: Unable to write to flashcart.\n");
         testcommand(FT_Read(cart->handle, recv_buff, 512, &cart->bytes_read), "Error: Unable to read from flashcart.\n");
         testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
@@ -55,6 +57,7 @@ bool device_test_everdrive3(ftdi_context_t* cart, int index)
         response = recv_buff[3];
         free(send_buff);
         free(recv_buff);
+
         return response == 'k';
     }
     return false;

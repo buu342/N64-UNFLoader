@@ -116,9 +116,15 @@ void terminate(char* reason, ...)
     va_list args;
     va_start(args, reason);
 
-    // Print why we're ending and pause the program
+    // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
         __pdprint_v(CRDEF_ERROR, reason, args);
+
+    // Close the device if it's open
+    if (device_isopen())
+        device_close();
+
+    // Pause the program
     pdprint("\nPress any key to continue...", CRDEF_INPUT);
     va_end(args);
     getchar();
@@ -142,9 +148,15 @@ static void terminate_v(char* reason, va_list args)
 {
     int i;
 
-    // Print why we're ending and pause the program
+    // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
         __pdprint_v(CRDEF_ERROR, reason, args);
+
+    // Close the device if it's open
+    if (device_isopen())
+        device_close();
+
+    // Pause the program
     pdprint("\nPress any key to continue...", CRDEF_INPUT);
     getchar();
 
