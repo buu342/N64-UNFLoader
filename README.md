@@ -26,7 +26,7 @@ void debug_printf(const char* message, ...);
 void debug_poll();
 
 // Stop the program if the expression is false
-void debug_assert(expression);
+#define debug_assert(expression)
 ```
 
 
