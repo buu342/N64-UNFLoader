@@ -82,8 +82,12 @@ https://github.com/buu342/N64-UNFLoader
        EverDrive 3.0 macros
 *********************************/
 
-#define ED3_BASE_ADDRESS   0xA8040000
+#define ED3_BASE_ADDRESS  0xA8040000
+#define ED3_WRITE_ADDRESS 0xB3FFF800
+#define ED3_PI_ADDRESS    0xA4600000
+#define ED3_ROM_ADDRESS   0x7FFF
 
+#define ED3_REGISTER_CFG     0x00
 #define ED3_REGISTER_STATUS  0x04
 #define ED3_REGISTER_DMALEN  0x08
 #define ED3_REGISTER_DMAADD  0x0C
@@ -91,6 +95,18 @@ https://github.com/buu342/N64-UNFLoader
 #define ED3_REGISTER_DMACFG  0x14
 #define ED3_REGISTER_KEY     0x20
 #define ED3_REGISTER_VERSION 0x2C
+
+#define ED3_DMA_BUSY  1
+#define ED3_DMA_WRITE 4
+
+#define ED3_PI_RAMADDRESS  0x00
+#define ED3_PI_PIADDRESS   0x04
+#define ED3_PI_READLENGTH  0x08
+#define ED3_PI_WRITELENGTH 0x0C
+#define ED3_PI_STATUS      0x10
+
+#define ED3_DMACFG_USB2RAM 3
+#define ED3_DMACFG_RAM2USB 4
 
 #define ED3_VERSION 0xA3F0A3F0
 #define ED3_REGKEY 0x1234
@@ -290,23 +306,9 @@ static void debug_findcart()
     osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
     if (buff == ED3_VERSION)
     {
-        //u32 keybuf = ED3_REGKEY;
-        
-        volatile u8 val;
-        val = regs_ptr[0];
-        regs_ptr[8] = 0x1234; //unlock everdrive
-        
+        // Write the key to unlock the registers and set the debug cart to ED3
+        osPiWriteIo(ED3_BASE_ADDRESS + ED3_REGISTER_KEY, ED3_REGKEY);
         debug_cart = CART_EVERDRIVE3;
-        
-        // Send the key to unlock the ED registers
-        /*memcpy(debug_bufferout, &keybuf, sizeof(keybuf));
-        osWritebackDCacheAll();
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                        ED3_BASE_ADDRESS + ED3_REGISTER_KEY, debug_bufferout, 
-                        sizeof(keybuf), &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);*/
-        
-
         return;
     }
     
@@ -360,6 +362,8 @@ static void debug_initialize()
             funcPointer_print = debug_everdrive7_print;
             funcPointer_poll  = debug_everdrive7_poll;
             break;
+        default:
+            return;
     }
     
     #if OVERWRITE_OSPRINT
@@ -875,55 +879,102 @@ static u8 debug_64drive_poll()
 *********************************/
 
 /*==============================
-    debug_everdrive3_wait
-    Wait until the EverDrive 3.0 is ready
-    @return 0 if success or -1 if failure
+    debug_everdrive3_wait_pidma
+    TODO: Write this header
 ==============================*/
 
-static s8 debug_everdrive3_wait()
+static void debug_everdrive3_wait_pidma() 
 {
-    u32 ret;
-    u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
-    
-    // Wait until the cartridge interface is ready
+    u32 status;
     do
     {
-        ret = regs_ptr[1];
-        
-        // Took too long, abort
-        if((timeout++) > 1000000)
-            return -1;
+        osPiReadIo(ED3_PI_ADDRESS + ED3_PI_STATUS, &status);
+        status &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
     }
-    while((ret >> 0) & 1);
+    while (status);
+}
+
+
+/*==============================
+    debug_everdrive3_wait_write
+    TODO: Write this header
+==============================*/
+
+static void debug_everdrive3_wait_write()
+{
+    u32 status;
+    do
+    {
+        osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_STATUS, &status);
+        status &= ED3_DMA_WRITE;
+    }
+    while (status != 0);
+}
+
+
+/*==============================
+    debug_everdrive3_wait_dma
+    TODO: Write this header
+==============================*/
+
+static void debug_everdrive3_wait_dma()
+{
+    u32 status;
+    do
+    {
+        osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_STATUS, &status);
+        status &= ED3_DMA_BUSY;
+    }
+    while (status != 0);
+}
+
+
+/*==============================
+    debug_everdrive3_writeusb
+    TODO: Write this header
+==============================*/
+
+static void debug_everdrive3_writeusb(void *buff, unsigned long len) 
+{
+    // Set up DMA transfer between RDRAM and the PI
+    osWritebackDCache(buff, BUFFER_SIZE);
+    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                 ED3_WRITE_ADDRESS, buff, 
+                 512, &dmaMessageQ);
+    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     
-    // Success
-    return 0;
+    // Write to the PI info about what we're sending
+    debug_everdrive3_wait_pidma();
+    IO_WRITE(PI_STATUS_REG, 3);
+    osPiWriteIo(ED3_PI_ADDRESS + ED3_PI_RAMADDRESS, (u32)buff);
+    osPiWriteIo(ED3_PI_ADDRESS + ED3_PI_PIADDRESS, ED3_WRITE_ADDRESS & 0x1FFFFFFF);
+    osPiWriteIo(ED3_PI_ADDRESS + ED3_PI_READLENGTH, 512-1);
+    debug_everdrive3_wait_pidma();
+    
+    // Write data to the USB registers
+    debug_everdrive3_wait_write();
+    osPiWriteIo(ED3_BASE_ADDRESS + ED3_REGISTER_DMALEN, 0);
+    osPiWriteIo(ED3_BASE_ADDRESS + ED3_REGISTER_DMAADD, ED3_ROM_ADDRESS);
+    osPiWriteIo(ED3_BASE_ADDRESS + ED3_REGISTER_DMACFG, ED3_DMACFG_RAM2USB);
+    debug_everdrive3_wait_dma();
 }
 
 
 /*==============================
     debug_everdrive3_print
-    Wait until the EverDrive 3.0 is ready
-    @return 0 if success or -1 if failure
+    TODO: Write this header
 ==============================*/
 
-#define ROM_LEN 0x4000000
-#define DMA_BUFF_ADDR (ROM_LEN - 0x100000)
-static void debug_everdrive3_print(char* message)
+static void debug_everdrive3_print(const char* message)
 {
     u32 length = strlen(message)+1;
-    volatile u8 val;
-    u32 len = BUFFER_SIZE;
-    u32 ram_buff_addr = DMA_BUFF_ADDR / 2048;
     u32 header = (length & 0xFFFFFF) | (DATATYPE_TEXT << 24);
     
     // Don't allow messages that are too large
-    /*
-    if(length > BUFFER_SIZE)
+    if (length > BUFFER_SIZE)
         length = BUFFER_SIZE;
-    */
     
-    // Copy the message to the global buffer
+    // Put in the DMA header along with length and type information in the global buffer
     debug_bufferout[0] = 'D';
     debug_bufferout[1] = 'M';
     debug_bufferout[2] = 'A';
@@ -932,31 +983,29 @@ static void debug_everdrive3_print(char* message)
     debug_bufferout[5] = (header >> 16) & 0xFF;
     debug_bufferout[6] = (header >> 8)  & 0xFF;
     debug_bufferout[7] = header & 0xFF;
+    
+    // Copy the message to the next available spots in the global buffer
     memcpy(debug_bufferout+8, message, length);
+    
+    // Write the completion signal at the end of the message
     debug_bufferout[length+8] = 'C';
-    debug_bufferout[length+8+1] = 'M';
-    debug_bufferout[length+8+2] = 'P';
-    debug_bufferout[length+8+3] = 'H';
+    debug_bufferout[length+9] = 'M';
+    debug_bufferout[length+10] = 'P';
+    debug_bufferout[length+11] = 'H';
 
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(debug_bufferout, BUFFER_SIZE);
-    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                   (0xb0000000 + ram_buff_addr * 1024 * 2), debug_bufferout, 
-                    length+12, &dmaMessageQ);
-    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-
-    val = regs_ptr[0];
-    regs_ptr[2] = ((length+12)/BUFFER_SIZE)-1;
-    val = regs_ptr[0];
-    regs_ptr[3] = ram_buff_addr;
-    val = regs_ptr[0];
-    regs_ptr[5] = 4;
-
-    debug_everdrive3_wait();
+    debug_everdrive3_writeusb(debug_bufferout, length+12);
 }
+
+
+/*==============================
+    debug_everdrive3_poll
+    TODO: Write this header
+==============================*/
 
 static u8 debug_everdrive3_poll()
 {
+    // TODO: Implement this function
     return 0;
 }
 
@@ -967,11 +1016,12 @@ static u8 debug_everdrive3_poll()
 
 static void debug_everdrive7_print(const char* message)
 {
-
+    // TODO: Implement this function
 }
 
 static u8 debug_everdrive7_poll()
 {
+    // TODO: Implement this function
     return 0;
 }
 
