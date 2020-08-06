@@ -209,7 +209,7 @@ void show_title()
     Lists all the program arugments
 ==============================*/
 
-void list_args() //TODO: access violation issue is present in the commented text:
+void list_args()
 {
     pdprint("Parameters: <required> [optional]\n", CRDEF_PROGRAM);
     pdprint("  -help\t\t\t   Learn how to use this tool\n", CRDEF_PROGRAM);
@@ -227,6 +227,9 @@ void list_args() //TODO: access violation issue is present in the commented text
     pdprint("  -s <int>\t\t   Set save emulation type (64Drive only)\n", CRDEF_PROGRAM);
     pdprint("  -d\t\t\t   Debug mode\n", CRDEF_PROGRAM);
     pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed)\n", CRDEF_PROGRAM);
+    //pdprint("  -o <directory>\t   Export directory (excluding uses current directory)\n", CRDEF_PROGRAM);
+    //pdprint("  -e <filename>\t\t   Export console prints to a file\n", CRDEF_PROGRAM);
+    //pdprint("  -h <int>\t\t   Force terminal height (number of rows)\n", CRDEF_PROGRAM);
     pdprint("  -w\t\t\t   Disable terminal colors\n\n", CRDEF_PROGRAM);
 }
 

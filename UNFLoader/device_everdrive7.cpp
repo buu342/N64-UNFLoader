@@ -237,4 +237,4 @@ void device_sendrom_everdrive7(ftdi_context_t* cart, FILE *file, u32 size)
 void device_close_everdrive7(ftdi_context_t* cart)
 {
     testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
-}x
+}

@@ -208,7 +208,7 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
 		if(cart->bytes_written == 0) 
         {
             free(rom_buffer);
-            terminate("Error: Everdrive timed out");
+            terminate("Error: Everdrive timed out.");
         }
 
          // Keep track of how many bytes were uploaded
@@ -220,7 +220,7 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Send the PIFboot command
-    Sleep(500);
+    Sleep(500); // Delay is needed or it won't boot properly
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive3(cart, 'S', 0, 0);
 

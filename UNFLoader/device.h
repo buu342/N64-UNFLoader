@@ -35,14 +35,15 @@
             Function Prototypes
     *********************************/
 
-    void device_find(int automode);
-    void device_set_64drive1(ftdi_context_t* cart, int index);
-    void device_set_64drive2(ftdi_context_t* cart, int index);
-    void device_set_everdrive3(ftdi_context_t* cart, int index);
-    void device_set_everdrive7(ftdi_context_t* cart, int index);
-    void device_open();
-    void device_sendrom(char* rompath);
-    bool device_isopen();
-    void device_close();
+    void  device_find(int automode);
+    void  device_set_64drive1(ftdi_context_t* cart, int index);
+    void  device_set_64drive2(ftdi_context_t* cart, int index);
+    void  device_set_everdrive3(ftdi_context_t* cart, int index);
+    void  device_set_everdrive7(ftdi_context_t* cart, int index);
+    void  device_open();
+    void  device_sendrom(char* rompath);
+    bool  device_isopen();
+    DWORD device_getcarttype();
+    void  device_close();
 
 #endif

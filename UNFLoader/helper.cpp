@@ -5,6 +5,7 @@ Useful functions to use in conjunction with the program
 ***************************************************************/
 
 #include "main.h"
+#include "device.h"
 #include "helper.h"
 
 

@@ -315,7 +315,20 @@ void device_sendrom(char* rompath)
 bool device_isopen()
 {
     ftdi_context_t* cart = &local_usb;
-    return (cart->handle == NULL);
+    return (cart->handle != NULL);
+}
+
+
+/*==============================
+    device_getcarttype
+    Returns the type of the connected cart
+    @returns The cart type
+==============================*/
+
+DWORD device_getcarttype()
+{
+    ftdi_context_t* cart = &local_usb;
+    return cart->carttype;
 }
 
 
@@ -326,6 +339,11 @@ bool device_isopen()
 
 void device_close()
 {
+    // Should never happen, but just in case...
+    if (local_usb.handle == NULL)
+        return;
+
+    // Close the device
     funcPointer_close(&local_usb);
     pdprint("USB connection closed.\n", CRDEF_PROGRAM);
 }
