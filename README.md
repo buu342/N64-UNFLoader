@@ -67,7 +67,7 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 #define DATATYPE_RAWBINARY  0x02
 #define DATATYPE_SCREENSHOT 0x03
 ```
-
+There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
 
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
