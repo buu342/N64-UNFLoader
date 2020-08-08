@@ -1,9 +1,27 @@
 # UNFLoader
+**This project is in development and was only uploaded here to facilitate its development.**
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, however I have implemented some useful features to boot (such as printf).
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
-* EverDrive 3.0
+* EverDrive 3.0 (No longer comercially sold)
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html)
+
+
+### Current TODO list:
+* **Library** - Finish cleaning up EverDrive 3.0 code for printf.
+* **Library** - Make printf work on the EverDrive X7.
+* **Library** - Write sample demos.
+* **UNFLoader** - Implement text input.
+* **UNFLoader** - Implement scrolling.
+* **UNFLoader** - Implement command history.
+* **UNFLoader** - Implement binary file uploading via USB.
+* **UNFLoader** - Look into the possibility of implementing remote console reset.
+* **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
+* **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
+* **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
+* **UNFLoader + Library** - Clean up the final code to ensure there are plenty of convenience functions (such as `debug_senddata(char type, int size, char* data)`).
+* **UNFLoader + Library** - Implement screenshot functionality.
+* **UNFLoader + Library** - Implement data checksum.
 
 
 ### Requirements:
