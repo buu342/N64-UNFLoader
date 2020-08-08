@@ -16,6 +16,8 @@ Currently supported devices:
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
+* **UNFLoader** - Optimize file uploading speed for the EverDrive 3.0.
+* **UNFLoader** - Optimize file uploading speed for the EverDrive X7.
 * **UNFLoader** - Look into the possibility of implementing remote console reset.
 * **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
