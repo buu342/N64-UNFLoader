@@ -161,6 +161,16 @@ void parse_args(int argc, char* argv[])
             else 
                 terminate("Missing parameter(s) for command '%s'.\n", command);
         }
+        else if (!strcmp(command, "-h")) // Set terminal height
+        {
+            i++;
+
+            // If we have an argument after this one, then set the terminal height, otherwise terminate
+            if (i < argc)
+                resize_term(strtol(argv[i], NULL, 0), 80);
+            else
+                terminate("Missing parameter(s) for command '%s'.\n", command);
+        }
         else if (!strcmp(command, "-w")) // Disable terminal colors command
             global_usecolors = false;
         else if (!strcmp(command, "-l")) // Listen mode
@@ -188,10 +198,10 @@ void show_title()
 {
     int i;
     char title[] = PROGRAM_NAME_SHORT;
-    int titlesize = sizeof(title)/sizeof(title[0])-1;
+    int titlesize = sizeof(title)/sizeof(title[0]);
  
     // Print the title
-    for (i=0; i<titlesize; i++)
+    for (i=0; i<titlesize-1; i++)
     {
         char str[2] = {title[i], '\0'};
         pdprint(str, 1+(i)%TOTAL_COLORS);
@@ -200,7 +210,7 @@ void show_title()
     // Print other stuff
     pdprint("\n--------------------------------------------\n", CR_NONE);
     pdprint("Cobbled together by Buu342\n", CR_NONE);
-    pdprint("Compiled on %s\n\n", CR_NONE, __DATE__); //TODO: date is always null?!
+    pdprint("Compiled on %s\n\n", CR_NONE, __DATE__);
 }
 
 
@@ -229,7 +239,7 @@ void list_args()
     pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed)\n", CRDEF_PROGRAM);
     //pdprint("  -o <directory>\t   Export directory (excluding uses current directory)\n", CRDEF_PROGRAM);
     //pdprint("  -e <filename>\t\t   Export console prints to a file\n", CRDEF_PROGRAM);
-    //pdprint("  -h <int>\t\t   Force terminal height (number of rows)\n", CRDEF_PROGRAM);
+    pdprint("  -h <int>\t\t   Force terminal height (number of rows)\n", CRDEF_PROGRAM);
     pdprint("  -w\t\t\t   Disable terminal colors\n\n", CRDEF_PROGRAM);
 }
 
@@ -252,8 +262,7 @@ void show_help()
             " 1 - Uploading ROMs on the 64Drive\n"
             " 2 - Uploading ROMs on the EverDrive\n"
             " 3 - Using Listen mode\n"
-            " 4 - Using Debug mode\n"
-            " 5 - How to diagnose a thread crash\n", CRDEF_PROGRAM);
+            " 4 - Using Debug mode\n", CRDEF_PROGRAM);
 
     // Get the category
     pdprint("\nCategory: ", CRDEF_INPUT);
@@ -309,10 +318,6 @@ void show_help()
                     "For more information on how to implement the debug library, check the GitHub\n"
                     "page where this tool was uploaded too, there should be plenty of examples there.\n"
                     PROGRAM_GITHUB"\n", CRDEF_PROGRAM);
-            break;
-        case '5':
-            // TODO: Write this section
-            pdprint("Todo", CRDEF_PROGRAM);
             break;
         default:
             terminate("Unknown category.\n"); 
