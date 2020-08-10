@@ -32,6 +32,7 @@
 
     // Printing
     #define pdprint(string, color, ...) __pdprint(color, string, __VA_ARGS__)
+    #define pdprintw(window, string, color, ...) __pdprintw(window, color, string, __VA_ARGS__)
     #define pdprint_replace(string, color, ...) __pdprint_replace(color, string, __VA_ARGS__)
     void terminate(char* reason, ...);
     void progressbar_draw(char* text, float percent);

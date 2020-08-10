@@ -61,6 +61,7 @@ int main(int argc, char* argv[])
     initscr();
     start_color();
     use_default_colors();
+    noecho();
 
     // Setup our console
     scrollok(stdscr, 1);

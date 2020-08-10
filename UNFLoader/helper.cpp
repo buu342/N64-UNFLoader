@@ -46,6 +46,37 @@ void __pdprint(short color, char* str, ...)
 
 
 /*==============================
+    __pdprintw
+    Prints text using PDCurses to a specific window. Don't use directly.
+    @param The window to print to
+    @param A color pair to use (use the CR_ macros)
+    @param A string to print
+    @param Variadic arguments to print as well
+==============================*/
+
+void __pdprintw(WINDOW *win, short color, char* str, ...)
+{
+    int i;
+    va_list args;
+    va_start(args, str);
+
+    // Disable all the colors
+    for (i=0; i<TOTAL_COLORS; i++)
+        wattroff(win, COLOR_PAIR(i+1));
+
+    // If a color is specified, use it
+    if (global_usecolors && color != CR_NONE)
+        wattron(win, COLOR_PAIR(color));
+
+    // Print the string
+    vw_printw(win, str, args);
+    refresh();
+    wrefresh(win);
+    va_end(args);
+}
+
+
+/*==============================
     __pdprint_v
     va_list version of pdprint. Don't use directly.
     @param A color pair to use (use the CR_ macros)

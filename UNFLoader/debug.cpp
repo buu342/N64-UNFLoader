@@ -16,14 +16,16 @@ Handles USB I/O.
 *********************************/
 
 #define BUFFER_SIZE 512
+#define BLINKRATE   40
 
 
 /*********************************
         Function Pointers
 *********************************/
 
-void debug_decidedata(ftdi_context_t* cart, u32 info, u8* buffer, u32* read);
-void debug_handle_text(ftdi_context_t* cart, u32 size, u8* buffer, u32* read);
+void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos);
+void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
+void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 
 
 /*==============================
@@ -34,17 +36,26 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, u8* buffer, u32* read);
 
 void debug_main(ftdi_context_t *cart)
 {
-    u8 *buffer;
+    char *outbuff, *inbuff;
+    u16 cursorpos = 0;
     DWORD pending = 0;
+    WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
     pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
+    timeout(0);
+    curs_set(0);
+
+    // Initialize our buffers
+    outbuff = malloc(BUFFER_SIZE);
+    inbuff = malloc(BUFFER_SIZE);
+    memset(inbuff, 0, BUFFER_SIZE);
 
     // Start the debug server loop
-    buffer = malloc(BUFFER_SIZE);
     for ( ; ; ) 
 	{
         // If ESC is pressed, stop the loop
 		if (GetAsyncKeyState(VK_ESCAPE))
 			break;
+        debug_textinput(cart, inputwin, inbuff, &cursorpos);
 
         // Check if we have pending data
         FT_GetQueueStatus(cart->handle, &pending);
@@ -53,30 +64,30 @@ void debug_main(ftdi_context_t *cart)
             u32 info, read = 0;
 
             // Ensure we have valid data by reading the header
-            FT_Read(cart->handle, buffer, 4, &cart->bytes_read);
+            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
             read += cart->bytes_read;
-            if (buffer[0] != 'D' || buffer[1] != 'M' || buffer[2] != 'A' || buffer[3] != '@')
-                terminate("Error: Unexpected DMA header: %c %c %c %c\n", buffer[0], buffer[1], buffer[2], buffer[3]);
+            if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
+                terminate("Error: Unexpected DMA header: %c %c %c %c\n", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
 
             // Get information about the incoming data
-            FT_Read(cart->handle, buffer, 4, &cart->bytes_read);
+            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
             read += cart->bytes_read;
-            info = swap_endian(buffer[3] << 24 | buffer[2] << 16 | buffer[1] << 8 | buffer[0]);
+            info = swap_endian(outbuff[3] << 24 | outbuff[2] << 16 | outbuff[1] << 8 | outbuff[0]);
 
             // Decide what to do with the received data
-            debug_decidedata(cart, info, buffer, &read);
+            debug_decidedata(cart, info, outbuff, &read);
 
             // Read the completion signal
-            FT_Read(cart->handle, buffer, 4, &cart->bytes_read);
+            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
             read += cart->bytes_read;
-            if (buffer[0] != 'C' || buffer[1] != 'M' || buffer[2] != 'P' || buffer[3] != 'H')
-                terminate("Error: Did not receive completion signal: %c %c %c %c.\n", buffer[0], buffer[1], buffer[2], buffer[3]);
+            if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
+                terminate("Error: Did not receive completion signal: %c %c %c %c.\n", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
 
             // The EverDrive 3.0 always sends 512 byte chunks, so ensure you always read 512 bytes
             if (cart->carttype == CART_EVERDRIVE3 && (read % 512) != 0)
             {
                 int left = 512 - (read % 512);
-                FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+                FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
             }
         }
 
@@ -85,7 +96,67 @@ void debug_main(ftdi_context_t *cart)
         if (pending == 0)
             Sleep(10);
     }
-    free(buffer);
+
+    // Clean up everything
+    free(outbuff);
+    free(inbuff);
+    wclear(inputwin);
+    wrefresh(inputwin);
+    delwin(inputwin);
+    curs_set(0);
+}
+
+
+/*==============================
+    debug_textinput
+    TODO: Write this header
+==============================*/
+
+void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos)
+{
+    static int blinker = 0;
+    static int size = 0;
+    int ch = getch();
+
+    // Decide what to do on key presses
+    if ((ch == KEY_ENTER || ch == '\n' || ch == '\r') && size != 0)
+    {
+        pdprint("Sending command %s\n", CRDEF_INFO, buffer);
+        device_sendcommand(buffer, size);
+        memset(buffer, 0, BUFFER_SIZE);
+        (*cursorpos) = 0;
+        size = 0;
+    }
+    else if (ch == KEY_BACKSPACE || ch == 127 || ch == '\b')
+    {
+        if ((*cursorpos) > 0)
+        {
+            buffer[--(*cursorpos)] = 0;
+            size--;
+        }
+    }
+    else if (ch != ERR && isascii(ch) && ch > 0x1F)
+    {
+        buffer[(*cursorpos)++] = ch;
+        size++;
+    }
+
+    // Display what we've written
+    pdprintw(inputwin, buffer, CRDEF_INPUT);
+
+    // Draw the blinker
+    blinker = (blinker++) % (1+BLINKRATE * 2);
+    if (blinker >= BLINKRATE)
+    {
+        int x, y;
+        getyx(inputwin, y, x);
+        mvwaddch(inputwin, y, (*cursorpos), 219);
+        wmove(inputwin, y, x);
+    }
+
+    // Refresh the input window
+    wrefresh(inputwin);
+    wclear(inputwin);
 }
 
 
@@ -98,7 +169,7 @@ void debug_main(ftdi_context_t *cart)
     @param A pointer to a variable that stores the number of bytes read
 ==============================*/
 
-void debug_decidedata(ftdi_context_t* cart, u32 info, u8* buffer, u32* read)
+void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read)
 {
     u8 command = (info >> 24) & 0xFF;
     u32 size = info & 0xFFFFFF;
@@ -121,7 +192,7 @@ void debug_decidedata(ftdi_context_t* cart, u32 info, u8* buffer, u32* read)
     @param A pointer to a variable that stores the number of bytes read
 ==============================*/
 
-void debug_handle_text(ftdi_context_t* cart, u32 size, u8* buffer, u32* read)
+void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
 {
     int total = 0;
     int left = size;

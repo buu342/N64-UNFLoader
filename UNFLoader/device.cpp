@@ -307,6 +307,19 @@ void device_sendrom(char* rompath)
 
 
 /*==============================
+    device_sendcommand
+    Sends a command to the flashcart via USB
+    @param The command to send
+    @param The number of bytes in the command
+==============================*/
+
+void device_sendcommand(char* command, int size)
+{
+    ftdi_context_t* cart = &local_usb;
+}
+
+
+/*==============================
     device_isopen
     Checks if the device is open
     @returns Whether the device is open
