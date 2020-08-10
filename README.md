@@ -12,7 +12,6 @@ Currently supported devices:
 * **Library** - Finish cleaning up EverDrive 3.0 code for printf.
 * **Library** - Make printf work on the EverDrive X7.
 * **Library** - Write sample demos.
-* **UNFLoader** - Implement text input.
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
