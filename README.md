@@ -9,7 +9,6 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Finish cleaning up EverDrive 3.0 code for printf.
 * **Library** - Make printf work on the EverDrive X7.
 * **Library** - Write sample demos.
 * **UNFLoader** - Implement scrolling.
