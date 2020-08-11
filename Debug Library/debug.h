@@ -9,7 +9,6 @@
     #define DEBUG_MODE        1   // Enable/Disable debug mode
     #define USE_OSRAW         0   // Use if you're doing USB operations without the PI Manager
     #define USE_FAULTTHREAD   1   // Create a fault detection thread 
-    #define BUFFER_SIZE       512 // Input/Output buffer size
     #define OVERWRITE_OSPRINT 1   // Replaces osSyncPrintf calls with debug_printf
     
     // Fault thread definitions
@@ -21,6 +20,8 @@
     /*********************************
              Debug Functions
     *********************************/
+    
+    extern char ised7;
     
     // The accessible debug functions
     extern void debug_printf(const char* message, ...);

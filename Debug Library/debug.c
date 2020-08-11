@@ -19,6 +19,9 @@ https://github.com/buu342/N64-UNFLoader
        Standard Definitions
 *********************************/
 
+// Input/Output buffer size
+#define BUFFER_SIZE       512
+
 // Cart definitions
 #define CART_NONE       0
 #define CART_64DRIVE    2
@@ -118,9 +121,19 @@ https://github.com/buu342/N64-UNFLoader
 *********************************/
 
 #define ED7_BASE_ADDRESS   0x1F800000
+#define ED7_PI_ADDRESS     0xA4600000
+
+#define ED7_PI_RAMADDRESS  0x00
+#define ED7_PI_PIADDRESS   0x04
+#define ED7_PI_READLENGTH  0x08
+#define ED7_PI_WRITELENGTH 0x0C
+#define ED7_PI_STATUS      0x10
+
+#define ED7_GET_REGADD(reg)   (0xA0000000 | ED7_BASE_ADDRESS | (reg))
 
 #define ED7_REGISTER_VERSION 0x14
 
+#define ED7_REGKEY  0xAA55
 #define ED7_VERSION 0x00000000
 
 
@@ -147,6 +160,8 @@ static void debug_everdrive3_print(const char* message);
 static u8   debug_everdrive3_poll();
 static void debug_everdrive7_print(const char* message);
 static u8   debug_everdrive7_poll();
+static void gdbDMAWrite(void* ram, u32 piAddress, u32 len);
+static void gdbWriteReg(u64 reg, u32 value);
 #if USE_FAULTTHREAD
     static void thread_fault(void *arg);
 #endif
@@ -284,10 +299,112 @@ static regDesc fpcsrDesc[] = {
          Debug functions
 *********************************/
 
+#define USB_LE_CFG      0x8000
+#define USB_LE_CTR      0x4000
+
+#define USB_CFG_ACT     0x0200
+#define USB_CFG_RD      0x0400
+#define USB_CFG_WR      0x0000
+
+#define USB_STA_ACT     0x0200
+#define USB_STA_RXF     0x0400
+#define USB_STA_TXE     0x0800
+#define USB_STA_PWR     0x1000
+#define USB_STA_BSY     0x2000
+
+#define USB_CMD_RD_NOP  (USB_LE_CFG | USB_LE_CTR | USB_CFG_RD)
+#define USB_CMD_RD      (USB_LE_CFG | USB_LE_CTR | USB_CFG_RD | USB_CFG_ACT)
+#define USB_CMD_WR_NOP  (USB_LE_CFG | USB_LE_CTR | USB_CFG_WR)
+#define USB_CMD_WR      (USB_LE_CFG | USB_LE_CTR | USB_CFG_WR | USB_CFG_ACT)
+
 /*==============================
     debug_findcart
     Check if the game is running on a 64Drive or Everdrive.
 ==============================*/
+
+#define REG_BASE        0x1F800000
+#define REG_FPG_CFG     0x0000
+#define REG_USB_CFG     0x0004
+#define REG_TIMER       0x000C
+#define REG_BOOT_CFG    0x0010
+#define REG_IOM_VER     0x0014
+#define REG_I2C_CMD     0x0018
+#define REG_I2C_DAT     0x001C
+
+#define REG_FPG_DAT     0x0200
+#define REG_USB_DAT     0x0400
+
+#define REG_SYS_CFG     0x8000
+#define REG_KEY         0x8004
+#define REG_DMA_STA     0x8008
+#define REG_DMA_ADDR    0x8008
+#define REG_DMA_LEN     0x800C
+#define REG_RTC_SET     0x8010
+#define REG_RAM_CFG     0x8018
+#define REG_IOM_CFG     0x801C
+#define REG_SDIO        0x8020
+#define REG_MCN_VER     0x8040
+#define REG_SDIO_ARD    0x8200
+#define REG_IOM_DAT     0x8400
+#define REG_DD_TBL      0x8800
+#define REG_SD_CMD_RD   (REG_SDIO + 0x00*4)
+#define REG_SD_CMD_WR   (REG_SDIO + 0x01*4)
+#define REG_SD_DAT_RD   (REG_SDIO + 0x02*4)
+#define REG_SD_DAT_WR   (REG_SDIO + 0x03*4)
+#define REG_SD_STATUS   (REG_SDIO + 0x04*4)
+
+#define DMA_STA_BUSY    0x0001
+#define DMA_STA_ERROR   0x0002
+#define DMA_STA_LOCK    0x0080
+
+#define SD_CFG_BITLEN   0x000F
+#define SD_CFG_SPD      0x0010
+#define SD_STA_BUSY     0x0080
+
+#define CFG_BROM_ON     0x0001
+#define CFG_REGS_OFF    0x0002
+#define CFG_SWAP_ON     0x0004
+
+#define FPG_CFG_NCFG    0x0001
+#define FPG_STA_CDON    0x0001
+#define FPG_STA_NSTAT   0x0002
+
+#define I2C_CMD_DAT     0x10
+#define I2C_CMD_STA     0x20
+#define I2C_CMD_END     0x30
+
+#define IOM_CFG_SS      0x0001
+#define IOM_CFG_RST     0x0002
+#define IOM_CFG_ACT     0x0080
+#define IOM_STA_CDN     0x0001
+
+#define USB_LE_CFG      0x8000
+#define USB_LE_CTR      0x4000
+
+#define USB_CFG_ACT     0x0200
+#define USB_CFG_RD      0x0400
+#define USB_CFG_WR      0x0000
+
+#define USB_STA_ACT     0x0200
+#define USB_STA_RXF     0x0400
+#define USB_STA_TXE     0x0800
+#define USB_STA_PWR     0x1000
+#define USB_STA_BSY     0x2000
+
+#define USB_CMD_RD_NOP  (USB_LE_CFG | USB_LE_CTR | USB_CFG_RD)
+#define USB_CMD_RD      (USB_LE_CFG | USB_LE_CTR | USB_CFG_RD | USB_CFG_ACT)
+#define USB_CMD_WR_NOP  (USB_LE_CFG | USB_LE_CTR | USB_CFG_WR)
+#define USB_CMD_WR      (USB_LE_CFG | USB_LE_CTR | USB_CFG_WR | USB_CFG_ACT)
+
+#define REG_LAT 0x04
+#define REG_PWD 0x04
+
+#define ROM_LAT 0x40
+#define ROM_PWD 0x12
+
+#define REG_ADDR(reg)   (0xA0000000 | REG_BASE | (reg))
+
+char ised7 = 0;
 
 static void debug_findcart()
 {
@@ -315,6 +432,13 @@ static void debug_findcart()
     osPiReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
     if (buff == ED7_VERSION)
     {
+    
+        IO_WRITE(PI_BSD_DOM1_LAT_REG, 0x04);
+        IO_WRITE(PI_BSD_DOM1_PWD_REG, 0x0C);
+        
+        gdbWriteReg(REG_KEY, 0xAA55);
+        gdbWriteReg(REG_SYS_CFG, 0);
+        gdbWriteReg(REG_USB_CFG, USB_CMD_RD_NOP); //turn off usb r/w activity
         debug_cart = CART_EVERDRIVE7;
         return;
     }
@@ -325,7 +449,6 @@ static void debug_findcart()
     debug_initialize
     Check if the game is running on a 64Drive or Everdrive.
 ==============================*/
-
 static void debug_initialize()
 {
     // Initialize the debug related globals
@@ -884,7 +1007,7 @@ static u8 debug_64drive_poll()
     @param The data to write
 ==============================*/
 
-void debug_everdrive3_regwrite(unsigned long reg, unsigned long data)
+static void debug_everdrive3_regwrite(unsigned long reg, unsigned long data)
 {
     *(volatile unsigned long *) (ED3_BASE_ADDRESS);
     *(volatile unsigned long *) (ED3_BASE_ADDRESS + reg) = data;
@@ -897,7 +1020,7 @@ void debug_everdrive3_regwrite(unsigned long reg, unsigned long data)
     @param The register to read from
 ==============================*/
 
-unsigned long debug_everdrive3_regread(unsigned long reg)
+static unsigned long debug_everdrive3_regread(unsigned long reg)
 {
     *(volatile unsigned long *) (ED3_BASE_ADDRESS);
     return *(volatile unsigned long *) (ED3_BASE_ADDRESS + reg);
@@ -961,7 +1084,7 @@ static void debug_everdrive3_wait_dma()
     @param A buffer containing the data
 ==============================*/
 
-void debug_everdrive3_writeusb(void *buff) 
+static void debug_everdrive3_writeusb(void *buff) 
 {
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(buff, BUFFER_SIZE);
@@ -1043,9 +1166,124 @@ static u8 debug_everdrive3_poll()
       EverDrive X7 functions
 *********************************/
 
+typedef struct PI_regs_s {
+    /** @brief Uncached address in RAM where data should be found */
+    void * ram_address;
+    /** @brief Address of data on peripheral */
+    unsigned long pi_address;
+    /** @brief How much data to read from RAM into the peripheral */
+    unsigned long read_length;
+    /** @brief How much data to write to RAM from the peripheral */
+    unsigned long write_length;
+    /** @brief Status of the PI, including DMA busy */
+    unsigned long status;
+} PI_regs_s;
+static volatile struct PI_regs_s * const PI_regs = (struct PI_regs_s *) 0xa4600000;
+
+static void debug_everdrive7_wait_pidma() 
+{
+    u32 status;
+    do
+    {
+        status = *(volatile unsigned long *)(ED3_PI_ADDRESS + ED3_PI_STATUS);
+        status &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
+    }
+    while (status);
+}
+
+void gdbDMARead(void* ram, u32 piAddress, u32 len) {
+    osWritebackDCache(ram, len);
+    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                 piAddress, ram, 
+                 len, &dmaMessageQ);
+    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+
+    debug_everdrive7_wait_pidma();
+    IO_WRITE(PI_STATUS_REG, 3);
+    PI_regs->ram_address = ram;
+    PI_regs->pi_address = piAddress & 0x1FFFFFFF;
+    PI_regs->write_length = len-1;
+    debug_everdrive7_wait_pidma();
+}
+
+void gdbReadReg(u32 reg, u32* result) {
+    gdbDMARead(result, REG_ADDR(reg), sizeof(u32));
+}
+
+void gdbDMAWrite(void* ram, u32 piAddress, u32 len) {
+    osWritebackDCache(ram, len);
+    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                 piAddress, ram, 
+                 len, &dmaMessageQ);
+    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    
+    debug_everdrive7_wait_pidma();
+    IO_WRITE(PI_STATUS_REG, 3);
+    PI_regs->ram_address = ram;
+    PI_regs->pi_address = piAddress & 0x1FFFFFFF;
+    PI_regs->write_length = len-1;
+    debug_everdrive7_wait_pidma();
+}
+
+void gdbWriteReg(u64 reg, u32 value) {
+    gdbDMAWrite(&value, REG_ADDR(reg), sizeof(u32));
+}
+
+void gdbUsbBusy() {
+    u32 registerValue;
+    do {
+        gdbReadReg(REG_USB_CFG, &registerValue);
+    } while ((registerValue & USB_STA_ACT) != 0);
+}
+
+static void debug_everdrive7_writeusb(void *buff, u32 len) 
+{
+    u16 blen, baddr;
+
+    baddr = 512 - len;
+    gdbWriteReg(REG_USB_CFG, USB_CMD_WR_NOP);
+    gdbDMAWrite(buff, REG_ADDR(REG_USB_DAT + baddr), len);
+    gdbWriteReg(REG_USB_CFG, USB_CMD_WR | baddr);
+    gdbUsbBusy();
+}
+
+
+
 static void debug_everdrive7_print(const char* message)
 {
-    // TODO: Implement this function
+    u32 length = strlen(message)+1;
+    u32 len = BUFFER_SIZE;
+    u32 header = (length & 0xFFFFFF) | (DATATYPE_TEXT << 24);
+    
+    // Don't allow messages that are too large
+    if (length > BUFFER_SIZE)
+        length = BUFFER_SIZE;
+    
+    // Put in the DMA header along with length and type information in the global buffer
+    debug_bufferout[0] = 'D';
+    debug_bufferout[1] = 'M';
+    debug_bufferout[2] = 'A';
+    debug_bufferout[3] = '@';
+    debug_bufferout[4] = (header >> 24) & 0xFF;
+    debug_bufferout[5] = (header >> 16) & 0xFF;
+    debug_bufferout[6] = (header >> 8)  & 0xFF;
+    debug_bufferout[7] = header & 0xFF;
+    
+    // Copy the message to the next available spots in the global buffer
+    memcpy(debug_bufferout+8, message, length);
+    
+    // Write the completion signal at the end of the message
+    debug_bufferout[length+8] = 'C';
+    debug_bufferout[length+9] = 'M';
+    debug_bufferout[length+10] = 'P';
+    debug_bufferout[length+11] = 'H';
+    
+    // Force 16 byte alignment
+    length = length+12;
+    length = length + 16 - 1 - (length + 16 - 1) % 16;
+
+    // Set up DMA transfer between RDRAM and the PI
+    debug_everdrive7_writeusb(debug_bufferout, length);
 }
 
 static u8 debug_everdrive7_poll()
