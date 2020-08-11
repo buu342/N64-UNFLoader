@@ -271,6 +271,46 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
 
 /*==============================
+    device_senddata_64drive
+    Sends data to the flashcart
+    @param A pointer to the cart context
+    @param A pointer to the data to send
+    @param The size of the data
+==============================*/
+
+void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
+{
+    /*
+    u8* buf;
+    u32 cmp_magic;
+    buf = malloc(512);
+
+    // Pad data to be 32 bit aligned
+    if (size % 4 != 0)
+    {
+        int newsize = (size & ~3) + 4;
+        for (int i = size; i < newsize; i++)
+            data[i] = 0;
+        size = newsize;
+    }
+
+    // Send the command, and then the data
+    device_sendcmd(cart, NULL, DEV_CMD_USBRECV, 1, 0, 1, (size & 0xffffff) | 0x20 << 24, 0);
+    cart->status = FT_Write(cart->handle, data, size, &cart->bytes_written);
+
+    // Read the CMP signal
+    cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
+    cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
+    if (cmp_magic != 0x434D5040) {
+        terminate("Error: Received wrong CMPlete signal.");
+    }
+
+    free(buf);
+    */
+}
+
+
+/*==============================
     device_close_64drive
     Closes the USB pipe
     @param A pointer to the cart context

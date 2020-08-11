@@ -11,6 +11,7 @@
     bool device_test_everdrive7(ftdi_context_t* cart, int index);
     void device_open_everdrive7(ftdi_context_t* cart);
     void device_sendrom_everdrive7(ftdi_context_t* cart, FILE *file, u32 size);
+    void device_senddata_everdrive7(ftdi_context_t* cart, char *data, u32 size);
     void device_close_everdrive7(ftdi_context_t* cart);
 
 #endif

@@ -37,6 +37,7 @@
     bool device_test_64drive2(ftdi_context_t* cart, int index);
     void device_open_64drive(ftdi_context_t* cart);
     void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size);
+    void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size);
     void device_close_64drive(ftdi_context_t* cart);
 
 #endif

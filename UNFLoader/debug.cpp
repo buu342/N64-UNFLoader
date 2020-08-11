@@ -15,6 +15,7 @@ Handles USB I/O.
               Macros
 *********************************/
 
+#define VERBOSE 0
 #define BUFFER_SIZE 512
 #define BLINKRATE   40
 
@@ -40,6 +41,8 @@ void debug_main(ftdi_context_t *cart)
     u16 cursorpos = 0;
     DWORD pending = 0;
     WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
+    int alignment;
+
     pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
@@ -48,6 +51,14 @@ void debug_main(ftdi_context_t *cart)
     outbuff = malloc(BUFFER_SIZE);
     inbuff = malloc(BUFFER_SIZE);
     memset(inbuff, 0, BUFFER_SIZE);
+
+    // Decide the alignment based off the cart that's connected
+    switch (cart->carttype)
+    {
+        case CART_EVERDRIVE3: alignment = 512; break;
+        case CART_EVERDRIVE7: alignment = 16; break;
+        default: alignment = 0;
+    }
 
     // Start the debug server loop
     for ( ; ; ) 
@@ -62,6 +73,9 @@ void debug_main(ftdi_context_t *cart)
         if (pending > 0)
         {
             u32 info, read = 0;
+            #if VERBOSE
+                pdprint("Receiving %d bytes\n", CRDEF_INFO, pending);
+            #endif
 
             // Ensure we have valid data by reading the header
             FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
@@ -83,10 +97,10 @@ void debug_main(ftdi_context_t *cart)
             if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
                 terminate("Error: Did not receive completion signal: %c %c %c %c.\n", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
 
-            // The EverDrive 3.0 always sends 512 byte chunks, so ensure you always read 512 bytes
-            if (cart->carttype == CART_EVERDRIVE3 && (read % 512) != 0)
+            // Ensure byte alignment by reading X amount of bytes needed
+            if (alignment != 0 && (read % alignment) != 0)
             {
-                int left = 512 - (read % 512);
+                int left = alignment - (read % alignment);
                 FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
             }
         }
@@ -122,7 +136,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     if ((ch == KEY_ENTER || ch == '\n' || ch == '\r') && size != 0)
     {
         pdprint("Sending command %s\n", CRDEF_INFO, buffer);
-        device_sendcommand(buffer, size);
+        device_senddata(buffer, size);
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;

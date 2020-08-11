@@ -231,6 +231,20 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
 
 
 /*==============================
+    device_senddata_everdrive3
+    Sends data to the flashcart
+    @param A pointer to the cart context
+    @param A pointer to the data to send
+    @param The size of the data
+==============================*/
+
+void device_senddata_everdrive3(ftdi_context_t* cart, char* data, u32 size)
+{
+
+}
+
+
+/*==============================
     device_close_everdrive3
     Closes the USB pipe
     @param A pointer to the cart context

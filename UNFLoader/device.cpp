@@ -20,6 +20,7 @@ Passes flashcart communication to more specific functions
 
 void (*funcPointer_open)(ftdi_context_t*);
 void (*funcPointer_sendrom)(ftdi_context_t*, FILE *file, u32 size);
+void (*funcPointer_senddata)(ftdi_context_t*, char *data, u32 size);
 void (*funcPointer_close)(ftdi_context_t*);
 
 
@@ -124,6 +125,7 @@ void device_set_64drive1(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
+    funcPointer_senddata = &device_senddata_64drive;
     funcPointer_close = &device_close_64drive;
 }
 
@@ -162,6 +164,7 @@ void device_set_everdrive3(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_everdrive3;
     funcPointer_sendrom = &device_sendrom_everdrive3;
+    funcPointer_senddata = &device_senddata_everdrive3;
     funcPointer_close = &device_close_everdrive3;
 }
 
@@ -182,6 +185,7 @@ void device_set_everdrive7(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_everdrive7;
     funcPointer_sendrom = &device_sendrom_everdrive7;
+    funcPointer_senddata = &device_senddata_everdrive7;
     funcPointer_close = &device_close_everdrive7;
 }
 
@@ -200,7 +204,8 @@ void device_open()
 
 /*==============================
     device_sendrom
-    Opens the ROm and calls the function to send it to the flashcart
+    Opens the ROM and calls the function to send it to the flashcart
+    @param A string with the path to the ROM
 ==============================*/
 
 void device_sendrom(char* rompath)
@@ -307,15 +312,15 @@ void device_sendrom(char* rompath)
 
 
 /*==============================
-    device_sendcommand
-    Sends a command to the flashcart via USB
-    @param The command to send
-    @param The number of bytes in the command
+    device_senddata
+    Sends data to the flashcart via USB
+    @param The data to send
+    @param The number of bytes in the data
 ==============================*/
 
-void device_sendcommand(char* command, int size)
+void device_senddata(char* data, u32 size)
 {
-    ftdi_context_t* cart = &local_usb;
+    funcPointer_senddata(&local_usb, data, size);
 }
 
 
