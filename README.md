@@ -9,8 +9,11 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Make printf work on the EverDrive X7.
+* **Library** - Look into why ED X7 didn't properly send a 512 byte buffer
+* **Library** - Clean up ED X7 code
+* **Library** - Add support for sending multiple blocks of data (for large chunks)
 * **Library** - Write sample demos.
+* **Library** - Split the library into usb.c and debug.c
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
