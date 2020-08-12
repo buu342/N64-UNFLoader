@@ -172,8 +172,8 @@ static void gdbWriteReg(u64 reg, u32 value);
 *********************************/
 
 static s8 debug_cart = CART_NONE;
-static u8 debug_bufferout[BUFFER_SIZE];
-static u8 debug_bufferin[BUFFER_SIZE];
+static u8 debug_bufferout[BUFFER_SIZE] __attribute__((aligned(16)));
+static u8 debug_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
 
 // Message globals
 OSMesg      dmaMessageBuf;
@@ -506,7 +506,7 @@ void debug_printf(const char* message, ...)
     int i, j=0, delimcount;
     va_list args;
     int size = strlen(message);
-    char buff[255] = {0};
+    char buff[256] = {0};
     char isdelim = FALSE;
     char delim[8] = {0};
     
