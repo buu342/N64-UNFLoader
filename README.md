@@ -9,7 +9,6 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Look into why ED X7 didn't properly send a 512 byte buffer
 * **Library** - Clean up ED X7 code
 * **Library** - Add support for sending multiple blocks of data (for large chunks)
 * **Library** - Write sample demos.
@@ -23,7 +22,7 @@ Currently supported devices:
 * **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
-* **UNFLoader + Library** - Clean up the final code to ensure there are plenty of convenience functions (such as `debug_senddata(char type, int size, char* data)`).
+* **UNFLoader + Library** - Clean up the final code to ensure there are plenty of convenience functions (such as `usb_senddata(char type, int size, char* data)`).
 * **UNFLoader + Library** - Implement screenshot functionality.
 * **UNFLoader + Library** - Implement data checksum.
 
