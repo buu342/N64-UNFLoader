@@ -1,7 +1,7 @@
 # UNFLoader
 **This project is in development and was only uploaded here to facilitate its development.**
 
-UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (usb.c) targeting libultra. I have also implemented a very basic debug library (debug.c) that makes use of said USB library.
+UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
 * EverDrive 3.0 (No longer comercially sold)
@@ -34,7 +34,7 @@ Simply execute the program for a full list of commands. If you run the program w
 
 
 ### Using the USB Library
-Simply include the usb.c and usb.h in your project. The library features a read (unimplemented) and write function for USB communication.
+Simply include the `usb.c` and `usb.h` in your project. The library features a read (unimplemented) and write function for USB communication.
 Here are the included functions:
 ```c
 /*==============================
@@ -49,7 +49,7 @@ void usb_write(int datatype, const void* data, int size);
 
 
 ### Using the Debug Library
-Simply include the debug.c and debug.h in your project. You can edit debug.h to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
+Simply include the `debug.c` and `debug.h` in your project. You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
 Here are the included functions:
 ```c
 /*==============================
@@ -108,6 +108,20 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 #define DATATYPE_SCREENSHOT 0x03
 ```
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
+
+
+### Important implementation details
+**64Drive**
+* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. This however, will break HW1 compatibility.
+
+**EverDrive 3.0**
+
+\<None>
+
+**EverDrive X7**
+
+\<None>
+
 
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
