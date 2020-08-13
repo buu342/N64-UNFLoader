@@ -21,8 +21,6 @@
              Debug Functions
     *********************************/
     
-    extern char ised7;
-    
     // The accessible debug functions
     extern void debug_printf(const char* message, ...);
     extern void debug_poll();
