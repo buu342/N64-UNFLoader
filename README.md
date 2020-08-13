@@ -112,7 +112,7 @@ There is no checksum in place to detect the authenticity of the data. This might
 
 ### Important implementation details
 **General**
-* Due to the data header, a maximum of 8MB can be sent through USB at once.
+* Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
 
 **64Drive**
 * The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. This however, will break HW1 compatibility.
