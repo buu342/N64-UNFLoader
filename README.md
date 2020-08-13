@@ -1,7 +1,7 @@
 # UNFLoader
 **This project is in development and was only uploaded here to facilitate its development.**
 
-UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, however I have implemented some useful features to boot (such as printf).
+UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (usb.c) targeting libultra. I have also implemented a very basic debug library (debug.c) that makes use of said USB library.
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
 * EverDrive 3.0 (No longer comercially sold)
@@ -11,7 +11,6 @@ Currently supported devices:
 ### Current TODO list:
 * **Library** - Add support for sending multiple blocks of data (for large chunks)
 * **Library** - Write sample demos.
-* **Library** - Split the library into usb.c and debug.c
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
@@ -21,7 +20,6 @@ Currently supported devices:
 * **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
-* **UNFLoader + Library** - Clean up the final code to ensure there are plenty of convenience functions (such as `usb_senddata(char type, int size, char* data)`).
 * **UNFLoader + Library** - Implement screenshot functionality.
 * **UNFLoader + Library** - Implement data checksum.
 
@@ -32,20 +30,42 @@ Currently supported devices:
 
 
 ### Using UNFLoader
-Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart, how to debug thread faults, etc...). The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included debug library). Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
+Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart). The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
+
+
+### Using the USB Library
+Simply include the usb.c and usb.h in your project. The library features a read (unimplemented) and write function for USB communication.
+Here are the included functions:
+```c
+/*==============================
+    usb_write
+    Writes data to the USB.
+    @param The DATATYPE that is being sent
+    @param A buffer with the data to send
+    @param The size of the data being sent
+==============================*/
+void usb_write(int datatype, const void* data, int size);
+```
 
 
 ### Using the Debug Library
-Assuming you are using libultra, simply include the debug.c and debug.h in your project. You can edit debug.h to enable/disable debug mode (which makes your ROM smaller if disabled).
+Simply include the debug.c and debug.h in your project. You can edit debug.h to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
 Here are the included functions:
 ```c
-// Pretty much your standard printf
+/*==============================
+    debug_printf
+    Prints a formatted message to the developer's command prompt.
+    Supports up to 256 characters.
+    @param A string to print
+    @param Variadic arguments to print as well
+==============================*/
 void debug_printf(const char* message, ...);
 
-// Call this in a loop somewhere to receive USB data
-void debug_poll();
-
-// Stop the program if the expression is false
+/*==============================
+    debug_assert
+    Halts the program if the expression returns false
+    @param The expression to test
+ ==============================*/
 #define debug_assert(expression)
 ```
 
@@ -81,7 +101,7 @@ All data gets sent in the following manner:
 * N bytes with the data.
 * 4 bytes with `'C' 'M' 'P' 'H'` to signalize data end.
 
-The data type mentioned is up to the developer to implement. If you wish to add more data types so that the data is handled differently on the PC side, you must make changes to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Here's a list of default data types:
+The data type mentioned is up to the developer to implement. If you wish to add more data types so that the data is handled differently on the PC side, you must make changes to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Make sure you also add your new data types to the USB library's `usb.h`! Here's a list of default data types:
 ```c
 #define DATATYPE_TEXT       0x01
 #define DATATYPE_RAWBINARY  0x02
@@ -96,4 +116,4 @@ KRIKzz, saturnu and jsdf for providing sample code for the EverDrive 3.0 and/or 
 
 networkfusion and fraser for all the help provided during the development of this project as well as their support.
 
-The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, CrashOveride, Gravatos, PerKimba, Manfried and Kivan117.
+The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, Gravatos, PerKimba, Manfried and Kivan117. You guys are the reason this project was possible!
