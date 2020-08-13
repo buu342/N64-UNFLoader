@@ -9,7 +9,6 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Clean up ED X7 code
 * **Library** - Add support for sending multiple blocks of data (for large chunks)
 * **Library** - Write sample demos.
 * **Library** - Split the library into usb.c and debug.c
