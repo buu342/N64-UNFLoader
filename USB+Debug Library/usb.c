@@ -14,7 +14,7 @@ https://github.com/buu342/N64-UNFLoader
        Standard Definitions
 *********************************/
 
-// Input/Output buffer size
+// Input/Output buffer size. Keep at 512
 #define BUFFER_SIZE       512
 
 // Cart definitions
@@ -279,7 +279,7 @@ void usb_write(int datatype, const void* data, int size)
     if (usb_cart == CART_NONE)
         return;
         
-    // Call the correct read function
+    // Call the correct write function
     funcPointer_write(datatype, data, size);
 }
 
@@ -344,8 +344,8 @@ static s8 usb_64drive_wait()
 static void usb_64drive_setwritable(u8 enable)
 {
     usb_64drive_wait();
-	osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR); 
-	usb_64drive_wait();
+    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR); 
+    usb_64drive_wait();
 }
 
 
@@ -401,7 +401,7 @@ static void usb_64drive_waitdisarmed()
 
 
 /*==============================
-    usb_64drive_print
+    usb_64drive_write
     Sends data through USB from the 64Drive
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
@@ -410,35 +410,54 @@ static void usb_64drive_waitdisarmed()
 
 static void usb_64drive_write(int datatype, const void* data, int size)
 {
-    // Copy the data to the global buffer
-    memcpy(usb_bufferout, data, size);
-    
-    // If the message is not 32-bit aligned, pad it
-    if(size%4 != 0)
-    {
-        u32 i;
-        u32 size_new = (size & ~3)+4;
-        for(i=size; i<size_new; i++) 
-            usb_bufferout[i] = 0;
-        size = size_new;
-    }
+    int left = size;
+    int read = 0;
     
     // Spin until the write buffer is free and then set the cartridge to write mode
     usb_64drive_waitidle();
     usb_64drive_setwritable(TRUE);
     
-    // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(usb_bufferout, BUFFER_SIZE);
-	osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                    D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferout, 
-                    size, &dmaMessageQ);
-	(void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    // Write data to SDRAM until we've finished
+    while (left > 0)
+    {
+        int block = left;
+        if (block > BUFFER_SIZE)
+            block = BUFFER_SIZE;
+            
+        // Copy the data to the global buffer
+        memcpy(usb_bufferout, (void*)((char*)data+read), block);
+
+        // If the data was not 32-bit aligned, pad the buffer
+        if(block < BUFFER_SIZE && size%4 != 0)
+        {
+            u32 i;
+            u32 size_new = (size & ~3)+4;
+            block += size_new-size;
+            for(i=size; i<size_new; i++) 
+                usb_bufferout[i] = 0;
+            size = size_new;
+        }
+        
+        // Spin until the write buffer is free
+        usb_64drive_waitidle();
+        
+        // Set up DMA transfer between RDRAM and the PI
+        osWritebackDCache(usb_bufferout, block);
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
+                     usb_bufferout, block, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        
+        // Keep track of what we've read so far
+        left -= block;
+        read += block;
+    }
     
-    // Write the data to the 64Drive
-	osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
-	osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
-	osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
-    
+    // Send the data through USB
+    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+        
     // Spin until the write buffer is free and then disable write mode
     usb_64drive_waitidle();
     usb_64drive_setwritable(FALSE);
@@ -493,8 +512,8 @@ static u8 usb_64drive_read()
         // Set up DMA transfer between RDRAM and the PI
         osWritebackDCache(usb_bufferin, BUFFER_SIZE);
         osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                        D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                        length, &dmaMessageQ);
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
+                     length, &dmaMessageQ);
         (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     }
     while (remaining > 0);
@@ -598,6 +617,11 @@ static void usb_everdrive3_wait_dma()
 
 static void usb_everdrive3_write(int datatype, const void* data, int size)
 {
+    char wrotecmp = 0;
+    char cmp[] = {'C', 'M', 'P', 'H'};
+    int read = 0;
+    int left = size;
+    int offset = 8;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
     
     // Put in the DMA header along with size and type information in the global buffer
@@ -610,36 +634,54 @@ static void usb_everdrive3_write(int datatype, const void* data, int size)
     usb_bufferout[6] = (header >> 8)  & 0xFF;
     usb_bufferout[7] = header & 0xFF;
     
-    // Copy the data to the next available spots in the global buffer
-    memcpy(usb_bufferout+8, data, size);
-    
-    // Write the completion signal at the end of the data
-    usb_bufferout[size+8] = 'C';
-    usb_bufferout[size+9] = 'M';
-    usb_bufferout[size+10] = 'P';
-    usb_bufferout[size+11] = 'H';
+    // Write data to USB until we've finished
+    while (left > 0)
+    {
+        int block = left;
+        if (block+offset > BUFFER_SIZE)
+            block = BUFFER_SIZE-offset;
+            
+        // Copy the data to the next available spots in the global buffer
+        memcpy(usb_bufferout+offset, (void*)((char*)data+read), block);
+        
+        // Restart the loop to write the CMP signal if we've finished
+        if (!wrotecmp && read+block >= size)
+        {
+            left = 4;
+            offset = block+offset;
+            data = cmp;
+            wrotecmp = 1;
+            read = 0;
+            continue;
+        }
 
-    // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(usb_bufferout, BUFFER_SIZE);
-    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                 ED3_WRITE_ADDRESS, usb_bufferout, 
-                 BUFFER_SIZE, &dmaMessageQ);
-    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-    
-    // Write the data to the PI
-    usb_everdrive3_wait_pidma();
-    IO_WRITE(PI_STATUS_REG, 3);
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)usb_bufferout;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = ED3_WRITE_ADDRESS & 0x1FFFFFFF;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = 512-1;
-    usb_everdrive3_wait_pidma();
-    
-    // Write the data to the EverDrive 3.0's registers
-    usb_everdrive3_wait_write();
-    usb_everdrive3_regwrite(ED3_REGISTER_DMALEN, 0);
-    usb_everdrive3_regwrite(ED3_REGISTER_DMAADD, ED3_ROM_BUFFER);
-    usb_everdrive3_regwrite(ED3_REGISTER_DMACFG, ED3_DMACFG_RAM2USB);
-    usb_everdrive3_wait_dma();
+        // Set up DMA transfer between RDRAM and the PI
+        osWritebackDCache(usb_bufferout, BUFFER_SIZE);
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                     ED3_WRITE_ADDRESS, usb_bufferout, 
+                     BUFFER_SIZE, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        
+        // Write the data to the PI
+        usb_everdrive3_wait_pidma();
+        IO_WRITE(PI_STATUS_REG, 3);
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)usb_bufferout;
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = ED3_WRITE_ADDRESS & 0x1FFFFFFF;
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = BUFFER_SIZE-1;
+        usb_everdrive3_wait_pidma();
+        
+        // Write the data to the EverDrive 3.0's registers
+        usb_everdrive3_wait_write();
+        usb_everdrive3_regwrite(ED3_REGISTER_DMALEN, 0);
+        usb_everdrive3_regwrite(ED3_REGISTER_DMAADD, ED3_ROM_BUFFER);
+        usb_everdrive3_regwrite(ED3_REGISTER_DMACFG, ED3_DMACFG_RAM2USB);
+        usb_everdrive3_wait_dma();
+        
+        // Keep track of what we've read so far
+        left -= block;
+        read += block;
+        offset = 0;
+    }
 }
 
 
@@ -788,6 +830,11 @@ static void usb_everdrive7_usbbusy()
 
 static void usb_everdrive7_write(int datatype, const void* data, int size)
 {
+    char wrotecmp = 0;
+    char cmp[] = {'C', 'M', 'P', 'H'};
+    int read = 0;
+    int left = size;
+    int offset = 8;
     u16 baddr;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
     
@@ -801,27 +848,45 @@ static void usb_everdrive7_write(int datatype, const void* data, int size)
     usb_bufferout[6] = (header >> 8)  & 0xFF;
     usb_bufferout[7] = header & 0xFF;
     
-    // Copy the data to the next available spots in the global buffer
-    memcpy(usb_bufferout+8, data, size);
-    
-    // Write the completion signal at the end of the data
-    usb_bufferout[size+8] = 'C';
-    usb_bufferout[size+9] = 'M';
-    usb_bufferout[size+10] = 'P';
-    usb_bufferout[size+11] = 'H';
-    
-    // Force 16 byte alignment
-    size = size+12;
-    size = size+15 - (size+15)%16;
-    baddr = 512 - size;
+    // Write data to USB until we've finished
+    while (left > 0)
+    {
+        int block = left;
+        int blocksend, baddr;
+        if (block+offset > BUFFER_SIZE)
+            block = BUFFER_SIZE-offset;
+            
+        // Copy the data to the next available spots in the global buffer
+        memcpy(usb_bufferout+offset, (void*)((char*)data+read), block);
+        
+        // Restart the loop to write the CMP signal if we've finished
+        if (!wrotecmp && read+block >= size)
+        {
+            left = 4;
+            offset = block+offset;
+            data = cmp;
+            wrotecmp = 1;
+            read = 0;
+            continue;
+        }
+        
+        // Ensure the data is 16 byte aligned and the block address is correct
+        blocksend = (block+offset)+15 - ((block+offset)+15)%16;
+        baddr = BUFFER_SIZE - blocksend;
 
-    // Set USB to write mode and send data through USB
-    usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WRNOP);
-    usb_everdrive7_writedata(usb_bufferout, ED7_REG_USBDAT + baddr, size);
-    
-    // Set USB to write mode with the new address and wait for USB to end
-    usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WR | baddr);
-    usb_everdrive7_usbbusy();
+        // Set USB to write mode and send data through USB
+        usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WRNOP);
+        usb_everdrive7_writedata(usb_bufferout, ED7_REG_USBDAT + baddr, blocksend);
+        
+        // Set USB to write mode with the new address and wait for USB to end
+        usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WR | baddr);
+        usb_everdrive7_usbbusy();
+        
+        // Keep track of what we've read so far
+        left -= block;
+        read += block;
+        offset = 0;
+    }
 }
 
 
