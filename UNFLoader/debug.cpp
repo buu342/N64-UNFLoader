@@ -88,7 +88,7 @@ void debug_main(ftdi_context_t *cart)
     for ( ; ; ) 
 	{
         // If ESC is pressed, stop the loop
-		if (GetAsyncKeyState(VK_ESCAPE) || debugtimeout < clock())
+		if (GetAsyncKeyState(VK_ESCAPE) || (global_timeout != 0 && debugtimeout < clock()))
 			break;
         debug_textinput(cart, inputwin, inbuff, &cursorpos);
 

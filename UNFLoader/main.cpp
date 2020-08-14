@@ -294,8 +294,8 @@ void list_args()
     pdprint("  -e <directory>\t   File export directory (Folder must exist!).\n", CRDEF_PROGRAM);
     pdprint(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
     pdprint("  -h <int>\t\t   Force terminal height (number of rows).\n", CRDEF_PROGRAM);
-    pdprint("  -w\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
     pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
+    pdprint("  -w\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
     pdprint("\n", CRDEF_PROGRAM);
 }
 
