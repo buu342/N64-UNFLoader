@@ -23,6 +23,7 @@
     
     // The accessible debug functions
     extern void debug_printf(const char* message, ...);
+    extern void debug_screenshot(int size, int w, int h);
     #define debug_assert(expr) (expr) ? ((void)0) : _debug_assert(#expr, __FILE__, __LINE__)
     
     // Ignore these, use the macros instead

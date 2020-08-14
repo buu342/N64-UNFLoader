@@ -318,6 +318,25 @@ https://github.com/buu342/N64-UNFLoader
         // Call the USB write function for the specific flashcart
         usb_write(DATATYPE_TEXT, buff, size);
     }
+    
+    /*==============================
+        debug_screenshot
+        Sends the currently displayed framebuffer through USB.
+        Does not pause the drawing thread!
+        @param The size of each pixel of the framebuffer in bytes
+               Typically 4 if 32-bit or 2 if 16-bit
+        @param The width of the framebuffer
+        @param The height of the framebuffer
+    ==============================*/
+    
+    void debug_screenshot(int size, int w, int h)
+    {
+        void* frame = osViGetCurrentFramebuffer();
+        int data[4] = {DATATYPE_SCREENSHOT, size, w, h};
+        
+        usb_write(DATATYPE_HEADER, data, sizeof(data));
+        usb_write(DATATYPE_SCREENSHOT, frame, size*w*h);
+    }
 
 
     /*==============================
