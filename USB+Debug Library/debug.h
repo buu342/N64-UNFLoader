@@ -7,7 +7,6 @@
 
     // Settings
     #define DEBUG_MODE        1   // Enable/Disable debug mode
-    //#define USE_OSRAW         0   // Use if you're doing USB operations without the PI Manager (TODO)
     #define USE_FAULTTHREAD   1   // Create a fault detection thread 
     #define OVERWRITE_OSPRINT 1   // Replaces osSyncPrintf calls with debug_printf
     

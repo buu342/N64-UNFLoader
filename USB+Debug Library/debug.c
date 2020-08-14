@@ -319,6 +319,7 @@ https://github.com/buu342/N64-UNFLoader
         usb_write(DATATYPE_TEXT, buff, size);
     }
     
+    
     /*==============================
         debug_screenshot
         Sends the currently displayed framebuffer through USB.
@@ -332,7 +333,11 @@ https://github.com/buu342/N64-UNFLoader
     void debug_screenshot(int size, int w, int h)
     {
         void* frame = osViGetCurrentFramebuffer();
-        int data[4] = {DATATYPE_SCREENSHOT, size, w, h};
+        int data[4];
+        data[0] = DATATYPE_SCREENSHOT;
+        data[1] = size;
+        data[2] = w;
+        data[3] = h;
         
         usb_write(DATATYPE_HEADER, data, sizeof(data));
         usb_write(DATATYPE_SCREENSHOT, frame, size*w*h);
@@ -383,7 +388,7 @@ https://github.com/buu342/N64-UNFLoader
             {
                 if ((value & desc->mask) == desc->value) 
                 {
-                    (first) ? (first = 0) : (debug_printf(","));
+                    (first) ? (first = 0) : ((void)debug_printf(","));
                     debug_printf("%s", desc->string);
                 }
                 desc++;

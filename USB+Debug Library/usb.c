@@ -7,6 +7,7 @@ https://github.com/buu342/N64-UNFLoader
 ***************************************************************/
 
 #include <ultra64.h>
+#include <string.h>
 #include "usb.h"
 
 
@@ -167,9 +168,22 @@ static u8 usb_bufferout[BUFFER_SIZE] __attribute__((aligned(16)));
 static u8 usb_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
 
 // Message globals
-OSMesg      dmaMessageBuf;
-OSIoMesg    dmaIOMessageBuf;
-OSMesgQueue dmaMessageQ;
+#if !USE_OSRAW
+    OSMesg      dmaMessageBuf;
+    OSIoMesg    dmaIOMessageBuf;
+    OSMesgQueue dmaMessageQ;
+#endif
+
+// osPiRaw
+#if USE_OSRAW
+    extern s32 __osPiRawWriteIo(u32, u32);
+    extern s32 __osPiRawReadIo(u32, u32 *);
+    extern s32 __osPiRawStartDma(s32, u32, void *, u32);
+    
+    #define osPiRawWriteIo(a, b) __osPiRawWriteIo(a, b)
+    #define osPiRawReadIo(a, b) __osPiRawReadIo(a, b)
+    #define osPiRawStartDma(a, b, c, d) __osPiRawStartDma(a, b, c, d)
+#endif
 
 
 /*********************************
@@ -188,7 +202,9 @@ static void usb_initialize()
     memset(usb_bufferin, 0, BUFFER_SIZE);
         
     // Create the message queue
-    osCreateMesgQueue(&dmaMessageQ, &dmaMessageBuf, 1);
+    #if !USE_OSRAW
+        osCreateMesgQueue(&dmaMessageQ, &dmaMessageBuf, 1);
+    #endif
     
     // Find the flashcart
     usb_findcart();
@@ -224,7 +240,11 @@ static void usb_findcart()
     u32 buff;
     
     // Read the cartridge and check if we have a 64Drive.
-    osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+    #endif
     if (buff == D64_MAGIC)
     {
         usb_cart = CART_64DRIVE;
@@ -232,7 +252,11 @@ static void usb_findcart()
     }
     
     // Read the cartridge and check if we have an EverDrive 3.0
-    osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
+    #if USE_OSRAW
+        osPiRawReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
+    #else
+        osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
+    #endif
     if (buff == ED3_VERSION)
     {
         // Write the key to unlock the registers and set the debug cart to ED3
@@ -242,7 +266,11 @@ static void usb_findcart()
     }
     
     // Read the cartridge and check if we have an EverDrive X7
-    osPiReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
+    #if USE_OSRAW
+        osPiRawReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
+    #else
+        osPiReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
+    #endif
     if (buff == ED7_VERSION)
     {
         // Initialize the PI
@@ -300,7 +328,7 @@ u8 usb_read()
         return 0;
         
     // Call the correct read function
-    funcPointer_read();
+    return funcPointer_read();
 }
 
 
@@ -322,7 +350,11 @@ static s8 usb_64drive_wait()
     // Wait until the cartridge interface is ready
     do
     {
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret); 
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+        #endif
         
         // Took too long, abort
         if((timeout++) > 1000000)
@@ -344,7 +376,11 @@ static s8 usb_64drive_wait()
 static void usb_64drive_setwritable(u8 enable)
 {
     usb_64drive_wait();
-    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR); 
+    #if USE_OSRAW
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+    #else
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+    #endif
     usb_64drive_wait();
 }
 
@@ -359,7 +395,11 @@ static void usb_64drive_waitidle()
     u32 status;
     do 
     {
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #endif
         status = (status >> 4) & D64_USB_BUSY;
     }
     while(status != D64_USB_IDLE);
@@ -376,8 +416,12 @@ static void usb_64drive_waitdata()
     u32 status;
     do
     {
-         osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status); 
-         status &= 0x0F;
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #endif
+        status &= 0x0F;
     }
     while (status == D64_USB_IDLEUNARMED || status == D64_USB_ARMED);
 }
@@ -393,8 +437,12 @@ static void usb_64drive_waitdisarmed()
     u32 status;
     do
     {
-         osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status); 
-         status &= 0x0F;
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #endif
+        status &= 0x0F;
     }
     while (status != D64_USB_IDLEUNARMED);
 }
@@ -443,10 +491,16 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         
         // Set up DMA transfer between RDRAM and the PI
         osWritebackDCache(usb_bufferout, block);
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
-                     usb_bufferout, block, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_WRITE, 
+                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
+                         usb_bufferout, block);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
+                         usb_bufferout, block, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
         
         // Keep track of what we've read so far
         left -= block;
@@ -454,9 +508,15 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     }
     
     // Send the data through USB
-    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
-    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
-    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+    #if USE_OSRAW
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+    #else
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+    #endif
         
     // Spin until the write buffer is free and then disable write mode
     usb_64drive_waitidle();
@@ -472,28 +532,41 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 
 static u8 usb_64drive_read()
 {
-    char test[256];
     u32 ret;
     u32 length=0;
     u32 remaining=0;
     u8 type=0; // Unused for now, will later be used to detect what was inputted (text, file, etc...)
     
     // Check if we've received data
-    osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #endif
     if (ret != D64_USB_DATA)
         return 0;
         
     // Check if the USB is armed, and arm it if it isn't
-    osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #endif
     if (ret != D64_USB_ARMING || ret != D64_USB_ARMED)
     {
         // Ensure the 64Drive is idle
         usb_64drive_waitidle();
         
         // Arm the USB FIFO DMA
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+        #if USE_OSRAW
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+        #else
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+        #endif
     }  
     
     // Read data
@@ -503,23 +576,41 @@ static u8 usb_64drive_read()
         usb_64drive_waitdata();
         
         // See how much data is left to read
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+        #endif
         length = ret & 0xFFFFFF;
         type = (ret >> 24) & 0xFF;
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
+        #endif
         remaining = ret & 0xFFFFFF;
         
         // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_bufferin, BUFFER_SIZE);
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                     length, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        osWritebackDCache(usb_bufferin, length);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
+                         length);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
+                         length, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
     }
     while (remaining > 0);
     
     // Disarm the USB and return success
-    osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #if USE_OSRAW
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #else
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #endif
     usb_64drive_waitdisarmed();
     return 1;
 }
@@ -657,10 +748,16 @@ static void usb_everdrive3_write(int datatype, const void* data, int size)
 
         // Set up DMA transfer between RDRAM and the PI
         osWritebackDCache(usb_bufferout, BUFFER_SIZE);
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                     ED3_WRITE_ADDRESS, usb_bufferout, 
-                     BUFFER_SIZE, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_WRITE, 
+                         ED3_WRITE_ADDRESS, usb_bufferout, 
+                         BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                         ED3_WRITE_ADDRESS, usb_bufferout, 
+                         BUFFER_SIZE, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
         
         // Write the data to the PI
         usb_everdrive3_wait_pidma();
@@ -733,10 +830,16 @@ static void usb_everdrive7_readdata(void* buff, u32 pi_address, u32 len)
 
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(buff, len);
-    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                 pi_address, buff, 
-                 len, &dmaMessageQ);
-    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #if USE_OSRAW
+        osPiRawStartDma(OS_READ, 
+                     pi_address, buff, 
+                     len);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                     pi_address, buff, 
+                     len, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
 
     // Write the data to the PI
     usb_everdrive7_wait_pidma();
@@ -776,10 +879,16 @@ static void usb_everdrive7_writedata(void* buff, u32 pi_address, u32 len)
     
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(buff, len);
-    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                 pi_address, buff, 
-                 len, &dmaMessageQ);
-    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #if USE_OSRAW
+        osPiRawStartDma(OS_WRITE, 
+                     pi_address, buff, 
+                     len);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                     pi_address, buff, 
+                     len, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
     
     // Write the data to the PI
     usb_everdrive7_wait_pidma();
@@ -835,7 +944,6 @@ static void usb_everdrive7_write(int datatype, const void* data, int size)
     int read = 0;
     int left = size;
     int offset = 8;
-    u16 baddr;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
     
     // Put in the DMA header along with length and type information in the global buffer
