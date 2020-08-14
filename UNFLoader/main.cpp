@@ -34,12 +34,16 @@ void show_help();
 *********************************/
 
 // Program globals
-bool global_usecolors  = true;
-int  global_cictype    = 0;
-int  global_savetype   = 0;
-bool global_listenmode = false;
-bool global_debugmode  = false;
-bool global_z64        = false;
+bool  global_usecolors   = true;
+int   global_cictype     = 0;
+int   global_savetype    = 0;
+bool  global_listenmode  = false;
+bool  global_debugmode   = false;
+bool  global_z64         = false;
+char* global_debugout    = NULL;
+FILE* global_debugoutptr = NULL;
+char* global_exportpath  = NULL;
+int   global_timeout     = 0;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
@@ -83,8 +87,11 @@ int main(int argc, char* argv[])
     device_close();
 
     // End the program
-    pdprint("\nPress any key to continue.\n", CRDEF_INPUT);
-    getchar();
+    if (global_timeout == 0)
+    {
+        pdprint("\nPress any key to continue.\n", CRDEF_INPUT);
+        getchar();
+    }
     for (i=0; i<TOTAL_COLORS; i++)
         attroff(COLOR_PAIR(i+1));
     endwin();
@@ -130,50 +137,67 @@ void parse_args(int argc, char* argv[])
             i++;
 
             // If we have an argument after this one, set it as our flashcart, otherwise terminate
-            if (i<argc) 
+            if (i<argc && argv[i][0] != '-') 
             {
                 char* value = argv[i];
                 local_flashcart = value[0]-'0';
 
                 // Validate that the cart number is between our range
                 if (local_flashcart < CART_64DRIVE1 || local_flashcart > CART_EVERDRIVE7) 
-                    terminate("Invalid parameter '%s' for command '%s'.\n", value, command);
+                    terminate("Error: Invalid parameter '%s' for command '%s'.\n", value, command);
             } 
             else
-                terminate("Missing parameter(s) for command '%s'.\n", command);
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
         }
         else if (!strcmp(command, "-r")) // Upload ROM command
         {
             i++;
 
             // If we have an argument after this one, then set the ROM path, otherwise terminate
-            if (i<argc) 
+            if (i<argc && argv[i][0] != '-') 
                 local_rom = argv[i];
             else 
-                terminate("Missing parameter(s) for command '%s'.\n", command);
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
         }
         else if (!strcmp(command, "-c")) // Set CIC command
         {
             i++;
 
             // If we have an argument after this one, then set the ROM path, otherwise terminate
-            if (i<argc) 
+            if (i<argc && argv[i][0] != '-') 
                 global_cictype = strtol(argv[i], NULL, 0);
             else 
-                terminate("Missing parameter(s) for command '%s'.\n", command);
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
         }
         else if (!strcmp(command, "-h")) // Set terminal height
         {
             i++;
 
             // If we have an argument after this one, then set the terminal height, otherwise terminate
-            if (i < argc)
+            if (i<argc && argv[i][0] != '-')
                 resize_term(strtol(argv[i], NULL, 0), 80);
             else
-                terminate("Missing parameter(s) for command '%s'.\n", command);
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
         }
         else if (!strcmp(command, "-w")) // Disable terminal colors command
             global_usecolors = false;
+        else if (!strcmp(command, "-e")) // Export directory
+        {
+            i++;
+
+            // If we have an argument after this one, then set the export path
+            if (i<argc && argv[i][0] != '-')
+            {
+                int len = strlen(argv[i]);
+                if (argv[i][len-1] == '/')
+                    global_exportpath = argv[i];
+                else
+                    terminate("Error: Incorrect path '%s'.\n", argv[i]);
+                pdprint("Set export path to '%s'.\n", CRDEF_PROGRAM, global_exportpath);
+            }
+            else
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+        }
         else if (!strcmp(command, "-l")) // Listen mode
         {
             global_listenmode = true;
@@ -182,10 +206,39 @@ void parse_args(int argc, char* argv[])
         else if (!strcmp(command, "-d")) // Debug mode
         {
             global_debugmode = true;
-            pdprint("Debug mode enabled.\n", CRDEF_PROGRAM);
+            pdprint("Debug mode enabled.", CRDEF_PROGRAM);
+
+            // If we have an argument after this one, then set the output directory
+            if (i+1<argc && argv[i+1][0] != '-')
+            {
+                i++;
+                if (global_exportpath != NULL)
+                {
+                    char* filepath = malloc(256);
+                    memset(filepath, 0 ,256);
+                    strcat_s(filepath, 256, global_exportpath);
+                    strcat_s(filepath, 256, argv[i]);
+                    global_debugout = filepath;
+                }
+                else
+                    global_debugout = argv[i];
+                pdprint(" Writing output to %s.", CRDEF_PROGRAM, global_debugout);
+            }
+            pdprint("\n", CRDEF_PROGRAM);
+        }
+        else if (!strcmp(command, "-t")) // Timeout command
+        {
+            i++;
+
+            // If we have an argument after this one, then set the timeout, otherwise terminate
+            if (i<argc && argv[i][0] != '-') 
+                global_timeout = atoi(argv[i]);
+            else 
+                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+            pdprint("Set timeout to %d seconds.\n", CRDEF_PROGRAM, global_timeout);
         }
         else 
-            terminate("Unknown command '%s'.\n", command);
+            terminate("Error: Unknown command '%s'.\n", command);
     }
 }
 
@@ -223,25 +276,27 @@ void show_title()
 void list_args()
 {
     pdprint("Parameters: <required> [optional]\n", CRDEF_PROGRAM);
-    pdprint("  -help\t\t\t   Learn how to use this tool\n", CRDEF_PROGRAM);
-    pdprint("  -r <file>\t\t   Upload ROM\n", CRDEF_PROGRAM);
-    pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection)\n", CRDEF_PROGRAM);
+    pdprint("  -help\t\t\t   Learn how to use this tool.\n", CRDEF_PROGRAM);
+    pdprint("  -r <file>\t\t   Upload ROM.\n", CRDEF_PROGRAM);
+    pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection).\n", CRDEF_PROGRAM);
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE3, "EverDrive 3.0");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE7, "EverDrive X7");
-    pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only)\n", CRDEF_PROGRAM);
+    pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only).\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
     pdprint("  \t 4 - %s\t\t 5 - %s\n", CRDEF_PROGRAM, "x101 (All)", "x102 (All)");
     pdprint("  \t 6 - %s\t\t 7 - %s\n", CRDEF_PROGRAM, "x106 (All)", "5101 (NTSC)");
-    pdprint("  -s <int>\t\t   Set save emulation type (64Drive only)\n", CRDEF_PROGRAM);
-    pdprint("  -d\t\t\t   Debug mode\n", CRDEF_PROGRAM);
-    pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed)\n", CRDEF_PROGRAM);
-    //pdprint("  -o <directory>\t   Export directory (excluding uses current directory)\n", CRDEF_PROGRAM);
-    //pdprint("  -e <filename>\t\t   Export console prints to a file\n", CRDEF_PROGRAM);
-    pdprint("  -h <int>\t\t   Force terminal height (number of rows)\n", CRDEF_PROGRAM);
-    pdprint("  -w\t\t\t   Disable terminal colors\n\n", CRDEF_PROGRAM);
+    pdprint("  -s <int>\t\t   Set save emulation type (64Drive only).\n", CRDEF_PROGRAM);
+    pdprint("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n", CRDEF_PROGRAM);
+    pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed).\n", CRDEF_PROGRAM);
+    pdprint("  -e <directory>\t   File export directory (Folder must exist!).\n", CRDEF_PROGRAM);
+    pdprint(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
+    pdprint("  -h <int>\t\t   Force terminal height (number of rows).\n", CRDEF_PROGRAM);
+    pdprint("  -w\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
+    pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
+    pdprint("\n", CRDEF_PROGRAM);
 }
 
 

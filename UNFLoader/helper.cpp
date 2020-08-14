@@ -41,6 +41,10 @@ void __pdprint(short color, char* str, ...)
     // Print the string
     vw_printw(stdscr, str, args);
     refresh();
+
+    // Print to the output debug file if it exists
+    if (global_debugoutptr != NULL)
+        vfprintf(global_debugoutptr, str, args);
     va_end(args);
 }
 
@@ -72,6 +76,10 @@ void __pdprintw(WINDOW *win, short color, char* str, ...)
     vw_printw(win, str, args);
     refresh();
     wrefresh(win);
+
+    // Print to the output debug file if it exists
+    if (global_debugoutptr != NULL)
+        vfprintf(global_debugoutptr, str, args);
     va_end(args);
 }
 
@@ -99,6 +107,10 @@ static void __pdprint_v(short color, char* str, va_list args)
     // Print the string
     vw_printw(stdscr, str, args);
     refresh();
+
+    // Print to the output debug file if it exists
+    if (global_debugoutptr != NULL)
+        vfprintf(global_debugoutptr, str, args);
 }
 
 
@@ -131,6 +143,10 @@ void __pdprint_replace(short color, char* str, ...)
     // Print the string
     vw_printw(stdscr, str, args);
     refresh();
+
+    // Print to the output debug file if it exists
+    if (global_debugoutptr != NULL)
+        vfprintf(global_debugoutptr, str, args);
     va_end(args);
 }
 
@@ -152,15 +168,25 @@ void terminate(char* reason, ...)
     if (reason != NULL && strcmp(reason, ""))
         __pdprint_v(CRDEF_ERROR, reason, args);
     pdprint("\n", CRDEF_ERROR);
+    va_end(args);
+
+    // Close output debug file if it exists
+    if (global_debugoutptr != NULL)
+    {
+        fclose(global_debugoutptr);
+        global_debugoutptr = NULL;
+    }
 
     // Close the device if it's open
     if (device_isopen())
         device_close();
 
     // Pause the program
-    pdprint("Press any key to continue...", CRDEF_INPUT);
-    va_end(args);
-    getchar();
+    if (global_timeout == 0)
+    {
+        pdprint("Press any key to continue...", CRDEF_INPUT);
+        getchar();
+    }
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)
@@ -186,13 +212,23 @@ static void terminate_v(char* reason, va_list args)
         __pdprint_v(CRDEF_ERROR, reason, args);
     pdprint("\n", CRDEF_ERROR);
 
+    // Close output debug file if it exists
+    if (global_debugoutptr != NULL)
+    {
+        fclose(global_debugoutptr);
+        global_debugoutptr = NULL;
+    }
+
     // Close the device if it's open
     if (device_isopen())
         device_close();
 
     // Pause the program
-    pdprint("Press any key to continue...", CRDEF_INPUT);
-    getchar();
+    if (global_timeout == 0)
+    {
+        pdprint("Press any key to continue...", CRDEF_INPUT);
+        getchar();
+    }
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)

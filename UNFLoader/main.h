@@ -37,11 +37,15 @@
                  Globals
     *********************************/
 
-    extern bool global_usecolors;
-    extern int  global_cictype;
-    extern int  global_savetype;
-    extern bool global_listenmode;
-    extern bool global_debugmode;
-    extern bool global_z64;
+    extern bool  global_usecolors;
+    extern int   global_cictype;
+    extern int   global_savetype;
+    extern bool  global_listenmode;
+    extern bool  global_debugmode;
+    extern bool  global_z64;
+    extern char* global_debugout;
+    extern FILE* global_debugoutptr;
+    extern char* global_exportpath;
+    extern int   global_timeout;
 
 #endif

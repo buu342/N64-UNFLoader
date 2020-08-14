@@ -19,6 +19,7 @@ Handles USB I/O.
 #define BUFFER_SIZE 512
 #define HEADER_SIZE 16
 #define BLINKRATE   40
+#define PATH_SIZE   256
 
 
 /*********************************
@@ -52,9 +53,13 @@ void debug_main(ftdi_context_t *cart)
     u16 cursorpos = 0;
     DWORD pending = 0;
     WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
+    time_t debugtimeout = clock() + global_timeout*CLOCKS_PER_SEC;
     int alignment;
 
-    pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
+    pdprint("Debug mode started. Press ESC to stop.", CRDEF_INPUT);
+    if (global_timeout != 0)
+        pdprint(" Timeout after %d seconds.", CRDEF_INPUT, global_timeout);
+    pdprint("\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
 
@@ -62,6 +67,14 @@ void debug_main(ftdi_context_t *cart)
     outbuff = malloc(BUFFER_SIZE);
     inbuff = malloc(BUFFER_SIZE);
     memset(inbuff, 0, BUFFER_SIZE);
+
+    // Open file for debug output
+    if (global_debugout != NULL)
+    {
+        fopen_s(&global_debugoutptr, global_debugout, "w+");
+        if (global_debugoutptr == NULL)
+            terminate("\nError: Unable to open %s for writing debug output.", global_debugout);
+    }
 
     // Decide the alignment based off the cart that's connected
     switch (cart->carttype)
@@ -75,7 +88,7 @@ void debug_main(ftdi_context_t *cart)
     for ( ; ; ) 
 	{
         // If ESC is pressed, stop the loop
-		if (GetAsyncKeyState(VK_ESCAPE))
+		if (GetAsyncKeyState(VK_ESCAPE) || debugtimeout < clock())
 			break;
         debug_textinput(cart, inputwin, inbuff, &cursorpos);
 
@@ -114,12 +127,22 @@ void debug_main(ftdi_context_t *cart)
                 int left = alignment - (read % alignment);
                 FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
             }
+
+            // Reset the timeout clock
+            debugtimeout = clock() + global_timeout*CLOCKS_PER_SEC;
         }
 
         // If we got no more data, sleep a bit to be kind to the CPU
         FT_GetQueueStatus(cart->handle, &pending);
         if (pending == 0)
             Sleep(10);
+    }
+
+    // Close the debug output file if it exists
+    if (global_debugoutptr != NULL)
+    {
+        fclose(global_debugoutptr);
+        global_debugoutptr = NULL;
     }
 
     // Clean up everything
@@ -261,7 +284,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 {
     int total = 0;
     int left = size;
-    char* filename = malloc(256);
+    char* filename = malloc(PATH_SIZE);
     char* extraname = gen_filename();
     FILE* fp; 
 
@@ -270,9 +293,12 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
         terminate("Error: Unable to allocate memory for binary file.");
 
     // Create the binary file to save data to
-    strcpy_s(filename, 256, "binaryout-");
-    strcat_s(filename, 256, extraname);
-    strcat_s(filename, 256, ".bin");
+    memset(filename, 0, PATH_SIZE);
+    if (global_exportpath != NULL)
+        strcat_s(filename, PATH_SIZE, global_exportpath);
+    strcat_s(filename, PATH_SIZE, "binaryout-");
+    strcat_s(filename, PATH_SIZE, extraname);
+    strcat_s(filename, PATH_SIZE, ".bin");
     fopen_s(&fp, filename, "wb+");
 
     // Ensure the file was created
@@ -362,7 +388,7 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
     int j=0;
     u8* image;
     int w = debug_headerdata[2], h = debug_headerdata[3];
-    char* filename = malloc(256);
+    char* filename = malloc(PATH_SIZE);
     char* extraname = gen_filename();
 
     // Ensure we got a data header of type screenshot
@@ -377,9 +403,12 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
         terminate("Error: Unable to allocate memory for binary file.");
 
     // Create the binary file to save data to
-    strcpy_s(filename, 256, "screenshot-");
-    strcat_s(filename, 256, extraname);
-    strcat_s(filename, 256, ".png");
+    memset(filename, 0, PATH_SIZE);
+    if (global_exportpath != NULL)
+        strcat_s(filename, PATH_SIZE, global_exportpath);
+    strcat_s(filename, PATH_SIZE, "screenshot-");
+    strcat_s(filename, PATH_SIZE, extraname);
+    strcat_s(filename, PATH_SIZE, ".png");
 
     // Ensure the data fits within our buffer
     if (left > BUFFER_SIZE)
