@@ -79,7 +79,7 @@ void debug_screenshot(int size, int w, int h)
 ```
 
 
-### Building the UNFLoader program
+### Building the UNFLoader program for Windows
 Simply load the project file in Visual Studio 2019 or higher.
 The Include folder should already have everything you need, but if you wish to build/retrieve the libraries yourself:
 
@@ -105,6 +105,10 @@ The Include folder should already have everything you need, but if you wish to b
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
 
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+
+
+### Building the UNFLoader program for Linux
+I have yet to attempt this so I cannot help much, however I have avoided using Windows libraries in order to make the conversion easier. You will need to swap out the PDCurses library with NCurses and find an alternative to FTD2xx.lib. Proper linux conversion will be something that I will focus on once the tool is finished....
 
 
 ### Extending the debug library/loader program
