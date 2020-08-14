@@ -9,7 +9,6 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Add support for sending multiple blocks of data (for large chunks)
 * **Library** - Write sample demos.
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
@@ -20,7 +19,6 @@ Currently supported devices:
 * **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
-* **UNFLoader + Library** - Implement screenshot functionality.
 * **UNFLoader + Library** - Implement data checksum.
 
 
@@ -61,6 +59,17 @@ Here are the included functions:
 ==============================*/
 void debug_printf(const char* message, ...);
 
+*==============================
+    debug_screenshot
+    Sends the currently displayed framebuffer through USB.
+    Does not pause the drawing thread!
+    @param The size of each pixel of the framebuffer in bytes
+           Typically 4 if 32-bit or 2 if 16-bit
+    @param The width of the framebuffer
+    @param The height of the framebuffer
+==============================*/
+void debug_screenshot(int size, int w, int h)
+
 /*==============================
     debug_assert
     Halts the program if the expression returns false
@@ -91,6 +100,10 @@ The Include folder should already have everything you need, but if you wish to b
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
 
+**lodepng**
+* Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
+* Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
+
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
 
 
@@ -103,9 +116,17 @@ All data gets sent in the following manner:
 
 The data type mentioned is up to the developer to implement. If you wish to add more data types so that the data is handled differently on the PC side, you must make changes to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Make sure you also add your new data types to the USB library's `usb.h`! Here's a list of default data types:
 ```c
+// Incoming data is text for printf
 #define DATATYPE_TEXT       0x01
+
+// Incoming data is raw binary
 #define DATATYPE_RAWBINARY  0x02
+
+// Incoming data describes contents of next incoming data
+// Use to help you process the data that comes after it (see screenshot implmentation)
 #define DATATYPE_HEADER     0x03
+
+// Incoming data is a framebuffer
 #define DATATYPE_SCREENSHOT 0x04
 ```
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
@@ -117,6 +138,7 @@ There is no checksum in place to detect the authenticity of the data. This might
 
 **64Drive**
 * The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. This however, will break HW1 compatibility.
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB. 
 
 **EverDrive 3.0**
 
