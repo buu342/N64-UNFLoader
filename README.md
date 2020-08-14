@@ -111,7 +111,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 I have yet to attempt this so I cannot help much, however I have avoided using Windows libraries in order to make the conversion easier. You will need to swap out the PDCurses library with NCurses and find an alternative to FTD2xx.lib. Proper linux conversion will be something that I will focus on once the tool is finished....
 
 
-### Extending the debug library/loader program
+### Extending the libraries/loader program
 All data gets sent in the following manner:
 * 4 Bytes with `'D' 'M' 'A' '@'` to signalize data start.
 * 4 Bytes with 1 byte for the data type and 3 for the size of the data.
@@ -141,8 +141,8 @@ There is no checksum in place to detect the authenticity of the data. This might
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
 
 **64Drive**
-* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. This however, will break HW1 compatibility.
-* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB. 
+* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB.
 
 **EverDrive 3.0**
 
