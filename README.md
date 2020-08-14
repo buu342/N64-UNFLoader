@@ -105,7 +105,8 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 ```c
 #define DATATYPE_TEXT       0x01
 #define DATATYPE_RAWBINARY  0x02
-#define DATATYPE_SCREENSHOT 0x03
+#define DATATYPE_HEADER     0x03
+#define DATATYPE_SCREENSHOT 0x04
 ```
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
 
