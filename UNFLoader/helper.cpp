@@ -151,13 +151,14 @@ void terminate(char* reason, ...)
     // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
         __pdprint_v(CRDEF_ERROR, reason, args);
+    pdprint("\n", CRDEF_ERROR);
 
     // Close the device if it's open
     if (device_isopen())
         device_close();
 
     // Pause the program
-    pdprint("\nPress any key to continue...", CRDEF_INPUT);
+    pdprint("Press any key to continue...", CRDEF_INPUT);
     va_end(args);
     getchar();
 
@@ -183,13 +184,14 @@ static void terminate_v(char* reason, va_list args)
     // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
         __pdprint_v(CRDEF_ERROR, reason, args);
+    pdprint("\n", CRDEF_ERROR);
 
     // Close the device if it's open
     if (device_isopen())
         device_close();
 
     // Pause the program
-    pdprint("\nPress any key to continue...", CRDEF_INPUT);
+    pdprint("Press any key to continue...", CRDEF_INPUT);
     getchar();
 
     // End the program
@@ -282,4 +284,40 @@ u32 calc_padsize(u32 size)
     size |= size >> 16;
     size++;
     return size;
+}
+
+/*==============================
+    gen_filename
+    Generates a unique ending for a filename
+    Remember to free the memory when finished!
+    @returns The unique string
+==============================*/
+
+#define DATESIZE 7*2+1
+char* gen_filename()
+{
+    static int increment = 0;
+    static int lasttime = 0;
+    int curtime = 0;
+    time_t t = time(NULL);
+    struct tm tm;
+    char* str = malloc(DATESIZE);
+
+    // Get the time
+    localtime_s(&tm, &t);
+    curtime = tm.tm_hour*60*60+tm.tm_min*60+tm.tm_sec;
+
+    // Increment the last value if two files were created at the same second
+    if (lasttime != curtime)
+    {
+        increment = 0;
+        lasttime = curtime;
+    }
+    else
+        increment++;
+
+    // Generate the string and return it
+    sprintf_s(str, DATESIZE, "%02d%02d%02d%02d%02d%02d%02d", 
+              (tm.tm_year+1900)%100, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, increment%100);
+    return str;
 }

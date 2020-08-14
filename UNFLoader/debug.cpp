@@ -4,7 +4,7 @@
 Handles USB I/O.
 ***************************************************************/
 
-#include <stdlib.h>
+#include "Include/lodepng.h"
 #include "main.h"
 #include "helper.h"
 #include "device.h"
@@ -15,18 +15,29 @@ Handles USB I/O.
               Macros
 *********************************/
 
-#define VERBOSE 0
+#define VERBOSE     0
 #define BUFFER_SIZE 512
+#define HEADER_SIZE 16
 #define BLINKRATE   40
 
 
 /*********************************
-        Function Pointers
+       Function Prototypes
 *********************************/
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
 void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
+void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
+void debug_handle_header(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
+void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
+
+
+/*********************************
+         Global Variables
+*********************************/
+
+static int debug_headerdata[HEADER_SIZE];
 
 
 /*==============================
@@ -191,8 +202,11 @@ void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read)
     // Decide what to do with the data based off the command type
     switch (command)
     {
-        case DATATYPE_TEXT: debug_handle_text(cart, size, buffer, read); break;
-        default:            terminate("Error: Unknown data type.");
+        case DATATYPE_TEXT:       debug_handle_text(cart, size, buffer, read); break;
+        case DATATYPE_RAWBINARY:  debug_handle_rawbinary(cart, size, buffer, read); break;
+        case DATATYPE_HEADER:     debug_handle_header(cart, size, buffer, read); break;
+        case DATATYPE_SCREENSHOT: debug_handle_screenshot(cart, size, buffer, read); break;
+        default:                  terminate("Error: Unknown data type.");
     }
 }
 
@@ -231,4 +245,192 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
         if (left > BUFFER_SIZE)
             left = BUFFER_SIZE;
     }
+}
+
+
+/*==============================
+    debug_handle_rawbinary
+    Handles DATATYPE_RAWBINARY
+    @param A pointer to the cart context
+    @param The size of the incoming data
+    @param The buffer to use
+    @param A pointer to a variable that stores the number of bytes read
+==============================*/
+
+void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
+{
+    int total = 0;
+    int left = size;
+    char* filename = malloc(256);
+    char* extraname = gen_filename();
+    FILE* fp; 
+
+    // Ensure we malloced successfully
+    if (filename == NULL || extraname == NULL)
+        terminate("Error: Unable to allocate memory for binary file.");
+
+    // Create the binary file to save data to
+    strcpy_s(filename, 256, "binaryout-");
+    strcat_s(filename, 256, extraname);
+    strcat_s(filename, 256, ".bin");
+    fopen_s(&fp, filename, "wb+");
+
+    // Ensure the file was created
+    if (fp == NULL)
+        terminate("Error: Unable to create binary file.");
+
+    // Ensure the data fits within our buffer
+    if (left > BUFFER_SIZE)
+        left = BUFFER_SIZE;
+
+    // Read bytes until we finished
+    while (left != 0)
+    {
+        // Read from the USB and save it to our binary file
+        FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+        fwrite(buffer, 1, left, fp);
+
+        // Store the amount of bytes read
+        (*read) += cart->bytes_read;
+        total += cart->bytes_read;
+
+        // Ensure the data fits within our buffer
+        left = size - total;
+        if (left > BUFFER_SIZE)
+            left = BUFFER_SIZE;
+    }
+
+    // Close the file and free the memory used for the filename
+    pdprint("Wrote %d bytes to %s.\n", CRDEF_INFO, size, filename);
+    fclose(fp);
+    free(filename);
+    free(extraname);
+}
+
+
+/*==============================
+    debug_handle_header
+    Handles DATATYPE_HEADER
+    @param A pointer to the cart context
+    @param The size of the incoming data
+    @param The buffer to use
+    @param A pointer to a variable that stores the number of bytes read
+==============================*/
+
+void debug_handle_header(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
+{
+    int total = 0;
+    int left = size;
+
+    // Ensure the data fits within our buffer
+    if (left > HEADER_SIZE)
+        left = HEADER_SIZE;
+
+    // Read bytes until we finished
+    while (left != 0)
+    {
+        // Read from the USB and save it to the global headerdata
+        FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+        for (int i=0; i<(int)cart->bytes_read; i+=4)
+            debug_headerdata[i/4] = swap_endian(buffer[i + 3] << 24 | buffer[i + 2] << 16 | buffer[i + 1] << 8 | buffer[i]);
+
+        // Store the amount of bytes read
+        (*read) += cart->bytes_read;
+        total += cart->bytes_read;
+
+        // Ensure the data fits within our buffer
+        left = size - total;
+        if (left > HEADER_SIZE)
+            left = HEADER_SIZE;
+    }
+}
+
+
+/*==============================
+    debug_handle_screenshot
+    Handles DATATYPE_SCREENSHOT
+    @param A pointer to the cart context
+    @param The size of the incoming data
+    @param The buffer to use
+    @param A pointer to a variable that stores the number of bytes read
+==============================*/
+
+void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
+{
+    int total = 0;
+    int left = size;
+    int j=0;
+    u8* image;
+    int w = debug_headerdata[2], h = debug_headerdata[3];
+    char* filename = malloc(256);
+    char* extraname = gen_filename();
+
+    // Ensure we got a data header of type screenshot
+    if (debug_headerdata[0] != DATATYPE_SCREENSHOT)
+        terminate("Error: Unexpected data header for screenshot.");
+
+    // Allocate space for the image
+    image = malloc(4*w*h);
+
+    // Ensure we malloced successfully
+    if (filename == NULL || extraname == NULL || image == NULL)
+        terminate("Error: Unable to allocate memory for binary file.");
+
+    // Create the binary file to save data to
+    strcpy_s(filename, 256, "screenshot-");
+    strcat_s(filename, 256, extraname);
+    strcat_s(filename, 256, ".png");
+
+    // Ensure the data fits within our buffer
+    if (left > BUFFER_SIZE)
+        left = BUFFER_SIZE;
+
+    // Read bytes until we finished
+    while (left != 0)
+    {
+        // Read from the USB and save it to our binary file
+        FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+        for (int i=0; i<(int)cart->bytes_read; i+=4)
+        {
+            int texel = swap_endian((buffer[i+3]<<24)&0xFF000000 | (buffer[i+2]<<16)&0xFF0000 | (buffer[i+1]<<8)&0xFF00 | buffer[i]&0xFF);
+            if (debug_headerdata[1] == 2) 
+            {
+                short pixel1 = texel >> 16;
+                short pixel2 = texel;
+                image[j++] = 0x08*((pixel1>>11) & 0x001F); // R1
+                image[j++] = 0x08*((pixel1>>6) & 0x001F);  // G1
+                image[j++] = 0x08*((pixel1>>1) & 0x001F);  // B1
+                image[j++] = 0xFF;
+
+                image[j++] = 0x08*((pixel2>>11) & 0x001F); // R2
+                image[j++] = 0x08*((pixel2>>6) & 0x001F);  // G2
+                image[j++] = 0x08*((pixel2>>1) & 0x001F);  // B2
+                image[j++] = 0xFF;
+            }
+            else
+            {
+                // TODO: Test this because I sure as hell didn't >:V
+                image[j++] = (texel>>24) & 0xFF; // R
+                image[j++] = (texel>>16) & 0xFF; // G
+                image[j++] = (texel>>8)  & 0xFF; // B
+                image[j++] = (texel>>0)  & 0xFF; // Alpha
+            }
+        }
+
+        // Store the amount of bytes read
+        (*read) += cart->bytes_read;
+        total += cart->bytes_read;
+
+        // Ensure the data fits within our buffer
+        left = size - total;
+        if (left > BUFFER_SIZE)
+            left = BUFFER_SIZE;
+    }
+
+    // Close the file and free the dynamic memory used
+    lodepng_encode32_file(filename, image, w, h);
+    pdprint("Wrote %dx%d pixels to %s.\n", CRDEF_INFO, w, h, filename);
+    free(image);
+    free(filename);
+    free(extraname);
 }

@@ -38,9 +38,10 @@
     void progressbar_draw(char* text, float percent);
 
     // Useful functions
-    void testcommand(FT_STATUS status, char* reason, ...);
-    u32  swap_endian(u32 val);
-    u32  calc_padsize(u32 size);
+    void  testcommand(FT_STATUS status, char* reason, ...);
+    u32   swap_endian(u32 val);
+    u32   calc_padsize(u32 size);
+    char* gen_filename();
     #define SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
 
 #endif

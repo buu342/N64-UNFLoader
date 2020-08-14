@@ -31,6 +31,9 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Include\lodepng.c">
+      <Filter>Include</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h">
@@ -68,6 +71,9 @@
     </ClInclude>
     <ClInclude Include="helper_internal.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\lodepng.h">
+      <Filter>Include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
