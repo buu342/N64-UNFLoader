@@ -59,7 +59,7 @@ Here are the included functions:
 ==============================*/
 void debug_printf(const char* message, ...);
 
-*==============================
+/*==============================
     debug_screenshot
     Sends the currently displayed framebuffer through USB.
     Does not pause the drawing thread!
