@@ -12,8 +12,8 @@ https://github.com/buu342/N64-UNFLoader
 #include <string.h> // Needed for Crash's Linux toolchain
 #include "debug.h"
 
+
 #if DEBUG_MODE
-    #include "usb.h"
     
     /*********************************
            Standard Definitions
@@ -461,8 +461,4 @@ https://github.com/buu342/N64-UNFLoader
             }
         }
     #endif
-    
-#else
-    void debug_printf(const char* message, ...){}
-    void _debug_assert(const char* expression, const char* file, int line){}
 #endif
