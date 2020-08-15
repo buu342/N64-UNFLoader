@@ -35,6 +35,8 @@
         #define debug_printf(__VA_ARGS__) 
         #define debug_screenshot(a, b, c)
         #define debug_assert(a)
+        #define usb_write(a, b, c)
+        #define usb_read() 0
     #endif
     
 #endif
