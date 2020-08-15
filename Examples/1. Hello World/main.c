@@ -18,6 +18,14 @@ Handles the boot process of the ROM.
 
 
 /*********************************
+             Threads
+*********************************/
+
+OSThread idleThread;
+OSThread mainThread;
+
+
+/*********************************
         Parallel Interface
 *********************************/
 

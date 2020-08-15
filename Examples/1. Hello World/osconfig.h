@@ -14,8 +14,8 @@
     #define THREADPRI_MAIN 10
     
     // Thread pointers
-    static OSThread	idleThread;
-    static OSThread	mainThread;
+    extern OSThread idleThread;
+    extern OSThread mainThread;
     
     
     /**********************************
