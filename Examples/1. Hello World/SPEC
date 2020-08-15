@@ -1,0 +1,14 @@
+#include "osconfig.h"
+
+beginseg
+	name "code"
+	flags BOOT OBJECT
+	entry boot
+	stack bootStack + BOOTSTACKSIZE
+	include "codesegment.o"
+endseg
+
+beginwave
+	name "unflexa1"
+	include "code"
+endwave
