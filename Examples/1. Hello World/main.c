@@ -18,7 +18,7 @@ Handles the boot process of the ROM.
 
 
 /*********************************
-             Threads
+         Thread Pointers
 *********************************/
 
 OSThread idleThread;

@@ -28,8 +28,10 @@
     #define	MAINSTACKSIZE   0x2000
     
     // Stack pointers
-    extern u64 bootStack[BOOTSTACKSIZE/sizeof(u64)];
-    extern u64 idleThreadStack[IDLESTACKSIZE/sizeof(u64)];
-    extern u64 mainThreadStack[MAINSTACKSIZE/sizeof(u64)];
+    #ifdef	NOT_SPEC  // For Linux Compatibility
+        extern u64 bootStack[BOOTSTACKSIZE/sizeof(u64)];
+        extern u64 idleThreadStack[IDLESTACKSIZE/sizeof(u64)];
+        extern u64 mainThreadStack[MAINSTACKSIZE/sizeof(u64)];
+    #endif
     
 #endif

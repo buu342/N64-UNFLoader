@@ -37,13 +37,13 @@ APP = $(TARGETS:.n64=.out)
 ifeq ($(DEBUG_MODE), 0)
     CODEOBJECTS     = $(CODECFILES:.c=.o)
     OPTIMIZER       = -O2
-    LCDEFS          = -D_FINALROM -DNDEBUG -DF3DEX_GBI_2
+    LCDEFS          = -D_FINALROM -DNDEBUG -DF3DEX_GBI_2 -DNOT_SPEC
     N64LIB          = -lgultra_rom
     MAKEROMFLAGS    = 
 else
     CODEOBJECTS     = $(CODECFILES:.c=.o) $(DEBUGFILES:.c=.o)
     OPTIMIZER       = -g
-    LCDEFS          = -DDEBUG  -DF3DEX_GBI_2
+    LCDEFS          = -DDEBUG  -DF3DEX_GBI_2 -DNOT_SPEC
     N64LIB          = -lgultra_d
     MAKEROMFLAGS    = -d
 endif
