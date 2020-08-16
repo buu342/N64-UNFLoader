@@ -11,6 +11,7 @@ Currently supported devices:
 ### Current TODO list:
 * **Library** - Make the 64Drive's button usable for something.
 * **Library** - Write sample demos.
+* **Library** - Add thread safety
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
