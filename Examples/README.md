@@ -14,6 +14,10 @@ A barebones ROM that prints `Hello World!` to the debug console upon booting and
 ### 2. Thread Faults
 A NuSys ROM where an animation plays. After a very specific sequence in the animation, a thread fault will occur, with the information being printed to your debug console. libultra provides a program called `objdump`, which when fed the .out of your ROM (generated during compilation), it will output the full disassembly of it (which you can use to help diagnose the crash). A batch file named `dump.bat` is provided to facilitate the usage of the program. The mistake in the code is a very subtle incorrect number, but hopefully you can diagnose the cause with the help of the dump. 
 
+**Credits:**
+* Arena background from Dragon Ball Z: Super Butouden
+* EnteiTH for the character sprites
+
 **Usage**
 1) Upload the ROM.
 2) Watch the incredible Pixar-level animation unfold.
