@@ -9,6 +9,8 @@ Currently supported devices:
 
 
 ### Current TODO list:
+* **Library** - Don't abstract the initialization function.
+* **Library** - Look into osSyncPrintf override not working.
 * **Library** - Make the 64Drive's button usable for something.
 * **Library** - Write sample demos.
 * **Library** - Add thread safety
