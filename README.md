@@ -14,6 +14,7 @@ Currently supported devices:
 * **Library** - Make the 64Drive's button usable for something.
 * **Library** - Write sample demos.
 * **Library** - Add thread safety
+* **UNFLoader** - Look into reupload lag with listen mode on the 64Drive.
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
