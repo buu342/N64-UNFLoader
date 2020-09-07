@@ -70,7 +70,9 @@ int main(int argc, char* argv[])
     // Setup our console
     scrollok(stdscr, 1);
     idlok(stdscr, 1);
-    resize_term(40, 80);
+    #ifndef LINUX
+        resize_term(40, 80);
+    #endif
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);
@@ -120,11 +122,7 @@ void parse_args(int argc, char* argv[])
     // Check every argument
     for (i=1; i<argc; i++) 
     {
-        char* command;
-
-        // Lowercase the command
-        _strlwr_s(argv[i], strlen(argv[i])+1);
-        command = argv[i];
+        char* command = argv[i];
 
         // Check through possible commands
         if (!strcmp(command, "-help")) // Help command
@@ -214,10 +212,15 @@ void parse_args(int argc, char* argv[])
                 i++;
                 if (global_exportpath != NULL)
                 {
-                    char* filepath = malloc(256);
+                    char* filepath = (char*)malloc(256);
                     memset(filepath, 0 ,256);
-                    strcat_s(filepath, 256, global_exportpath);
-                    strcat_s(filepath, 256, argv[i]);
+                    #ifndef LINUX
+                        strcat_s(filepath, 256, global_exportpath);
+                        strcat_s(filepath, 256, argv[i]);
+                    #else
+                        strcat(filepath, global_exportpath);
+                        strcat(filepath, argv[i]);
+                    #endif
                     global_debugout = filepath;
                 }
                 else

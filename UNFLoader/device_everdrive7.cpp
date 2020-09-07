@@ -218,7 +218,11 @@ void device_sendrom_everdrive7(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Send the PIFboot command
-    Sleep(500);
+    #ifndef LINUX // Delay is needed or it won't boot properly
+        Sleep(500);
+    #else
+        usleep(500);
+    #endif
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive7(cart, 's', 0, 0, 0);
     

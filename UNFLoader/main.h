@@ -5,11 +5,19 @@
     #include <stdlib.h>
     #include <string.h>
     #include <time.h>
-    #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
+    #ifndef LINUX
+        #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
+    #else
+        #include <unistd.h>
+    #endif
 
-    #include "Include/curses.h"
-    #include "Include/curspriv.h"
-    #include "Include/panel.h"
+    #ifndef LINUX
+        #include "Include/curses.h"
+        #include "Include/curspriv.h"
+        #include "Include/panel.h"
+    #else
+        #include <curses.h>
+    #endif
     #include "Include/ftd2xx.h"
 
 
@@ -19,6 +27,10 @@
 
     #define false 0
     #define true  1
+
+    #define CH_ESCAPE    27
+    #define CH_ENTER     '\n'
+    #define CH_BACKSPACE '\b'
 
 
     /*********************************

@@ -31,14 +31,14 @@
     *********************************/
 
     // Printing
-    #define pdprint(string, color, ...) __pdprint(color, string, __VA_ARGS__)
-    #define pdprintw(window, string, color, ...) __pdprintw(window, color, string, __VA_ARGS__)
-    #define pdprint_replace(string, color, ...) __pdprint_replace(color, string, __VA_ARGS__)
-    void terminate(char* reason, ...);
-    void progressbar_draw(char* text, float percent);
+    #define pdprint(string, color, ...) __pdprint(color, string, ##__VA_ARGS__)
+    #define pdprintw(window, string, color, ...) __pdprintw(window, color, string, ##__VA_ARGS__)
+    #define pdprint_replace(string, color, ...) __pdprint_replace(color, string, ##__VA_ARGS__)
+    void terminate(const char* reason, ...);
+    void progressbar_draw(const char* text, float percent);
 
     // Useful functions
-    void  testcommand(FT_STATUS status, char* reason, ...);
+    void  testcommand(FT_STATUS status, const char* reason, ...);
     u32   swap_endian(u32 val);
     u32   calc_padsize(u32 size);
     char* gen_filename();

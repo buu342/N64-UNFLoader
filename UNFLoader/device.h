@@ -29,6 +29,9 @@
         DWORD        carttype;
         DWORD        cictype;
     } ftdi_context_t;
+    #ifdef LINUX
+        typedef int errno_t;
+    #endif
 
 
     /*********************************

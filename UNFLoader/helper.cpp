@@ -24,7 +24,7 @@ static char* local_printhistory[PRINT_HISTORY_SIZE];
     @param Variadic arguments to print as well
 ==============================*/
 
-void __pdprint(short color, char* str, ...)
+void __pdprint(short color, const char* str, ...)
 {
     int i;
     va_list args;
@@ -58,7 +58,7 @@ void __pdprint(short color, char* str, ...)
     @param Variadic arguments to print as well
 ==============================*/
 
-void __pdprintw(WINDOW *win, short color, char* str, ...)
+void __pdprintw(WINDOW *win, short color, const char* str, ...)
 {
     int i;
     va_list args;
@@ -92,7 +92,7 @@ void __pdprintw(WINDOW *win, short color, char* str, ...)
     @param va_list with the arguments to print
 ==============================*/
 
-static void __pdprint_v(short color, char* str, va_list args)
+static void __pdprint_v(short color, const char* str, va_list args)
 {
     int i;
 
@@ -122,7 +122,7 @@ static void __pdprint_v(short color, char* str, va_list args)
     @param Variadic arguments to print as well
 ==============================*/
 
-void __pdprint_replace(short color, char* str, ...)
+void __pdprint_replace(short color, const char* str, ...)
 {
     int i, xpos, ypos;
     va_list args;
@@ -158,7 +158,7 @@ void __pdprint_replace(short color, char* str, ...)
     @param Variadic arguments to print as well
 ==============================*/
 
-void terminate(char* reason, ...)
+void terminate(const char* reason, ...)
 {
     int i;
     va_list args;
@@ -203,7 +203,7 @@ void terminate(char* reason, ...)
     @param Variadic arguments to print as well
 ==============================*/
 
-static void terminate_v(char* reason, va_list args)
+static void terminate_v(const char* reason, va_list args)
 {
     int i;
 
@@ -246,7 +246,7 @@ static void terminate_v(char* reason, va_list args)
     @param Variadic arguments to print as well
 ==============================*/
 
-void testcommand(FT_STATUS status, char* reason, ...)
+void testcommand(FT_STATUS status, const char* reason, ...)
 {
     va_list args;
     va_start(args, reason);
@@ -281,7 +281,7 @@ u32 swap_endian(u32 val)
     @param The percentage of completion
 ==============================*/
 
-void progressbar_draw(char* text, float percent)
+void progressbar_draw(const char* text, float percent)
 {
     int i;
     int prog_size = 16;
@@ -292,10 +292,17 @@ void progressbar_draw(char* text, float percent)
     pdprint_replace("%s [", CRDEF_PROGRAM, text);
 
     // Draw the progress bar itself
-	for(i=0; i<blocks_done; i++) 
-        pdprint("%c", CRDEF_PROGRAM, 219);
-	for(; i<prog_size; i++) 
-        pdprint("%c", CRDEF_PROGRAM, 176);
+    #ifndef LINUX
+        for(i=0; i<blocks_done; i++) 
+            pdprint("%c", CRDEF_PROGRAM, 219);
+        for(; i<prog_size; i++) 
+            pdprint("%c", CRDEF_PROGRAM, 176);
+    #else
+        for(i=0; i<blocks_done; i++) 
+            pdprint("%c", CRDEF_PROGRAM, '#');
+        for(; i<prog_size; i++) 
+            pdprint("%c", CRDEF_PROGRAM, '.');
+    #endif
 
     // Print the butt of the progress bar
     pdprint("] %d%%\n", CRDEF_PROGRAM, (int)(percent*100.0f));
@@ -334,14 +341,18 @@ char* gen_filename()
 {
     static int increment = 0;
     static int lasttime = 0;
+    char* str = (char*) malloc(DATESIZE);
     int curtime = 0;
     time_t t = time(NULL);
-    struct tm tm;
-    char* str = malloc(DATESIZE);
+    struct tm* tm = NULL;
 
     // Get the time
-    localtime_s(&tm, &t);
-    curtime = tm.tm_hour*60*60+tm.tm_min*60+tm.tm_sec;
+    #ifndef LINUX
+        localtime_s(tm, &t);
+    #else
+        tm = localtime(&t);
+    #endif
+    curtime = tm->tm_hour*60*60+tm->tm_min*60+tm->tm_sec;
 
     // Increment the last value if two files were created at the same second
     if (lasttime != curtime)
@@ -353,7 +364,12 @@ char* gen_filename()
         increment++;
 
     // Generate the string and return it
-    sprintf_s(str, DATESIZE, "%02d%02d%02d%02d%02d%02d%02d", 
-              (tm.tm_year+1900)%100, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, increment%100);
+    #ifndef LINUX
+        sprintf_s(str, DATESIZE, "%02d%02d%02d%02d%02d%02d%02d", 
+                  (tm->tm_year+1900)%100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, increment%100);
+    #else
+        sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
+                  (tm->tm_year+1900)%100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, increment%100);
+    #endif
     return str;
 }

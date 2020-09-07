@@ -220,7 +220,11 @@ void device_sendrom_everdrive3(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Send the PIFboot command
-    Sleep(500); // Delay is needed or it won't boot properly
+    #ifndef LINUX // Delay is needed or it won't boot properly
+        Sleep(500);
+    #else
+        usleep(500);
+    #endif
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive3(cart, 'S', 0, 0);
 

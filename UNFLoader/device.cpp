@@ -222,7 +222,11 @@ void device_sendrom(char* rompath)
         unsigned char rom_header[4];
 
         // Open the ROM and get info about it 
-        err = fopen_s(&file, rompath, "rb");
+        #ifndef LINUX
+            err = fopen_s(&file, rompath, "rb");
+        #else
+            file = fopen(rompath, "rb");
+        #endif
         if (err != 0)
         {
             device_close();
@@ -245,22 +249,28 @@ void device_sendrom(char* rompath)
             fclose(file);
             while (count < 30)
             {
-                Sleep(100);
+                int ch;
+                #ifndef LINUX
+                    Sleep(100);
+                #else
+                    usleep(100);
+                #endif
                 count++;
+                ch = getch();
 
                 // Disable ESC ignore if the key was released
-                if (!GetAsyncKeyState(VK_ESCAPE) && escignore)
+                if (ch == CH_ESCAPE && escignore)
                     escignore = false;
 
                 // Check if ESC was pressed
-                if (GetAsyncKeyState(VK_ESCAPE) && !escignore)
+                if (ch == CH_ESCAPE && !escignore)
                 {
                     pdprint("\nExiting listen mode.\n", CRDEF_PROGRAM);
                     return;
                 }
 
                 // Check if R was pressed
-                if (GetAsyncKeyState(0x52))
+                if (ch == 'r')
                 {
                     resend = true;
                     pdprint("\nReuploading ROM by request.\n", CRDEF_PROGRAM);

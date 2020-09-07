@@ -26,7 +26,7 @@ Handles USB I/O.
        Function Prototypes
 *********************************/
 
-void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos);
+void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
 void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
@@ -64,14 +64,18 @@ void debug_main(ftdi_context_t *cart)
     curs_set(0);
 
     // Initialize our buffers
-    outbuff = malloc(BUFFER_SIZE);
-    inbuff = malloc(BUFFER_SIZE);
+    outbuff = (char*) malloc(BUFFER_SIZE);
+    inbuff = (char*) malloc(BUFFER_SIZE);
     memset(inbuff, 0, BUFFER_SIZE);
 
     // Open file for debug output
     if (global_debugout != NULL)
     {
-        fopen_s(&global_debugoutptr, global_debugout, "w+");
+        #ifndef LINUX
+            fopen_s(&global_debugoutptr, global_debugout, "w+");
+        #else
+            global_debugoutptr = fopen(global_debugout, "w+");
+        #endif
         if (global_debugoutptr == NULL)
             terminate("\nError: Unable to open %s for writing debug output.", global_debugout);
     }
@@ -87,10 +91,12 @@ void debug_main(ftdi_context_t *cart)
     // Start the debug server loop
     for ( ; ; ) 
 	{
+        char ch = getch();
+
         // If ESC is pressed, stop the loop
-		if (GetAsyncKeyState(VK_ESCAPE) || (global_timeout != 0 && debugtimeout < clock()))
+		if (ch == 27 || (global_timeout != 0 && debugtimeout < clock()))
 			break;
-        debug_textinput(cart, inputwin, inbuff, &cursorpos);
+        debug_textinput(cart, inputwin, inbuff, &cursorpos, ch);
 
         // Check if we have pending data
         FT_GetQueueStatus(cart->handle, &pending);
@@ -135,7 +141,11 @@ void debug_main(ftdi_context_t *cart)
         // If we got no more data, sleep a bit to be kind to the CPU
         FT_GetQueueStatus(cart->handle, &pending);
         if (pending == 0)
-            Sleep(10);
+            #ifndef LINUX // Delay is needed or it won't boot properly
+                Sleep(10);
+            #else
+                usleep(10);
+            #endif
     }
 
     // Close the debug output file if it exists
@@ -160,14 +170,13 @@ void debug_main(ftdi_context_t *cart)
     TODO: Write this header
 ==============================*/
 
-void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos)
+void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
     static int blinker = 0;
     static int size = 0;
-    int ch = getch();
 
     // Decide what to do on key presses
-    if ((ch == KEY_ENTER || ch == '\n' || ch == '\r') && size != 0)
+    if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
         pdprint("Sending command %s\n", CRDEF_INFO, buffer);
         device_senddata(buffer, size);
@@ -175,7 +184,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         (*cursorpos) = 0;
         size = 0;
     }
-    else if (ch == KEY_BACKSPACE || ch == 127 || ch == '\b')
+    else if (ch == CH_BACKSPACE || ch == 127 || ch == '\b')
     {
         if ((*cursorpos) > 0)
         {
@@ -201,10 +210,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         mvwaddch(inputwin, y, (*cursorpos), 219);
         wmove(inputwin, y, x);
     }
-
-    // Refresh the input window
-    wrefresh(inputwin);
-    wclear(inputwin);
+    werase(inputwin);
 }
 
 
@@ -284,7 +290,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 {
     int total = 0;
     int left = size;
-    char* filename = malloc(PATH_SIZE);
+    char* filename = (char*) malloc(PATH_SIZE);
     char* extraname = gen_filename();
     FILE* fp; 
 
@@ -294,12 +300,21 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 
     // Create the binary file to save data to
     memset(filename, 0, PATH_SIZE);
-    if (global_exportpath != NULL)
-        strcat_s(filename, PATH_SIZE, global_exportpath);
-    strcat_s(filename, PATH_SIZE, "binaryout-");
-    strcat_s(filename, PATH_SIZE, extraname);
-    strcat_s(filename, PATH_SIZE, ".bin");
-    fopen_s(&fp, filename, "wb+");
+    #ifndef LINUX
+        if (global_exportpath != NULL)
+                strcat_s(filename, PATH_SIZE, global_exportpath);
+        strcat_s(filename, PATH_SIZE, "binaryout-");
+        strcat_s(filename, PATH_SIZE, extraname);
+        strcat_s(filename, PATH_SIZE, ".bin");
+        fopen_s(&fp, filename, "wb+");
+    #else
+        if (global_exportpath != NULL)
+            strcat(filename, global_exportpath);
+        strcat(filename, "binaryout-");
+        strcat(filename, extraname);
+        strcat(filename, ".bin");
+        fp = fopen(filename, "wb+");
+    #endif
 
     // Ensure the file was created
     if (fp == NULL)
@@ -388,7 +403,7 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
     int j=0;
     u8* image;
     int w = debug_headerdata[2], h = debug_headerdata[3];
-    char* filename = malloc(PATH_SIZE);
+    char* filename = (char*) malloc(PATH_SIZE);
     char* extraname = gen_filename();
 
     // Ensure we got a data header of type screenshot
@@ -396,7 +411,7 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
         terminate("Error: Unexpected data header for screenshot.");
 
     // Allocate space for the image
-    image = malloc(4*w*h);
+    image = (u8*) malloc(4*w*h);
 
     // Ensure we malloced successfully
     if (filename == NULL || extraname == NULL || image == NULL)
@@ -404,11 +419,19 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
 
     // Create the binary file to save data to
     memset(filename, 0, PATH_SIZE);
-    if (global_exportpath != NULL)
-        strcat_s(filename, PATH_SIZE, global_exportpath);
-    strcat_s(filename, PATH_SIZE, "screenshot-");
-    strcat_s(filename, PATH_SIZE, extraname);
-    strcat_s(filename, PATH_SIZE, ".png");
+    #ifndef LINUX
+        if (global_exportpath != NULL)
+            strcat_s(filename, PATH_SIZE, global_exportpath);
+        strcat_s(filename, PATH_SIZE, "screenshot-");
+        strcat_s(filename, PATH_SIZE, extraname);
+        strcat_s(filename, PATH_SIZE, ".png");
+    #else
+        if (global_exportpath != NULL)
+            strcat(filename, global_exportpath);
+        strcat(filename, "screenshot-");
+        strcat(filename, extraname);
+        strcat(filename, ".png");
+    #endif
 
     // Ensure the data fits within our buffer
     if (left > BUFFER_SIZE)
