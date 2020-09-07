@@ -28,8 +28,19 @@ Currently supported devices:
 
 
 ### Requirements:
+**Windows**
 * Windows XP or higher
 * [This FDTI driver](http://www.ftdichip.com/Drivers/CDM/CDM21228_Setup.zip)
+
+**Linux**
+* Ubuntu (Haven't tested with others)
+* [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
+* You must run UNFLoader with `sudo`.
+* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands first: 
+```
+sudo rmmod usbserial
+sudo rmmod ftdi_sio
+```
 
 
 ### Using UNFLoader
@@ -83,10 +94,11 @@ void debug_screenshot(int size, int w, int h)
 #define debug_assert(expression)
 ```
 
-
-### Building the UNFLoader program for Windows
+### Building UNFLoader
+<details><summary>Building UNFLoader for Windows</summary>
+<p>
 Simply load the project file in Visual Studio 2019 or higher.
-The Include folder should already have everything you need, but if you wish to build/retrieve the libraries yourself:
+The Include folder should already have everything you need for both Windows and Linux, but if you wish to build/retrieve the libraries yourself:
 
 **pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
@@ -110,11 +122,38 @@ The Include folder should already have everything you need, but if you wish to b
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
 
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</p>
+</details>
 
+<details><summary>Building UNFLoader for Linux</summary>
+<p>
+You need to have the FTDI driver installed, as well as ncurses.
+Install ncurses by invoking:
 
-### Building the UNFLoader program for Linux
-I have yet to attempt this so I cannot help much, however I have avoided using Windows libraries in order to make the conversion easier. You will need to swap out the PDCurses library with NCurses and find an alternative to FTD2xx.lib. Proper linux conversion will be something that I will focus on once the tool is finished....
+```
+sudo apt-get install libncurses5-dev libncursesw5-dev
+```
 
+Once the dependencies are installed, simply execute the makefile:
+
+```
+make -f makefile.linux
+```
+
+The Include folder should already have everything you need for both Windows and Linux, but if you wish to retrieve the libraries yourself:
+
+**ftd2xx + WinTypes**
+* Download the FTDI driver provided in the **Requirements** section and extract the zip.
+* Go into the `release` folder.
+* Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
+
+**lodepng**
+* Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
+* Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
+
+Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</p>
+</details>
 
 ### Extending the libraries/loader program
 All data gets sent in the following manner:
