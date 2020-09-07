@@ -101,9 +101,9 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u8 num
 	send_buff[3] = 0x44;    // D
 
     // Append extra arguments to the command if needed
-	if(numparams > 0) 
+	if (numparams > 0) 
         *(u32 *)&send_buff[4] = swap_endian(va_arg(params, u32));
-	if(numparams > 1) 
+	if (numparams > 1) 
         *(u32 *)&send_buff[8] = swap_endian(va_arg(params, u32));
     va_end(params);
 
@@ -280,10 +280,8 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
 void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
 {
-    /*
-    u8* buf;
+    u8 buf[4];
     u32 cmp_magic;
-    buf = malloc(512);
 
     // Pad data to be 32 bit aligned
     if (size % 4 != 0)
@@ -295,7 +293,7 @@ void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
     }
 
     // Send the command, and then the data
-    device_sendcmd(cart, NULL, DEV_CMD_USBRECV, 1, 0, 1, (size & 0xffffff) | 0x20 << 24, 0);
+    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (size & 0xffffff) | 0x20 << 24, 0);
     cart->status = FT_Write(cart->handle, data, size, &cart->bytes_written);
 
     // Read the CMP signal
@@ -304,9 +302,6 @@ void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
     if (cmp_magic != 0x434D5040) {
         terminate("Error: Received wrong CMPlete signal.");
     }
-
-    free(buf);
-    */
 }
 
 
