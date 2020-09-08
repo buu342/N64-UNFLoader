@@ -223,11 +223,12 @@ void device_sendrom(char* rompath)
 
         // Open the ROM and get info about it 
         #ifndef LINUX
-            err = fopen_s(&file, rompath, "rb");
-        #else
-            file = fopen(rompath, "rb");
-        #endif
+        err = fopen_s(&file, rompath, "rb");
         if (err != 0)
+        #else
+        file = fopen(rompath, "rb");
+        if (file == NULL)
+        #endif
         {
             device_close();
             terminate("Unable to open file '%s'.\n", rompath);
