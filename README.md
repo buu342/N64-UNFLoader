@@ -28,11 +28,17 @@ Currently supported devices:
 
 
 ### Requirements:
-**Windows**
+<details><summary>Windows</summary>
+<p>
+    
 * Windows XP or higher
 * [This FDTI driver](http://www.ftdichip.com/Drivers/CDM/CDM21228_Setup.zip)
-
-**Linux**
+</p>
+</details>
+    
+<details><summary>Linux</summary>
+<p>
+    
 * Ubuntu (Haven't tested with others)
 * [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * You must run UNFLoader with `sudo`.
@@ -41,16 +47,20 @@ Currently supported devices:
 sudo rmmod usbserial
 sudo rmmod ftdi_sio
 ```
+</p>
+</details>
 
-**macOS**
-
+<details><summary>macOS</summary>
+<p>
+    
 ![The macOS System Information window showing an FTDI device connected to a USB3 port](readme_assets/macos_system_report.png)
 * Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
 * Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
 * [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
 * You must run UNFLoader with `sudo`.
-
+</p>
+</details>
 
 ### Using UNFLoader
 Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart). The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
