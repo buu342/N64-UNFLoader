@@ -12,8 +12,8 @@ Currently supported devices:
 * **Library** - Don't abstract the initialization function.
 * **Library** - Look into osSyncPrintf override not working.
 * **Library** - Make the 64Drive's button usable for something.
-* **Library** - Write sample demos.
-* **Library** - Add thread safety
+* **Library** - Write sample demos for the read functions.
+* **Library** - Add thread safety.
 * **UNFLoader** - Look into reupload lag with listen mode on the 64Drive.
 * **UNFLoader** - Implement scrolling.
 * **UNFLoader** - Implement command history.
@@ -32,7 +32,7 @@ Currently supported devices:
 <p>
     
 * Windows XP or higher
-* [This FDTI driver](http://www.ftdichip.com/Drivers/CDM/CDM21228_Setup.zip)
+* [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm)
 </p>
 </details>
     
@@ -56,7 +56,7 @@ sudo rmmod ftdi_sio
 ![The macOS System Information window showing an FTDI device connected to a USB3 port](readme_assets/macos_system_report.png)
 * Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
 * Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
-* [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
+* [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
 * Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
 * You must run UNFLoader with `sudo`.
 </p>
