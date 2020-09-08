@@ -44,6 +44,7 @@ char* global_debugout    = NULL;
 FILE* global_debugoutptr = NULL;
 char* global_exportpath  = NULL;
 int   global_timeout     = 0;
+bool  global_closefail   = false;
 
 // Local globals
 static int   local_flashcart = CART_NONE;

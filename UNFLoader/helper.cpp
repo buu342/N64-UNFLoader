@@ -178,8 +178,11 @@ void terminate(const char* reason, ...)
     }
 
     // Close the device if it's open
-    if (device_isopen())
+    if (device_isopen() && !global_closefail)
+    {
+        global_closefail = true; // Prevent infinite loop
         device_close();
+    }
 
     // Pause the program
     if (global_timeout == 0)
@@ -220,8 +223,11 @@ static void terminate_v(const char* reason, va_list args)
     }
 
     // Close the device if it's open
-    if (device_isopen())
+    if (device_isopen() && !global_closefail)
+    {
+        global_closefail = true; // Prevent infinite loop
         device_close();
+    }
 
     // Pause the program
     if (global_timeout == 0)
@@ -328,6 +334,7 @@ u32 calc_padsize(u32 size)
     size++;
     return size;
 }
+
 
 /*==============================
     gen_filename

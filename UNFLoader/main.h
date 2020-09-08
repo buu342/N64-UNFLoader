@@ -59,5 +59,6 @@
     extern FILE* global_debugoutptr;
     extern char* global_exportpath;
     extern int   global_timeout;
+    extern bool  global_closefail;
 
 #endif
