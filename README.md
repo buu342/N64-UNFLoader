@@ -223,4 +223,6 @@ KRIKzz, saturnu, networkfusion, lambertjamesd, and jsdf for providing sample cod
 
 networkfusion and fraser for all the help provided during the development of this project as well as their support.
 
+danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
+
 The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried and kivan117. You guys are the reason this project was possible!
