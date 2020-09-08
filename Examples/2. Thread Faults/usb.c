@@ -146,11 +146,14 @@ https://github.com/buu342/N64-UNFLoader
 
 static void usb_findcart();
 static void usb_64drive_write(int datatype, const void* data, int size);
-static u8   usb_64drive_read();
+static int  usb_64drive_poll();
+static u8   usb_64drive_read(void* buffer, int size);
 static void usb_everdrive3_write(int datatype, const void* data, int size);
-static u8   usb_everdrive3_read();
+static int  usb_everdrive3_poll();
+static u8   usb_everdrive3_read(void* buffer, int size);
 static void usb_everdrive7_write(int datatype, const void* data, int size);
-static u8   usb_everdrive7_read();
+static int  usb_everdrive7_poll();
+static u8   usb_everdrive7_read(void* buffer, int size);
 static void usb_everdrive7_writereg(u64 reg, u32 value);
 
 
@@ -160,7 +163,8 @@ static void usb_everdrive7_writereg(u64 reg, u32 value);
 
 // Function pointers
 void (*funcPointer_write)(int datatype, const void* data, int size);
-u8   (*funcPointer_read)();
+int  (*funcPointer_poll)();
+u8   (*funcPointer_read)(void* buffer, int size);
 
 // USB globals
 static s8 usb_cart = CART_NONE;
@@ -195,7 +199,7 @@ static u8 usb_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
     Initializes the USB buffers and pointers
 ==============================*/
 
-static void usb_initialize()
+void usb_initialize()
 {
     // Initialize the debug related globals
     memset(usb_bufferout, 0, BUFFER_SIZE);
@@ -214,14 +218,17 @@ static void usb_initialize()
     {
         case CART_64DRIVE:
             funcPointer_write = usb_64drive_write;
+            funcPointer_poll  = usb_64drive_poll;
             funcPointer_read  = usb_64drive_read;
             break;
         case CART_EVERDRIVE3:
             funcPointer_write = usb_everdrive3_write;
+            funcPointer_poll  = usb_everdrive3_poll;
             funcPointer_read  = usb_everdrive3_read;
             break;
         case CART_EVERDRIVE7:
             funcPointer_write = usb_everdrive7_write;
+            funcPointer_poll  = usb_everdrive7_poll;
             funcPointer_read  = usb_everdrive7_read;
             break;
         default:
@@ -299,10 +306,6 @@ static void usb_findcart()
 
 void usb_write(int datatype, const void* data, int size)
 {
-    // If the cartridge hasn't been initialized, do so.
-    if (usb_cart == CART_NONE)
-        usb_initialize();
-        
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
         return;
@@ -313,22 +316,34 @@ void usb_write(int datatype, const void* data, int size)
 
 
 /*==============================
-    usb_read
+    usb_poll
     TODO: Implement this properly
 ==============================*/
 
-u8 usb_read()
+int usb_poll()
 {
-    // If the cartridge hasn't been initialized, do so.
-    if (usb_cart == CART_NONE)
-        usb_initialize();
-        
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
         return 0;
         
     // Call the correct read function
-    return funcPointer_read();
+    return funcPointer_poll();
+}
+
+
+/*==============================
+    usb_read
+    TODO: Implement this properly
+==============================*/
+
+u8 usb_read(void* buffer, int size)
+{       
+    // If no debug cart exists, stop
+    if (usb_cart == CART_NONE)
+        return 0;
+        
+    // Call the correct read function
+    return funcPointer_read(buffer, size);
 }
 
 
@@ -525,13 +540,26 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 
 
 /*==============================
+    usb_64drive_poll
+    Checks the USB for data on the 64Drive
+    @return The number of bytes to read
+==============================*/
+
+static int usb_64drive_poll()
+{
+    return 0;
+}
+
+
+/*==============================
     usb_64drive_read
-    Polls the 64Drive for commands to run
+    Reads data from the 64Drive
     @return 1 if success, 0 otherwise
 ==============================*/
 
-static u8 usb_64drive_read()
+static u8 usb_64drive_read(void* buffer, int nbytes)
 {
+    /*
     u32 ret;
     u32 length=0;
     u32 remaining=0;
@@ -613,6 +641,7 @@ static u8 usb_64drive_read()
     #endif
     usb_64drive_waitdisarmed();
     return 1;
+    */
 }
 
 
@@ -783,12 +812,25 @@ static void usb_everdrive3_write(int datatype, const void* data, int size)
 
 
 /*==============================
+    usb_everdrive3_poll
+    Checks the USB for data on the EverDrive 3.0
+    @return The number of bytes to read
+==============================*/
+
+static int usb_everdrive3_poll()
+{
+    // TODO: Implement this function
+    return 0;
+}
+
+
+/*==============================
     usb_everdrive3_read
     TODO: Write this header
 ==============================*/
 
-static u8 usb_everdrive3_read()
-{
+static u8 usb_everdrive3_read(void* buffer, int nbytes)
+{        
     // TODO: Implement this function
     return 0;
 }
@@ -999,11 +1041,24 @@ static void usb_everdrive7_write(int datatype, const void* data, int size)
 
 
 /*==============================
+    usb_everdrive7_poll
+    Checks the USB for data on the EverDrive X7
+    @return The number of bytes to read
+==============================*/
+
+static int usb_everdrive7_poll()
+{
+    // TODO: Implement this function
+    return 0;
+}
+
+
+/*==============================
     usb_everdrive7_read
     TODO: Write this header
 ==============================*/
 
-static u8 usb_everdrive7_read()
+static u8 usb_everdrive7_read(void* buffer, int nbytes)
 {        
     // TODO: Implement this function
     return 0;

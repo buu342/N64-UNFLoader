@@ -36,6 +36,9 @@ void mainproc(void)
         
     // Initialize and activate the graphics thread and Graphics Task Manager.
     nuGfxInit();
+    
+    // Initialize the debug library
+    debug_initialize();
         
     // Initialize stage 0
     stage00_init();

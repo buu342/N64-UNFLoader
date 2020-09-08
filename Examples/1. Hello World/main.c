@@ -47,6 +47,7 @@ static void mainThreadFunction(void *arg);
     Initializes the hardware and creates 
     the idle thread
 ==============================*/
+
 void boot()
 {
     // Initialize the hardware and software
@@ -57,13 +58,22 @@ void boot()
     osStartThread(&idleThread);
 }
 
+
 /*==============================
     idleThreadFunction
     The code executed by the idle thread
     @param An argument to pass to the thread
 ==============================*/
+
 static void idleThreadFunction(void *arg)
 {
+    // Initialize the debug library
+    #if USE_PRITNF
+        debug_initialize();
+    #else
+        usb_initialize();
+    #endif
+
     // This will only print if USE_OSRAW is enabled in usb.h
     #if USE_OSRAW
         debug_printf("Printed without the PI manager!\n");
@@ -81,11 +91,13 @@ static void idleThreadFunction(void *arg)
         ;
 }
 
+
 /*==============================
     mainThreadFunction
     The code executed by the main thread
     @param An argument to pass to the thread
 ==============================*/
+
 static void mainThreadFunction(void *arg)
 {
     // Say hello to the command prompt!

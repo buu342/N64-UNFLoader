@@ -40,6 +40,10 @@ https://github.com/buu342/N64-UNFLoader
     #if USE_FAULTTHREAD
         static void debug_thread_fault(void *arg);
     #endif
+
+    #if OVERWRITE_OSPRINT
+        static void* debug_osSyncPrintf_implementation(void *str, const char *buf, size_t n);
+    #endif
     
     
     /*********************************
@@ -171,11 +175,14 @@ https://github.com/buu342/N64-UNFLoader
         Initializes the debug library
     ==============================*/
     
-    static void debug_initialize()
+    void debug_initialize()
     {
+        // Initialize the USB functions
+        usb_initialize();
+    
         // Overwrite osSyncPrintf
         #if OVERWRITE_OSPRINT
-            __printfunc = (void*)debug_printf;
+            __printfunc = (void*)debug_osSyncPrintf_implementation;
         #endif
         
         // Initialize the fault thread
@@ -207,10 +214,6 @@ https://github.com/buu342/N64-UNFLoader
         char buff[256] = {0};
         char isdelim = FALSE;
         char delim[8] = {0};
-        
-        // If debug mode hasn't been initialized, do so.
-        if (!debug_initialized)
-            debug_initialize();
         
         // Get the variadic arguments
         va_start(args, message);
@@ -353,11 +356,7 @@ https://github.com/buu342/N64-UNFLoader
     ==============================*/
 
     void _debug_assert(const char* expression, const char* file, int line)
-    {
-        // If debug mode hasn't been initialized, do so first
-        if (!debug_initialized)
-            debug_initialize();
-    
+    {    
         // Set the assert data
         assert_expr = expression;
         assert_line = line;
@@ -367,6 +366,19 @@ https://github.com/buu342/N64-UNFLoader
         *((char*)(NULL)) = 0;
     }
 
+    
+    #if OVERWRITE_OSPRINT
+        /*==============================
+            debug_osSyncPrintf_implementation
+            Overwrites osSyncPrintf calls with this one
+        ==============================*/
+    
+        static void* debug_osSyncPrintf_implementation(void *str, const char *buf, size_t n)
+        {
+            debug_printf(buf);
+        }
+    #endif
+    
 
     #if USE_FAULTTHREAD
         

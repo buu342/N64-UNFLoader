@@ -13,12 +13,20 @@ REGISTRATION = "UNFLEXAM1" B U1 I
 
 
 ################################################################
+#                       Compiler Settings                      #
+################################################################
+
+CC  = gcc
+LD  = ld
+MAKEROM = mild
+
+
+################################################################
 #                         Make Commands                        #
 ################################################################
 
 default: $(TARGETS)
     
-
 
 ################################################################
 #     Don't touch below unless you know what you're doing!     #
@@ -27,7 +35,8 @@ default: $(TARGETS)
 include $(ROOT)/usr/include/make/PRdefs
 
 CODESEGMENT = codesegment.o
-APP = $(TARGETS:.n64=.out)
+OBJECTS     = $(CODESEGMENT)
+APP         = $(TARGETS:.n64=.out)
 
 
 ################################################################
@@ -50,22 +59,13 @@ endif
 
 
 ################################################################
-#                       Compiler Settings                      #
-################################################################
-
-CC  = gcc
-LD  = ld
-MAKEROM = mild
-
-
-################################################################
 #                        Linker Settings                       #
 ################################################################
 
 LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include
 LCOPTS =	-G 0
 LDIRT  =	$(APP)
-LDFLAGS=	$(MKDEPOPT)  -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(GCCDIR)/mipse/lib -lkmc
+LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(GCCDIR)/mipse/lib -lkmc
 
 
 ################################################################
@@ -77,8 +77,8 @@ include $(COMMONRULES)
 $(CODESEGMENT): $(CODEOBJECTS)
     $(LD) -o $(CODESEGMENT) -r $(CODEOBJECTS) $(LDFLAGS)
 
-$(TARGETS) $(APP):	spec $(CODESEGMENT)
-    $(MAKEROM) $(MAKEROMFLAGS) -r $(TARGETS) -e $(APP) spec
+$(TARGETS): $(OBJECTS)
+    $(MAKEROM) spec $(MAKEROMFLAGS) -r $(TARGETS) -e $(APP)
     @makemask $(TARGETS)
 ifeq ($(ALLOWREGISTER), 1)
     @nrdc $(TARGETS) $(REGISTRATION)

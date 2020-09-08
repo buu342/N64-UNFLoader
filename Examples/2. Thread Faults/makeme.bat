@@ -4,7 +4,7 @@ echo Compiling UNFLoader Example ROM 2
 
 :Setup
 set ROOT=C:\ultra
-set ALLOWMOVE=1
+set ALLOWMOVE=0
 set MOVEFOLDER=Z:\
 set FORCEMOVE=0
 set ROMREGISTER=C:\n64roms\nrdc.exe
