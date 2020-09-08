@@ -1,5 +1,5 @@
 # UNFLoader
-**This project is in development and was only uploaded here to facilitate its development.**
+**This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet!**
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
@@ -9,22 +9,21 @@ Currently supported devices:
 
 
 ### Current TODO list:
-* **Library** - Don't abstract the initialization function.
-* **Library** - Look into osSyncPrintf override not working.
+* **Library** - Fix osSyncPrintf with variable arguments.
 * **Library** - Make the 64Drive's button usable for something.
 * **Library** - Write sample demos for the read functions.
-* **Library** - Add thread safety.
+* **Library** - Add thread safety to the debug library.
 * **UNFLoader** - Look into reupload lag with listen mode on the 64Drive.
-* **UNFLoader** - Implement scrolling.
+* **UNFLoader** - Implement scrolling. (Not a priority)
 * **UNFLoader** - Implement command history.
 * **UNFLoader** - Implement binary file uploading via USB.
 * **UNFLoader** - Optimize file uploading speed for the EverDrive 3.0.
 * **UNFLoader** - Optimize file uploading speed for the EverDrive X7.
-* **UNFLoader** - Look into the possibility of implementing remote console reset.
+* **UNFLoader** - Look into the possibility of implementing remote console reset. (Not a priority)
 * **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
 * **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
-* **UNFLoader + Library** - Implement data checksum.
+* **UNFLoader + Library** - Implement data checksum. (Not a priority)
 
 
 ### Requirements:
@@ -67,9 +66,17 @@ Simply execute the program for a full list of commands. If you run the program w
 
 
 ### Using the USB Library
-Simply include the `usb.c` and `usb.h` in your project. The library features a read (unimplemented) and write function for USB communication.
-Here are the included functions:
+Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication.
+<details><summary>Included functions list</summary>
+<p>
+    
 ```c
+/*==============================
+    usb_initialize
+    Initializes the USB buffers and pointers
+==============================*/
+void usb_initialize();
+
 /*==============================
     usb_write
     Writes data to the USB.
@@ -78,19 +85,47 @@ Here are the included functions:
     @param The size of the data being sent
 ==============================*/
 void usb_write(int datatype, const void* data, int size);
-```
 
+/*==============================
+    usb_poll
+    Unimplemented!
+    Checks how many bytes are in the USB buffer.
+    Only tells you the bytes left on a per command basis!
+    @return The number of bytes left to read
+==============================*/
+int usb_poll();
+
+/*==============================
+    usb_read
+    Unimplemented!
+    Reads bytes from the USB into the provided buffer
+    @param The buffer to put the read data in
+    @param The number of bytes to read
+    @return 1 if success, 0 otherwise
+==============================*/
+u8 usb_read(void* buffer, int size);
+```
+</p>
+</details>
 
 ### Using the Debug Library
-Simply include the `debug.c` and `debug.h` in your project. You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
-Here are the included functions:
+Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
+<details><summary>Included functions list</summary>
+<p>
+    
 ```c
+/*==============================
+    debug_initialize
+    Initializes the debug and USB library
+==============================*/
+void debug_initialize();
+
 /*==============================
     debug_printf
     Prints a formatted message to the developer's command prompt.
     Supports up to 256 characters.
     @param A string to print
-    @param Variadic arguments to print as well
+    @param variadic arguments to print as well
 ==============================*/
 void debug_printf(const char* message, ...);
 
@@ -103,16 +138,18 @@ void debug_printf(const char* message, ...);
     @param The width of the framebuffer
     @param The height of the framebuffer
 ==============================*/
-void debug_screenshot(int size, int w, int h)
+void debug_screenshot(int size, int w, int h);
 
 /*==============================
     debug_assert
-    Halts the program if the expression returns false
+    Halts the program if the expression fails
     @param The expression to test
- ==============================*/
-#define debug_assert(expression)
+==============================*/
+#define debug_assert(expr)
 ```
-
+</p>
+</details>
+         
 ### Building UNFLoader
 <details><summary>Building UNFLoader for Windows</summary>
 <p>
