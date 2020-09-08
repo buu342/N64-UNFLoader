@@ -1,4 +1,5 @@
 APP=UNFLoader
+OS_NAME := $(shell uname -s)
 
 CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
 	device_64drive.cpp \
@@ -7,7 +8,13 @@ CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
 LIBFILES=Include/lodepng.c
 
 CC=g++
-DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt
+
+ifeq ($(OS_NAME),Darwin)
+	DEPENDENCIES := -lncurses -lftd2xx -lpthread
+else
+	DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt 
+endif
+
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
 CFLAGS=-D LINUX
 
