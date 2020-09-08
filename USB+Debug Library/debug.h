@@ -21,17 +21,55 @@
     *********************************/
     
     #if DEBUG_MODE
-        // The accessible debug functions
-        extern void debug_printf(const char* message, ...);
-        extern void debug_screenshot(int size, int w, int h);
-        #define debug_assert(expr) (expr) ? ((void)0) : _debug_assert(#expr, __FILE__, __LINE__)
         
-        // Ignore these, use the macros instead
+        /*==============================
+            debug_initialize
+            Initializes the debug and USB library
+        ==============================*/
+        
+        extern void debug_initialize();
+        
+        
+        /*==============================
+            debug_printf
+            Prints a formatted message to the developer's command prompt.
+            Supports up to 256 characters.
+            @param A string to print
+            @param variadic arguments to print as well
+        ==============================*/
+        
+        extern void debug_printf(const char* message, ...);
+        
+        
+        /*==============================
+            debug_screenshot
+            Sends the currently displayed framebuffer through USB.
+            Does not pause the drawing thread!
+            @param The size of each pixel of the framebuffer in bytes
+                   Typically 4 if 32-bit or 2 if 16-bit
+            @param The width of the framebuffer
+            @param The height of the framebuffer
+        ==============================*/
+        
+        extern void debug_screenshot(int size, int w, int h);
+        
+        
+        /*==============================
+            debug_assert
+            Halts the program if the expression fails
+            @param The expression to test
+        ==============================*/
+        
+        #define debug_assert(expr) (expr) ? ((void)0) : _debug_assert(#expr, __FILE__, __LINE__)
+
+
+        // Ignore this, use the macro instead
         extern void _debug_assert(const char* expression, const char* file, int line);
         
-        // Include usb.h
+        // Include usb.h automatically
         #include "usb.h"
     #else
+        #define debug_initialize() 
         #define debug_printf(__VA_ARGS__) 
         #define debug_screenshot(a, b, c)
         #define debug_assert(a)
