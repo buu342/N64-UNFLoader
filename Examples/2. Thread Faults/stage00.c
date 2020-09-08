@@ -107,7 +107,6 @@ static chuck obj_chuck2;
 void stage00_init(void)
 {   
     const frame* spr;
-    debug_printf("Chuck Norris Simulator 3000\n");
     
     obj_chuck1.x = 111;
     obj_chuck1.y = 191;
