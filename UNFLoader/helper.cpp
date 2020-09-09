@@ -351,15 +351,16 @@ char* gen_filename()
     char* str = (char*) malloc(DATESIZE);
     int curtime = 0;
     time_t t = time(NULL);
-    struct tm* tm = NULL;
+    struct tm tm;
+    struct tm* tmp = &tm;
 
     // Get the time
     #ifndef LINUX
-        localtime_s(tm, &t);
+        localtime_s(tmp, &t);
     #else
         tm = localtime(&t);
     #endif
-    curtime = tm->tm_hour*60*60+tm->tm_min*60+tm->tm_sec;
+    curtime = tmp->tm_hour*60*60+tmp->tm_min*60+tmp->tm_sec;
 
     // Increment the last value if two files were created at the same second
     if (lasttime != curtime)
@@ -373,10 +374,10 @@ char* gen_filename()
     // Generate the string and return it
     #ifndef LINUX
         sprintf_s(str, DATESIZE, "%02d%02d%02d%02d%02d%02d%02d", 
-                  (tm->tm_year+1900)%100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, increment%100);
+                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
     #else
         sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
-                  (tm->tm_year+1900)%100, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, increment%100);
+                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
     #endif
     return str;
 }
