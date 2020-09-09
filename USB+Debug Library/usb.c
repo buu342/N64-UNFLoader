@@ -147,13 +147,13 @@ https://github.com/buu342/N64-UNFLoader
 static void usb_findcart();
 static void usb_64drive_write(int datatype, const void* data, int size);
 static int  usb_64drive_poll();
-static u8   usb_64drive_read(void* buffer, int size);
+static void usb_64drive_read(void* buffer, int size);
 static void usb_everdrive3_write(int datatype, const void* data, int size);
 static int  usb_everdrive3_poll();
-static u8   usb_everdrive3_read(void* buffer, int size);
+static void usb_everdrive3_read(void* buffer, int size);
 static void usb_everdrive7_write(int datatype, const void* data, int size);
 static int  usb_everdrive7_poll();
-static u8   usb_everdrive7_read(void* buffer, int size);
+static void usb_everdrive7_read(void* buffer, int size);
 static void usb_everdrive7_writereg(u64 reg, u32 value);
 
 
@@ -164,12 +164,11 @@ static void usb_everdrive7_writereg(u64 reg, u32 value);
 // Function pointers
 void (*funcPointer_write)(int datatype, const void* data, int size);
 int  (*funcPointer_poll)();
-u8   (*funcPointer_read)(void* buffer, int size);
+void (*funcPointer_read)(void* buffer, int size);
 
 // USB globals
 static s8 usb_cart = CART_NONE;
 static u8 usb_bufferout[BUFFER_SIZE] __attribute__((aligned(16)));
-static u8 usb_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
 
 // Message globals
 #if !USE_OSRAW
@@ -203,7 +202,6 @@ void usb_initialize()
 {
     // Initialize the debug related globals
     memset(usb_bufferout, 0, BUFFER_SIZE);
-    memset(usb_bufferin, 0, BUFFER_SIZE);
         
     // Create the message queue
     #if !USE_OSRAW
@@ -317,7 +315,9 @@ void usb_write(int datatype, const void* data, int size)
 
 /*==============================
     usb_poll
-    TODO: Implement this properly
+    Returns the header of data being received via USB
+    The first byte contains the data type, the next 3 the size
+    @return The header of incoming data, or 0 if no data
 ==============================*/
 
 int usb_poll()
@@ -333,17 +333,19 @@ int usb_poll()
 
 /*==============================
     usb_read
-    TODO: Implement this properly
+    Reads bytes from the USB into the provided buffer
+    @param The buffer to put the read data in
+    @param The number of bytes to read
 ==============================*/
 
-u8 usb_read(void* buffer, int size)
+void usb_read(void* buffer, int size)
 {       
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
-        return 0;
+        return;
         
     // Call the correct read function
-    return funcPointer_read(buffer, size);
+    funcPointer_read(buffer, size);
 }
 
 
@@ -546,24 +548,8 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 ==============================*/
 
 static int usb_64drive_poll()
-{
-    return 0;
-}
-
-
-/*==============================
-    usb_64drive_read
-    Reads data from the 64Drive
-    @return 1 if success, 0 otherwise
-==============================*/
-
-static u8 usb_64drive_read(void* buffer, int nbytes)
-{
-    /*
+{   
     u32 ret;
-    u32 length=0;
-    u32 remaining=0;
-    u8 type=0; // Unused for now, will later be used to detect what was inputted (text, file, etc...)
     
     // Check if we've received data
     #if USE_OSRAW
@@ -571,6 +557,8 @@ static u8 usb_64drive_read(void* buffer, int nbytes)
     #else
         osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
     #endif
+    
+    // No data, stop here
     if (ret != D64_USB_DATA)
         return 0;
         
@@ -596,52 +584,93 @@ static u8 usb_64drive_read(void* buffer, int nbytes)
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #endif
     }  
-    
-    // Read data
-    do
-    {
-        // Wait for data
-        usb_64drive_waitdata();
         
-        // See how much data is left to read
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-        #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-        #endif
-        length = ret & 0xFFFFFF;
-        type = (ret >> 24) & 0xFF;
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
-        #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
-        #endif
-        remaining = ret & 0xFFFFFF;
+    // Wait for the data to arrive
+    usb_64drive_waitdata();
         
-        // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_bufferin, length);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                         length);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                         length, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    }
-    while (remaining > 0);
+    // Read the data header
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+    #endif
     
-    // Disarm the USB and return success
+    // Disarm the USB and return the data header
     #if USE_OSRAW
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
     #else
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
     #endif
     usb_64drive_waitdisarmed();
-    return 1;
-    */
+
+    return ret;
+}
+
+
+/*==============================
+    usb_64drive_read
+    Reads data from the 64Drive
+==============================*/
+
+static void usb_64drive_read(void* buffer, int nbytes)
+{
+    u32 ret;
+    
+    // Check if we've received data
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #endif
+    if (ret != D64_USB_DATA)
+        return;
+        
+    // Check if the USB is armed, and arm it if it isn't
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #endif
+    if (ret != D64_USB_ARMING || ret != D64_USB_ARMED)
+    {
+        // Ensure the 64Drive is idle
+        usb_64drive_waitidle();
+        
+        // Arm the USB FIFO DMA
+        #if USE_OSRAW
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+        #else
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+        #endif
+    }  
+    
+    // Wait for data
+    usb_64drive_waitdata();
+
+    // Set up DMA transfer between RDRAM and the PI
+    osWritebackDCache(buffer, nbytes);
+    #if USE_OSRAW
+        osPiRawStartDma(OS_READ, 
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     nbytes);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     nbytes, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
+    
+    // Disarm the USB
+    #if USE_OSRAW
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #else
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #endif
+    usb_64drive_waitdisarmed();
 }
 
 
@@ -829,10 +858,9 @@ static int usb_everdrive3_poll()
     TODO: Write this header
 ==============================*/
 
-static u8 usb_everdrive3_read(void* buffer, int nbytes)
+static void usb_everdrive3_read(void* buffer, int nbytes)
 {        
     // TODO: Implement this function
-    return 0;
 }
 
 
@@ -1058,8 +1086,7 @@ static int usb_everdrive7_poll()
     TODO: Write this header
 ==============================*/
 
-static u8 usb_everdrive7_read(void* buffer, int nbytes)
+static void usb_everdrive7_read(void* buffer, int nbytes)
 {        
     // TODO: Implement this function
-    return 0;
 }
