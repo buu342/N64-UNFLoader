@@ -150,6 +150,23 @@ void debug_screenshot(int size, int w, int h);
 </p>
 </details>
          
+### Important implementation details
+**General**
+* Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
+
+**64Drive**
+* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB.
+
+**EverDrive 3.0**
+
+\<None>
+
+**EverDrive X7**
+
+\<None>
+
+
 ### Building UNFLoader
 <details><summary>Building UNFLoader for Windows</summary>
 <p>
@@ -234,23 +251,6 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 #define DATATYPE_SCREENSHOT 0x04
 ```
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
-
-
-### Important implementation details
-**General**
-* Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-
-**64Drive**
-* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
-* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB.
-
-**EverDrive 3.0**
-
-\<None>
-
-**EverDrive X7**
-
-\<None>
 
 
 ### Credits
