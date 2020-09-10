@@ -1,29 +1,11 @@
 # UNFLoader
-**This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet!**
+**This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet! Check the issues page for the TODO list.**
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
 * EverDrive 3.0 (No longer comercially sold)
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html)
-
-
-### Current TODO list:
-* **Library** - Fix osSyncPrintf with variable arguments.
-* **Library** - Make the 64Drive's button usable for something.
-* **Library** - Write sample demos for the read functions.
-* **Library** - Add thread safety to the debug library.
-* **UNFLoader** - Look into reupload lag with listen mode on the 64Drive.
-* **UNFLoader** - Implement scrolling. (Not a priority)
-* **UNFLoader** - Implement command history.
-* **UNFLoader** - Implement binary file uploading via USB.
-* **UNFLoader** - Optimize file uploading speed for the EverDrive 3.0.
-* **UNFLoader** - Optimize file uploading speed for the EverDrive X7.
-* **UNFLoader** - Look into the possibility of implementing remote console reset. (Not a priority)
-* **UNFLoader + Library** - Implement binary data reading from USB for the 64Drive.
-* **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive 3.0.
-* **UNFLoader + Library** - Implement binary data reading from USB for the EverDrive X7.
-* **UNFLoader + Library** - Implement data checksum. (Not a priority)
 
 
 ### Requirements:
