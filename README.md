@@ -66,7 +66,7 @@ Simply execute the program for a full list of commands. If you run the program w
 
 
 ### Using the USB Library
-Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication.
+Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication. This library is not multithreaded, so care must be taken when mixing printfs from different threads, as well writing to the USB when there is data in the USB that needs to be read first.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -109,7 +109,7 @@ u8 usb_read(void* buffer, int size);
 </details>
 
 ### Using the Debug Library
-Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information.
+Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information. It is not yet multithreaded nor does it take into account when there is data in the USB that needs to be read first. This will be fixed in the future.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -153,10 +153,11 @@ void debug_screenshot(int size, int w, int h);
 ### Important implementation details
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first.
 
 **64Drive**
 * The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
-* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent through USB.
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
 
 **EverDrive 3.0**
 
