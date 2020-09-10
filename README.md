@@ -135,15 +135,14 @@ void debug_screenshot(int size, int w, int h);
 ### Important implementation details
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-* Avoid using `usb_write` while there is data that needs to be read from the USB first.
 
 **64Drive**
 * The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
 * All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups.
 
 **EverDrive 3.0**
-
-\<None>
+* EverDrive 3.0's on the newest OS (v3.04) will behave like X7's, both in UNFLoader and in the USB library.
 
 **EverDrive X7**
 
