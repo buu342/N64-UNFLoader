@@ -14,9 +14,10 @@
     #define THREADPRI_MAIN 10
     
     // Thread pointers
-    extern OSThread idleThread;
-    extern OSThread mainThread;
-    
+    #ifdef	NOT_SPEC  // For Linux Compatibility
+        extern OSThread idleThread;
+        extern OSThread mainThread;
+    #endif
     
     /**********************************
                   Stacks
