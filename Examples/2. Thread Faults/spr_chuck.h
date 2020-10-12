@@ -19,6 +19,6 @@
     extern unsigned char spr_chuck_wrist4[];
     
     // TLUT's
-    unsigned short spr_chuck_tlut[];
+    extern unsigned short spr_chuck_tlut[];
     
 #endif
