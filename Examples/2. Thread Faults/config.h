@@ -33,9 +33,7 @@
                  Globals
     *********************************/
     
-    #ifdef NOT_SPEC // For Linux Compatibility
-        extern Gfx glist[];
-        extern Gfx* glistp;
-    #endif
+    extern Gfx glist[];
+    extern Gfx* glistp;
     
 #endif
