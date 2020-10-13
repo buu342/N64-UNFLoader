@@ -358,7 +358,7 @@ char* gen_filename()
     #ifndef LINUX
         localtime_s(tmp, &t);
     #else
-        tm = localtime(&t);
+        tm = *localtime(&t);
     #endif
     curtime = tmp->tm_hour*60*60+tmp->tm_min*60+tmp->tm_sec;
 
