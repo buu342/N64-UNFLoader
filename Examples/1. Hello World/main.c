@@ -67,6 +67,9 @@ void boot()
 
 static void idleThreadFunction(void *arg)
 {
+    // Start the PI Manager for cartridge access
+    osCreatePiManager((OSPri)OS_PRIORITY_PIMGR, &PiMessageQ, PiMessages, NUM_PI_MSGS);
+  
     // Initialize the debug library
     #if USE_PRITNF
         debug_initialize();
@@ -78,9 +81,6 @@ static void idleThreadFunction(void *arg)
     #if USE_OSRAW
         debug_printf("Printed without the PI manager!\n");
     #endif
-
-    // Start the PI Manager for cartridge access
-    osCreatePiManager((OSPri)OS_PRIORITY_PIMGR, &PiMessageQ, PiMessages, NUM_PI_MSGS);
 
     // Create the main thread
     osCreateThread(&mainThread, THREADID_MAIN, mainThreadFunction, (void *)0, mainThreadStack+MAINSTACKSIZE/sizeof(u64), THREADPRI_MAIN);
