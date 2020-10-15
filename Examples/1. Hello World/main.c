@@ -67,19 +67,22 @@ void boot()
 
 static void idleThreadFunction(void *arg)
 {
+    // This will only print if USE_OSRAW is enabled in usb.h
+    #if USE_OSRAW
+        debug_initialize();
+        debug_printf("Printed without the PI manager!\n");
+    #endif
+    
     // Start the PI Manager for cartridge access
     osCreatePiManager((OSPri)OS_PRIORITY_PIMGR, &PiMessageQ, PiMessages, NUM_PI_MSGS);
   
     // Initialize the debug library
-    #if USE_PRITNF
-        debug_initialize();
-    #else
-        usb_initialize();
-    #endif
-
-    // This will only print if USE_OSRAW is enabled in usb.h
-    #if USE_OSRAW
-        debug_printf("Printed without the PI manager!\n");
+    #if !USE_OSRAW
+        #if USE_PRITNF
+            debug_initialize();
+        #else
+            usb_initialize();
+        #endif
     #endif
 
     // Create the main thread
