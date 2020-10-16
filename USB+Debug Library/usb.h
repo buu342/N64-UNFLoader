@@ -22,9 +22,10 @@
     /*==============================
         usb_initialize
         Initializes the USB buffers and pointers
+        @returns 1 if the USB initialization was successful, 0 if not
     ==============================*/
     
-    extern void usb_initialize();
+    extern char usb_initialize();
     
     
     /*==============================
