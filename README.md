@@ -1,13 +1,11 @@
 # UNFLoader
 **This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet! Check the issues page for the TODO list.**
 
-**HEADS UP! The newest ED OS (3.04) has changed how USB works! This applies for both 3.0 and X7, and I am unable to do anything about it until Krikzz releases some sample code for me to figure out what's different for this OS version. If you wish to use this library, you must downgrade!**
-
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
 * [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
-* EverDrive 3.0 (No longer comercially sold)
-* [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html)
+* EverDrive 3.0 (No longer comercially sold), using OS version 3.04+
+* [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 
 
 ### Requirements:
@@ -50,7 +48,7 @@ Simply execute the program for a full list of commands. If you run the program w
 
 
 ### Using the USB Library
-Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication. This library is not multithreaded, so care must be taken when mixing printfs from different threads, as well writing to the USB when there is data in the USB that needs to be read first.
+Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication. This library **is not multithreaded**, so care must be taken when mixing printfs from different threads, as well as writing to the USB when there is data in the USB that needs to be serviced first.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -58,8 +56,9 @@ Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initi
 /*==============================
     usb_initialize
     Initializes the USB buffers and pointers
+    @returns 1 if the USB initialization was successful, 0 if not
 ==============================*/
-void usb_initialize();
+char usb_initialize();
 
 /*==============================
     usb_write
@@ -93,7 +92,7 @@ u8 usb_read(void* buffer, int size);
 </details>
 
 ### Using the Debug Library
-Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and a thread that prints fault information. It is not yet multithreaded nor does it take into account when there is data in the USB that needs to be read first. This will be fixed in the future.
+Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library support multithreading, by blocking the thread that called a debug function until it is finished reading/writing to the USB.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -137,16 +136,13 @@ void debug_screenshot(int size, int w, int h);
 ### Important implementation details
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups. If you are using the debug library, this is handled for you.
 
 **64Drive**
 * The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
 * All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
-* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups.
 
-**EverDrive 3.0**
-* EverDrive 3.0's on the newest OS (v3.04) will behave like X7's, both in UNFLoader and in the USB library.
-
-**EverDrive X7**
+**EverDrive**
 
 \<None>
 
@@ -242,7 +238,9 @@ Marshallh for providing the 64Drive USB application code which this program was 
 
 KRIKzz, saturnu, networkfusion, lambertjamesd, and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
 
-networkfusion and fraser for all the help provided during the development of this project as well as their support.
+fraser and networkfusion for all the help provided during the development of this project as well as their support.
+
+networkfusion for lending me his remote test rig for the ED3 and X7.
 
 danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
 
