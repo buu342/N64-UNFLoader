@@ -15,6 +15,11 @@
     #define FAULT_THREAD_PRI   251
     #define FAULT_THREAD_STACK 0x2000
     
+    // USB thread definitions
+    #define USB_THREAD_ID    14
+    #define USB_THREAD_PRI   252
+    #define USB_THREAD_STACK 0x2000
+    
     
     /*********************************
              Debug Functions

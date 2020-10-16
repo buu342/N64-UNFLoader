@@ -22,9 +22,10 @@
     /*==============================
         usb_initialize
         Initializes the USB buffers and pointers
+        @returns 1 if the USB initialization was successful, 0 if not
     ==============================*/
     
-    extern void usb_initialize();
+    extern char usb_initialize();
     
     
     /*==============================
@@ -40,24 +41,21 @@
     
     /*==============================
         usb_poll
-        Unimplemented!
-        Checks how many bytes are in the USB buffer.
-        Only tells you the bytes left on a per command basis!
-        @return The number of bytes left to read
+        Returns the header of data being received via USB
+        The first byte contains the data type, the next 3 the size
+        @return The header of incoming data, or 0 if no data
     ==============================*/
     
-    extern int  usb_poll();
+    extern int usb_poll();
     
     
     /*==============================
         usb_read
-        Unimplemented!
         Reads bytes from the USB into the provided buffer
         @param The buffer to put the read data in
         @param The number of bytes to read
-        @return 1 if success, 0 otherwise
     ==============================*/
     
-    extern u8   usb_read(void* buffer, int size);
+    extern void usb_read(void* buffer, int size);
 
 #endif
