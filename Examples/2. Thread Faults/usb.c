@@ -9,6 +9,7 @@ https://github.com/buu342/N64-UNFLoader
 #include <ultra64.h>
 #include <string.h>
 #include "usb.h"
+#include "graphic.h" // REMOVE
 
 
 /*********************************
@@ -19,10 +20,9 @@ https://github.com/buu342/N64-UNFLoader
 #define BUFFER_SIZE       512
 
 // Cart definitions
-#define CART_NONE       0
-#define CART_64DRIVE    2
-#define CART_EVERDRIVE3 3
-#define CART_EVERDRIVE7 4
+#define CART_NONE      0
+#define CART_64DRIVE   2
+#define CART_EVERDRIVE 3
 
 
 /*********************************
@@ -86,58 +86,30 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-       EverDrive 3.0 macros
+       EverDrive macros
 *********************************/
 
-#define ED3_BASE_ADDRESS  0xA8040000
-#define ED3_WRITE_ADDRESS 0xB3FFF800
-#define ED3_ROM_ADDRESS   0xB0000000
-#define ED3_ROM_BUFFER    0x7FFF
+#define ED_BASE_ADDRESS   0x1F800000
+#define ED_GET_REGADD(reg)   (0xA0000000 | ED_BASE_ADDRESS | (reg))
 
-#define ED3_REGISTER_CFG     0x00
-#define ED3_REGISTER_STATUS  0x04
-#define ED3_REGISTER_DMALEN  0x08
-#define ED3_REGISTER_DMAADD  0x0C
-#define ED3_REGISTER_MSG     0x10
-#define ED3_REGISTER_DMACFG  0x14
-#define ED3_REGISTER_KEY     0x20
-#define ED3_REGISTER_VERSION 0x2C
+#define ED_REG_USBCFG  0x0004
+#define ED_REG_VERSION 0x0014
+#define ED_REG_USBDAT  0x0400
+#define ED_REG_SYSCFG  0x8000
+#define ED_REG_KEY     0x8004
 
-#define ED3_DMA_BUSY  1
-#define ED3_DMA_WRITE 4
+#define ED_USBMODE_RDNOP  0xC400
+#define ED_USBMODE_RD     0xC600
+#define ED_USBMODE_WRNOP  0xC000
+#define ED_USBMODE_WR     0xC200
 
-#define ED3_DMACFG_USB2RAM 3
-#define ED3_DMACFG_RAM2USB 4
+#define ED_USBSTAT_ACT     0x0200
+#define ED_USBSTAT_BUSY    0x2000
 
-#define ED3_VERSION 0xA3F0A3F0
-#define ED3_REGKEY 0x1234
+#define ED_REGKEY  0xAA55
 
-
-/*********************************
-       EverDrive X7 macros
-*********************************/
-
-#define ED7_BASE_ADDRESS   0x1F800000
-
-#define ED7_GET_REGADD(reg)   (0xA0000000 | ED7_BASE_ADDRESS | (reg))
-
-#define ED7_REGISTER_VERSION 0x14
-
-#define ED7_REG_USBCFG 0x0004
-#define ED7_REG_USBDAT 0x0400
-#define ED7_REG_SYSCFG 0x8000
-#define ED7_REG_KEY    0x8004
-
-#define ED7_USBMODE_RDNOP  0xC400
-#define ED7_USBMODE_RD     0xC600
-#define ED7_USBMODE_WRNOP  0xC000
-#define ED7_USBMODE_WR     0xC200
-
-#define ED7_USBSTAT_ACT     0x0200
-#define ED7_USBSTAT_BUSY    0x2000
-
-#define ED7_REGKEY  0xAA55
-#define ED7_VERSION 0x00000000
+#define ED3_VERSION 0xED640008
+#define ED7_VERSION 0xED640013
 
 
 /*********************************
@@ -147,14 +119,12 @@ https://github.com/buu342/N64-UNFLoader
 static void usb_findcart();
 static void usb_64drive_write(int datatype, const void* data, int size);
 static int  usb_64drive_poll();
-static u8   usb_64drive_read(void* buffer, int size);
-static void usb_everdrive3_write(int datatype, const void* data, int size);
-static int  usb_everdrive3_poll();
-static u8   usb_everdrive3_read(void* buffer, int size);
-static void usb_everdrive7_write(int datatype, const void* data, int size);
-static int  usb_everdrive7_poll();
-static u8   usb_everdrive7_read(void* buffer, int size);
-static void usb_everdrive7_writereg(u64 reg, u32 value);
+static void usb_64drive_read(void* buffer, int size);
+static void usb_everdrive_readreg(u32 reg, u32* result);
+static void usb_everdrive_write(int datatype, const void* data, int size);
+static int  usb_everdrive_poll();
+static void usb_everdrive_read(void* buffer, int size);
+static void usb_everdrive_writereg(u64 reg, u32 value);
 
 
 /*********************************
@@ -164,12 +134,11 @@ static void usb_everdrive7_writereg(u64 reg, u32 value);
 // Function pointers
 void (*funcPointer_write)(int datatype, const void* data, int size);
 int  (*funcPointer_poll)();
-u8   (*funcPointer_read)(void* buffer, int size);
+void (*funcPointer_read)(void* buffer, int size);
 
 // USB globals
 static s8 usb_cart = CART_NONE;
 static u8 usb_bufferout[BUFFER_SIZE] __attribute__((aligned(16)));
-static u8 usb_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
 
 // Message globals
 #if !USE_OSRAW
@@ -197,13 +166,13 @@ static u8 usb_bufferin[BUFFER_SIZE] __attribute__((aligned(16)));
 /*==============================
     usb_initialize
     Initializes the USB buffers and pointers
+    @returns 1 if the USB initialization was successful, 0 if not
 ==============================*/
 
-void usb_initialize()
+char usb_initialize()
 {
     // Initialize the debug related globals
     memset(usb_bufferout, 0, BUFFER_SIZE);
-    memset(usb_bufferin, 0, BUFFER_SIZE);
         
     // Create the message queue
     #if !USE_OSRAW
@@ -221,19 +190,15 @@ void usb_initialize()
             funcPointer_poll  = usb_64drive_poll;
             funcPointer_read  = usb_64drive_read;
             break;
-        case CART_EVERDRIVE3:
-            funcPointer_write = usb_everdrive3_write;
-            funcPointer_poll  = usb_everdrive3_poll;
-            funcPointer_read  = usb_everdrive3_read;
-            break;
-        case CART_EVERDRIVE7:
-            funcPointer_write = usb_everdrive7_write;
-            funcPointer_poll  = usb_everdrive7_poll;
-            funcPointer_read  = usb_everdrive7_read;
+        case CART_EVERDRIVE:
+            funcPointer_write = usb_everdrive_write;
+            funcPointer_poll  = usb_everdrive_poll;
+            funcPointer_read  = usb_everdrive_read;
             break;
         default:
-            return;
+            return 0;
     }
+    return 1;
 }
 
 
@@ -258,39 +223,34 @@ static void usb_findcart()
         return;
     }
     
-    // Read the cartridge and check if we have an EverDrive 3.0
-    #if USE_OSRAW
-        osPiRawReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
-    #else
-        osPiReadIo(ED3_BASE_ADDRESS + ED3_REGISTER_VERSION, &buff);
-    #endif
-    if (buff == ED3_VERSION)
-    {
-        // Write the key to unlock the registers and set the debug cart to ED3
-        IO_WRITE(ED3_BASE_ADDRESS + ED3_REGISTER_KEY, ED3_REGKEY);
-        usb_cart = CART_EVERDRIVE3;
-        return;
-    }
+    // Since we didn't find a 64Drive, let's assume we have an EverDrive
+    // Write the key to unlock the registers, then read the version register
+    usb_everdrive_writereg(ED_REG_KEY, ED_REGKEY);
+    usb_everdrive_readreg(ED_REG_VERSION, &buff);
+    testv = buff;
     
-    // Read the cartridge and check if we have an EverDrive X7
-    #if USE_OSRAW
-        osPiRawReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
-    #else
-        osPiReadIo(ED7_BASE_ADDRESS + ED7_REGISTER_VERSION, &buff);
-    #endif
-    if (buff == ED7_VERSION)
-    {
+    // Check if we have an EverDrive
+    if (buff == ED7_VERSION || buff == ED3_VERSION)
+    {        
         // Initialize the PI
+        IO_WRITE(PI_STATUS_REG, 3);
+        IO_WRITE(PI_BSD_DOM1_LAT_REG, 0x40);
+        IO_WRITE(PI_BSD_DOM1_PWD_REG, 0x12);
+        IO_WRITE(PI_BSD_DOM1_PGS_REG, 0x07);
+        IO_WRITE(PI_BSD_DOM1_RLS_REG, 0x03);
+        IO_WRITE(PI_BSD_DOM2_LAT_REG, 0x05);
+        IO_WRITE(PI_BSD_DOM2_PWD_REG, 0x0C);
+        IO_WRITE(PI_BSD_DOM2_PGS_REG, 0x0D);
+        IO_WRITE(PI_BSD_DOM2_RLS_REG, 0x02);
         IO_WRITE(PI_BSD_DOM1_LAT_REG, 0x04);
         IO_WRITE(PI_BSD_DOM1_PWD_REG, 0x0C);
         
-        // Write the key to unlock the registers and set the USB mode
-        usb_everdrive7_writereg(ED7_REG_KEY, ED7_REGKEY);
-        usb_everdrive7_writereg(ED7_REG_SYSCFG, 0);
-        usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_RDNOP);
+        // Set the USB mode
+        usb_everdrive_writereg(ED_REG_SYSCFG, 0);
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
         
-        // Set the cart to EverDrive X7
-        usb_cart = CART_EVERDRIVE7;
+        // Set the cart to EverDrive
+        usb_cart = CART_EVERDRIVE;
         return;
     }
 }
@@ -317,7 +277,9 @@ void usb_write(int datatype, const void* data, int size)
 
 /*==============================
     usb_poll
-    TODO: Implement this properly
+    Returns the header of data being received via USB
+    The first byte contains the data type, the next 3 the size
+    @return The header of incoming data, or 0 if no data
 ==============================*/
 
 int usb_poll()
@@ -333,17 +295,19 @@ int usb_poll()
 
 /*==============================
     usb_read
-    TODO: Implement this properly
+    Reads bytes from the USB into the provided buffer
+    @param The buffer to put the read data in
+    @param The number of bytes to read
 ==============================*/
 
-u8 usb_read(void* buffer, int size)
+void usb_read(void* buffer, int size)
 {       
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
-        return 0;
+        return;
         
     // Call the correct read function
-    return funcPointer_read(buffer, size);
+    funcPointer_read(buffer, size);
 }
 
 
@@ -546,24 +510,8 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 ==============================*/
 
 static int usb_64drive_poll()
-{
-    return 0;
-}
-
-
-/*==============================
-    usb_64drive_read
-    Reads data from the 64Drive
-    @return 1 if success, 0 otherwise
-==============================*/
-
-static u8 usb_64drive_read(void* buffer, int nbytes)
-{
-    /*
+{   
     u32 ret;
-    u32 length=0;
-    u32 remaining=0;
-    u8 type=0; // Unused for now, will later be used to detect what was inputted (text, file, etc...)
     
     // Check if we've received data
     #if USE_OSRAW
@@ -571,6 +519,8 @@ static u8 usb_64drive_read(void* buffer, int nbytes)
     #else
         osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
     #endif
+    
+    // No data, stop here
     if (ret != D64_USB_DATA)
         return 0;
         
@@ -596,256 +546,107 @@ static u8 usb_64drive_read(void* buffer, int nbytes)
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #endif
     }  
-    
-    // Read data
-    do
-    {
-        // Wait for data
-        usb_64drive_waitdata();
         
-        // See how much data is left to read
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-        #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-        #endif
-        length = ret & 0xFFFFFF;
-        type = (ret >> 24) & 0xFF;
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
-        #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, &ret); 
-        #endif
-        remaining = ret & 0xFFFFFF;
+    // Wait for the data to arrive
+    usb_64drive_waitdata();
         
-        // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_bufferin, length);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                         length);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, usb_bufferin, 
-                         length, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    }
-    while (remaining > 0);
+    // Read the data header
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+    #endif
     
-    // Disarm the USB and return success
+    // Disarm the USB
     #if USE_OSRAW
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
     #else
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
     #endif
     usb_64drive_waitdisarmed();
-    return 1;
-    */
-}
-
-
-/*********************************
-      EverDrive 3.0 functions
-*********************************/
-
-/*==============================
-    usb_everdrive3_regread
-    Writes data to the specified register on the EverDrive 3.0
-    @param The register to write to
-    @param The data to write
-==============================*/
-
-static void usb_everdrive3_regwrite(unsigned long reg, unsigned long data)
-{
-    *(volatile unsigned long *) (ED3_BASE_ADDRESS);
-    *(volatile unsigned long *) (ED3_BASE_ADDRESS + reg) = data;
-}
-
-
-/*==============================
-    usb_everdrive3_regread
-    Reads data from the specified register on the EverDrive 3.0
-    @param The register to read from
-==============================*/
-
-static unsigned long usb_everdrive3_regread(unsigned long reg)
-{
-    *(volatile unsigned long *) (ED3_BASE_ADDRESS);
-    return *(volatile unsigned long *) (ED3_BASE_ADDRESS + reg);
-}
-
-
-/*==============================
-    usb_everdrive3_wait_pidma
-    Spins until the EverDrive 3.0's PI is ready
-==============================*/
-
-static void usb_everdrive3_wait_pidma() 
-{
-    u32 status;
-    do
-    {
-        status = *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_STATUS);
-        status &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
-    }
-    while (status);
-}
-
-
-/*==============================
-    usb_everdrive3_wait_write
-    Spins until the EverDrive 3.0's can write
-==============================*/
-
-static void usb_everdrive3_wait_write()
-{
-    u32 status;
-    do
-    {
-        status = usb_everdrive3_regread(ED3_REGISTER_STATUS);
-        status &= ED3_DMA_WRITE;
-    }
-    while (status != 0);
-}
-
-
-/*==============================
-    usb_everdrive3_wait_dma
-    Spins until the EverDrive 3.0's DMA is ready
-==============================*/
-
-static void usb_everdrive3_wait_dma()
-{
-    u32 status;
-    do
-    {
-        status = usb_everdrive3_regread(ED3_REGISTER_STATUS);
-        status &= ED3_DMA_BUSY;
-    }
-    while (status != 0);
-}
-
-
-/*==============================
-    usb_everdrive3_write
-    Sends data through USB from the EverDrive 3.0
-    @param The DATATYPE that is being sent
-    @param A buffer with the data to send
-    @param The size of the data being sent
-==============================*/
-
-static void usb_everdrive3_write(int datatype, const void* data, int size)
-{
-    char wrotecmp = 0;
-    char cmp[] = {'C', 'M', 'P', 'H'};
-    int read = 0;
-    int left = size;
-    int offset = 8;
-    u32 header = (size & 0xFFFFFF) | (datatype << 24);
     
-    // Put in the DMA header along with size and type information in the global buffer
-    usb_bufferout[0] = 'D';
-    usb_bufferout[1] = 'M';
-    usb_bufferout[2] = 'A';
-    usb_bufferout[3] = '@';
-    usb_bufferout[4] = (header >> 24) & 0xFF;
-    usb_bufferout[5] = (header >> 16) & 0xFF;
-    usb_bufferout[6] = (header >> 8)  & 0xFF;
-    usb_bufferout[7] = header & 0xFF;
+    // Return the data header
+    return ret;
+}
+
+
+/*==============================
+    usb_64drive_read
+    Reads data from the 64Drive
+==============================*/
+
+static void usb_64drive_read(void* buffer, int nbytes)
+{
+    u32 ret;
     
-    // Write data to USB until we've finished
-    while (left > 0)
-    {
-        int block = left;
-        if (block+offset > BUFFER_SIZE)
-            block = BUFFER_SIZE-offset;
-            
-        // Copy the data to the next available spots in the global buffer
-        memcpy(usb_bufferout+offset, (void*)((char*)data+read), block);
+    // Check if we've received data
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
+    #endif
+    if (ret != D64_USB_DATA)
+        return;
         
-        // Restart the loop to write the CMP signal if we've finished
-        if (!wrotecmp && read+block >= size)
-        {
-            left = 4;
-            offset = block+offset;
-            data = cmp;
-            wrotecmp = 1;
-            read = 0;
-            continue;
-        }
-
-        // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_bufferout, BUFFER_SIZE);
+    // Check if the USB is armed, and arm it if it isn't
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
+    #endif
+    if (ret != D64_USB_ARMING || ret != D64_USB_ARMED)
+    {
+        // Ensure the 64Drive is idle
+        usb_64drive_waitidle();
+        
+        // Arm the USB FIFO DMA
         #if USE_OSRAW
-            osPiRawStartDma(OS_WRITE, 
-                         ED3_WRITE_ADDRESS, usb_bufferout, 
-                         BUFFER_SIZE);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                         ED3_WRITE_ADDRESS, usb_bufferout, 
-                         BUFFER_SIZE, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #endif
-        
-        // Write the data to the PI
-        usb_everdrive3_wait_pidma();
-        IO_WRITE(PI_STATUS_REG, 3);
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)usb_bufferout;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = ED3_WRITE_ADDRESS & 0x1FFFFFFF;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = BUFFER_SIZE-1;
-        usb_everdrive3_wait_pidma();
-        
-        // Write the data to the EverDrive 3.0's registers
-        usb_everdrive3_wait_write();
-        usb_everdrive3_regwrite(ED3_REGISTER_DMALEN, 0);
-        usb_everdrive3_regwrite(ED3_REGISTER_DMAADD, ED3_ROM_BUFFER);
-        usb_everdrive3_regwrite(ED3_REGISTER_DMACFG, ED3_DMACFG_RAM2USB);
-        usb_everdrive3_wait_dma();
-        
-        // Keep track of what we've read so far
-        left -= block;
-        read += block;
-        offset = 0;
-    }
-}
+    }  
+    
+    // Wait for data
+    usb_64drive_waitdata();
 
-
-/*==============================
-    usb_everdrive3_poll
-    Checks the USB for data on the EverDrive 3.0
-    @return The number of bytes to read
-==============================*/
-
-static int usb_everdrive3_poll()
-{
-    // TODO: Implement this function
-    return 0;
-}
-
-
-/*==============================
-    usb_everdrive3_read
-    TODO: Write this header
-==============================*/
-
-static u8 usb_everdrive3_read(void* buffer, int nbytes)
-{        
-    // TODO: Implement this function
-    return 0;
+    // Set up DMA transfer between RDRAM and the PI
+    osWritebackDCache(buffer, nbytes);
+    #if USE_OSRAW
+        osPiRawStartDma(OS_READ, 
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     nbytes);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     nbytes, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
+    
+    // Disarm the USB
+    #if USE_OSRAW
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #else
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #endif
+    usb_64drive_waitdisarmed();
 }
 
 
 /*********************************
-      EverDrive X7 functions
+       EverDrive functions
 *********************************/
 
 /*==============================
-    usb_everdrive7_wait_pidma
-    Spins until the EverDrive X7's DMA is ready
+    usb_everdrive_wait_pidma
+    Spins until the EverDrive's DMA is ready
 ==============================*/
 
-static void usb_everdrive7_wait_pidma() 
+static void usb_everdrive_wait_pidma() 
 {
     u32 status;
     do
@@ -858,20 +659,20 @@ static void usb_everdrive7_wait_pidma()
 
 
 /*==============================
-    usb_everdrive7_readdata
-    Reads data from a specific address on the EverDrive X7
+    usb_everdrive_readdata
+    Reads data from a specific address on the EverDrive
     @param The buffer with the data
     @param The register address to write to the PI
     @param The size of the data
 ==============================*/
 
-static void usb_everdrive7_readdata(void* buff, u32 pi_address, u32 len) 
+static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len) 
 {
     // Correct the PI address
-    pi_address = ED7_GET_REGADD(pi_address);
+    pi_address &= 0x1FFFFFFF;
 
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(buff, len);
+    osInvalDCache(buff, len);
     #if USE_OSRAW
         osPiRawStartDma(OS_READ, 
                      pi_address, buff, 
@@ -884,40 +685,40 @@ static void usb_everdrive7_readdata(void* buff, u32 pi_address, u32 len)
     #endif
 
     // Write the data to the PI
-    usb_everdrive7_wait_pidma();
+    usb_everdrive_wait_pidma();
     IO_WRITE(PI_STATUS_REG, 3);
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address & 0x1FFFFFFF;
+    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = len-1;
-    usb_everdrive7_wait_pidma();
+    usb_everdrive_wait_pidma();
 }
 
 
 /*==============================
-    usb_everdrive7_readreg
-    Reads data from a specific register on the EverDrive X7
+    usb_everdrive_readreg
+    Reads data from a specific register on the EverDrive
     @param The register to read from
     @param A pointer to write the read value to
 ==============================*/
 
-static void usb_everdrive7_readreg(u32 reg, u32* result) 
+static void usb_everdrive_readreg(u32 reg, u32* result) 
 {
-    usb_everdrive7_readdata(result, reg, sizeof(u32));
+    usb_everdrive_readdata(result, ED_GET_REGADD(reg), sizeof(u32));
 }
 
 
 /*==============================
-    usb_everdrive7_writedata
-    Writes data to a specific address on the EverDrive X7
+    usb_everdrive_writedata
+    Writes data to a specific address on the EverDrive
     @param A buffer with the data to write
     @param The register address to write to the PI
     @param The length of the data
 ==============================*/
 
-static void usb_everdrive7_writedata(void* buff, u32 pi_address, u32 len) 
+static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len) 
 {
     // Correct the PI address
-    pi_address = ED7_GET_REGADD(pi_address);
+    pi_address &= 0x1FFFFFFF;
     
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(buff, len);
@@ -933,53 +734,53 @@ static void usb_everdrive7_writedata(void* buff, u32 pi_address, u32 len)
     #endif
     
     // Write the data to the PI
-    usb_everdrive7_wait_pidma();
+    usb_everdrive_wait_pidma();
     IO_WRITE(PI_STATUS_REG, 3);
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address & 0x1FFFFFFF;
+    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_WRITELENGTH) = len-1;
-    usb_everdrive7_wait_pidma();
+    usb_everdrive_wait_pidma();
 }
 
 
 /*==============================
-    usb_everdrive7_writereg
-    Writes data to a specific register on the EverDrive X7
+    usb_everdrive_writereg
+    Writes data to a specific register on the EverDrive
     @param The register to write to
     @param The value to write to the register
 ==============================*/
 
-static void usb_everdrive7_writereg(u64 reg, u32 value) 
+static void usb_everdrive_writereg(u64 reg, u32 value) 
 {
-    usb_everdrive7_writedata(&value, reg, sizeof(u32));
+    usb_everdrive_writedata(&value, ED_GET_REGADD(reg), sizeof(u32));
 }
 
 
 /*==============================
-    usb_everdrive7_usbbusy
+    usb_everdrive_usbbusy
     Spins until the USB is no longer busy
 ==============================*/
 
-static void usb_everdrive7_usbbusy() 
+static void usb_everdrive_usbbusy() 
 {
     u32 val;
     do 
     {
-        usb_everdrive7_readreg(ED7_REG_USBCFG, &val);
+        usb_everdrive_readreg(ED_REG_USBCFG, &val);
     } 
-    while ((val & ED7_USBSTAT_ACT) != 0);
+    while ((val & ED_USBSTAT_ACT) != 0);
 }
 
 
 /*==============================
-    usb_everdrive7_write
-    Sends data through USB from the EverDrive X7
+    usb_everdrive_write
+    Sends data through USB from the EverDrive
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
 ==============================*/
 
-static void usb_everdrive7_write(int datatype, const void* data, int size)
+static void usb_everdrive_write(int datatype, const void* data, int size)
 {
     char wrotecmp = 0;
     char cmp[] = {'C', 'M', 'P', 'H'};
@@ -1025,12 +826,12 @@ static void usb_everdrive7_write(int datatype, const void* data, int size)
         baddr = BUFFER_SIZE - blocksend;
 
         // Set USB to write mode and send data through USB
-        usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WRNOP);
-        usb_everdrive7_writedata(usb_bufferout, ED7_REG_USBDAT + baddr, blocksend);
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WRNOP);
+        usb_everdrive_writedata(usb_bufferout, ED_GET_REGADD(ED_REG_USBDAT + baddr), blocksend);
         
         // Set USB to write mode with the new address and wait for USB to end
-        usb_everdrive7_writereg(ED7_REG_USBCFG, ED7_USBMODE_WR | baddr);
-        usb_everdrive7_usbbusy();
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
+        usb_everdrive_usbbusy();
         
         // Keep track of what we've read so far
         left -= block;
@@ -1041,12 +842,12 @@ static void usb_everdrive7_write(int datatype, const void* data, int size)
 
 
 /*==============================
-    usb_everdrive7_poll
-    Checks the USB for data on the EverDrive X7
+    usb_everdrive_poll
+    Checks the USB for data on the EverDrive
     @return The number of bytes to read
 ==============================*/
 
-static int usb_everdrive7_poll()
+static int usb_everdrive_poll()
 {
     // TODO: Implement this function
     return 0;
@@ -1054,12 +855,11 @@ static int usb_everdrive7_poll()
 
 
 /*==============================
-    usb_everdrive7_read
+    usb_everdrive_read
     TODO: Write this header
 ==============================*/
 
-static u8 usb_everdrive7_read(void* buffer, int nbytes)
+static void usb_everdrive_read(void* buffer, int nbytes)
 {        
     // TODO: Implement this function
-    return 0;
 }
