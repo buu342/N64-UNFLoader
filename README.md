@@ -56,7 +56,7 @@ Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initi
 /*==============================
     usb_initialize
     Initializes the USB buffers and pointers
-    @returns 1 if the USB initialization was successful, 0 if not
+    @return 1 if the USB initialization was successful, 0 if not
 ==============================*/
 char usb_initialize();
 
@@ -74,7 +74,7 @@ void usb_write(int datatype, const void* data, int size);
     Unimplemented!
     Checks how many bytes are in the USB buffer.
     Only tells you the bytes left on a per command basis!
-    @return The number of bytes left to read
+    @return The number of bytes of incoming data, or 0
 ==============================*/
 int usb_poll();
 
@@ -84,9 +84,8 @@ int usb_poll();
     Reads bytes from the USB into the provided buffer
     @param The buffer to put the read data in
     @param The number of bytes to read
-    @return 1 if success, 0 otherwise
 ==============================*/
-u8 usb_read(void* buffer, int size);
+void usb_read(void* buffer, int size);
 ```
 </p>
 </details>
@@ -115,7 +114,6 @@ void debug_printf(const char* message, ...);
 /*==============================
     debug_screenshot
     Sends the currently displayed framebuffer through USB.
-    Does not pause the drawing thread!
     @param The size of each pixel of the framebuffer in bytes
            Typically 4 if 32-bit or 2 if 16-bit
     @param The width of the framebuffer
@@ -129,23 +127,73 @@ void debug_screenshot(int size, int w, int h);
     @param The expression to test
 ==============================*/
 #define debug_assert(expr)
+
+/*==============================
+    debug_pollcommands
+    Unimplemented!
+    Check the USB for incoming commands
+==============================*/
+extern void debug_pollcommands();
+
+/*==============================
+    debug_addcommand
+    Unimplemented!
+    Adds a command for the USB to read
+    @param The command name
+    @param The command description
+    @param The function pointer to execute
+==============================*/
+void debug_addcommand(char* command, char* description, void(*execute)());
+
+/*==============================
+    debug_parsecommand
+    Unimplemented!
+    Gets the next part of the incoming command
+    @return A pointer to the next part of the command, or NULL
+==============================*/
+char* debug_parsecommand();
+
+/*==============================
+    debug_commandsize
+    Unimplemented!
+    Returns the size of the data from this part of the command
+    @return The size of the data in bytes, or -1
+==============================*/
+int debug_commandsize();
+
+/*==============================
+    debug_printcommands
+    Unimplemented!
+    Prints a list of commands to the developer's command prompt.
+==============================*/
+void debug_printcommands();
 ```
 </p>
 </details>
          
 ### Important implementation details
+<details><summary>USB Library</summary>
+<p>
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups. If you are using the debug library, this is handled for you.
+* The USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
 
 **64Drive**
-* The USB Buffers are located on the 63MB area in SDRAM. This is a problem if your game is 64MB, and can be fixed by putting the 64Drive in extended address mode. Doing so, however, will break HW1 compatibility.
 * All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
+* Due to the size of the dedicated USB FIFO buffer, a maximum of 8MB can be received through USB in a single `usb_read` call. This 8MB does not include the DMA and CMP data headers.
 
 **EverDrive**
+* Due to the location of the USB buffer, a maximum of 1MB can be received through USB in a single `usb_read` call. This 1MB includes the DMA and CMP data headers.
+</p>
+</details>
 
-\<None>
-
+<details><summary>Debug Library</summary>
+<p>
+* The debug library runs on a dedicated thread, which will only execute if invoked by debug commands. All threads will be blocked until the USB thread is finished.
+* Incoming USB data must be serviced first before you are able to write to USB. Every time a debug function is used, the library will first ensure there is no data to service before continuing. This means that incoming USB data **will only be read if a debug function is called**. Therefore, it is recommended to call `debug_pollcommands` as often as possible to ensure that data doesn't stay stuck waiting to be serviced. See Example 3 or 4 for examples on how to read incoming data.
+</p>
+</details>
 
 ### Building UNFLoader
 <details><summary>Building UNFLoader for Windows</summary>
