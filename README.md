@@ -13,7 +13,7 @@ Currently supported devices:
 <p>
     
 * Windows XP or higher
-* [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm)
+* [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm). If you are on Windows XP, be sure you download the XP driver and not the first one.
 </p>
 </details>
     
