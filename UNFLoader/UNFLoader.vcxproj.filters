@@ -19,12 +19,6 @@
     <ClCompile Include="device_64drive.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="device_everdrive3.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="device_everdrive7.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -33,6 +27,9 @@
     </ClCompile>
     <ClCompile Include="Include\lodepng.c">
       <Filter>Include</Filter>
+    </ClCompile>
+    <ClCompile Include="device_everdrive.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -43,12 +40,6 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="device_64drive.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="device_everdrive3.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="device_everdrive7.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="helper.h">
@@ -74,6 +65,9 @@
     </ClInclude>
     <ClInclude Include="Include\lodepng.h">
       <Filter>Include</Filter>
+    </ClInclude>
+    <ClInclude Include="device_everdrive.h">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

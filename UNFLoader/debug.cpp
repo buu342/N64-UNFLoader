@@ -83,8 +83,7 @@ void debug_main(ftdi_context_t *cart)
     // Decide the alignment based off the cart that's connected
     switch (cart->carttype)
     {
-        case CART_EVERDRIVE3: alignment = 512; break;
-        case CART_EVERDRIVE7: alignment = 16; break;
+        case CART_EVERDRIVE: alignment = 16; break;
         default: alignment = 0;
     }
 

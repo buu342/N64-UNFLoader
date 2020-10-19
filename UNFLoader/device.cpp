@@ -10,8 +10,7 @@ Passes flashcart communication to more specific functions
 #include "debug.h"
 #include "device.h"
 #include "device_64drive.h"
-#include "device_everdrive3.h"
-#include "device_everdrive7.h"
+#include "device_everdrive.h"
 
 
 /*********************************
@@ -77,21 +76,12 @@ void device_find(int automode)
             break;
         }
 
-        // Look for EverDrive 3.0
-        if ((automode == CART_NONE || automode == CART_EVERDRIVE3) && device_test_everdrive3(cart, i))
+        // Look for an EverDrive
+        if ((automode == CART_NONE || automode == CART_EVERDRIVE) && device_test_everdrive(cart, i))
         {
-            device_set_everdrive3(cart, i);
+            device_set_everdrive(cart, i);
             if (automode == CART_NONE)
-                pdprint_replace("EverDrive 3.0 autodetected!\n", CRDEF_PROGRAM);
-            break;
-        }
-
-        // Look for EverDrive X7
-        if ((automode == CART_NONE || automode == CART_EVERDRIVE7) && device_test_everdrive7(cart, i))
-        {
-            device_set_everdrive7(cart, i);
-            if (automode == CART_NONE)
-                pdprint_replace("EverDrive X7 autodetected!\n", CRDEF_PROGRAM);
+                pdprint_replace("EverDrive autodetected!\n", CRDEF_PROGRAM);
             break;
         }
     }
@@ -149,44 +139,23 @@ void device_set_64drive2(ftdi_context_t* cart, int index)
 
 
 /*==============================
-    device_set_everdrive3
-    Marks the cart as being EverDrive 3.0
+    device_set_everdrive
+    Marks the cart as being EverDrive
     @param A pointer to the cart context
     @param The index of the cart
 ==============================*/
 
-void device_set_everdrive3(ftdi_context_t* cart, int index)
+void device_set_everdrive(ftdi_context_t* cart, int index)
 {
     // Set cart settings
     cart->device_index = index;
-    cart->carttype = CART_EVERDRIVE3;
+    cart->carttype = CART_EVERDRIVE;
 
     // Set function pointers
-    funcPointer_open = &device_open_everdrive3;
-    funcPointer_sendrom = &device_sendrom_everdrive3;
-    funcPointer_senddata = &device_senddata_everdrive3;
-    funcPointer_close = &device_close_everdrive3;
-}
-
-
-/*==============================
-    device_set_everdrive7
-    Marks the cart as being EverDrive X7
-    @param A pointer to the cart context
-    @param The index of the cart
-==============================*/
-
-void device_set_everdrive7(ftdi_context_t* cart, int index)
-{
-    // Set cart settings
-    cart->device_index = index;
-    cart->carttype = CART_EVERDRIVE7;
-
-    // Set function pointers
-    funcPointer_open = &device_open_everdrive7;
-    funcPointer_sendrom = &device_sendrom_everdrive7;
-    funcPointer_senddata = &device_senddata_everdrive7;
-    funcPointer_close = &device_close_everdrive7;
+    funcPointer_open = &device_open_everdrive;
+    funcPointer_sendrom = &device_sendrom_everdrive;
+    funcPointer_senddata = &device_senddata_everdrive;
+    funcPointer_close = &device_close_everdrive;
 }
 
 

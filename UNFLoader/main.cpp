@@ -142,7 +142,7 @@ void parse_args(int argc, char* argv[])
                 local_flashcart = value[0]-'0';
 
                 // Validate that the cart number is between our range
-                if (local_flashcart < CART_64DRIVE1 || local_flashcart > CART_EVERDRIVE7) 
+                if (local_flashcart < CART_64DRIVE1 || local_flashcart > CART_EVERDRIVE) 
                     terminate("Error: Invalid parameter '%s' for command '%s'.\n", value, command);
             } 
             else
@@ -285,8 +285,7 @@ void list_args()
     pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection).\n", CRDEF_PROGRAM);
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE3, "EverDrive 3.0");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE7, "EverDrive X7");
+    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE, "EverDrive");
     pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only).\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
@@ -333,22 +332,24 @@ void show_help()
     switch (category)
     {
         case '1':
-            pdprint(" 1) Plug your 64Drive USB into your PC, ensuring the console is turned OFF.\n"
-                    " 2) Run this program to upload a ROM. Example:\n" 
+            pdprint(" 1) Ensure your device is on the latest firmware/version.\n"
+                    " 2) Plug your 64Drive USB into your PC, ensuring the console is turned OFF.\n"
+                    " 3) Run this program to upload a ROM. Example:\n" 
                     " \t unfloader.exe -r myrom.n64\n"
-                    " 3) If using 64Drive HW2, your game might not boot if you do not state the\n"
+                    " 4) If using 64Drive HW2, your game might not boot if you do not state the\n"
                     "    correct CIC as an argument. Most likely, you are using CIC 6102, so simply\n"
                     "    append that to the end of the arguments. Example:\n"
                     " \t unfloader.exe -r myrom.n64 -c 6102\n"
-                    " 4) Once the upload process is finished, turn the console on. Your ROM should\n"
+                    " 5) Once the upload process is finished, turn the console on. Your ROM should\n"
                     "    execute.\n", CRDEF_PROGRAM);
             break;
         case '2':
-            pdprint(" 1) Plug your EverDrive USB into your PC, ensuring the console is turned ON and\n"
+            pdprint(" 1) Ensure your device is on the latest firmware/version.\n"
+                    " 2) Plug your EverDrive USB into your PC, ensuring the console is turned ON and\n"
                     "    in the main menu.\n"
-                    " 2) Run this program to upload a ROM. Example:\n" 
+                    " 3) Run this program to upload a ROM. Example:\n" 
                     " \t unfloader.exe -r myrom.n64\n"
-                    " 3) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
+                    " 4) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
             break;
         case '3':
             pdprint("Listen mode automatically re-uploads the ROM via USB when it is modified. This\n"

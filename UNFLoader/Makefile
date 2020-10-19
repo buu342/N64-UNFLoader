@@ -3,8 +3,7 @@ OS_NAME := $(shell uname -s)
 
 CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
 	device_64drive.cpp \
-	device_everdrive7.cpp \
-	device_everdrive3.cpp
+	device_everdrive.cpp
 LIBFILES=Include/lodepng.c
 
 CC=g++
