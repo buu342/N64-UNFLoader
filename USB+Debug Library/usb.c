@@ -9,7 +9,6 @@ https://github.com/buu342/N64-UNFLoader
 #include <ultra64.h>
 #include <string.h>
 #include "usb.h"
-#include "graphic.h" // REMOVE
 
 
 /*********************************
@@ -227,7 +226,6 @@ static void usb_findcart()
     // Write the key to unlock the registers, then read the version register
     usb_everdrive_writereg(ED_REG_KEY, ED_REGKEY);
     usb_everdrive_readreg(ED_REG_VERSION, &buff);
-    testv = buff;
     
     // Check if we have an EverDrive
     if (buff == ED7_VERSION || buff == ED3_VERSION)
