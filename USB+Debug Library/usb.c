@@ -23,6 +23,10 @@ https://github.com/buu342/N64-UNFLoader
 #define CART_64DRIVE   2
 #define CART_EVERDRIVE 3
 
+// USB Memory location
+#define DEBUG_ADDRESS  0x03F00000 // Put the debug area at the 63MB area in ROM space
+#define DEBUG_ADDRESS_SIZE 1*1024*1024
+
 
 /*********************************
      Parallel Interface macros
@@ -45,8 +49,6 @@ https://github.com/buu342/N64-UNFLoader
 #define D64_BASE_ADDRESS   0xB0000000
 #define D64_CIREG_ADDRESS  0x08000000
 #define D64_CIBASE_ADDRESS 0xB8000000
-#define D64_DEBUG_ADDRESS  0x03F00000 // Put the debug area at the 63MB area in SDRAM
-#define D64_DEBUG_ADDRESS_SIZE 1*1024*1024
 
 #define D64_REGISTER_STATUS  0x00000200
 #define D64_REGISTER_COMMAND 0x00000208
@@ -97,13 +99,16 @@ https://github.com/buu342/N64-UNFLoader
 #define ED_REG_SYSCFG  0x8000
 #define ED_REG_KEY     0x8004
 
-#define ED_USBMODE_RDNOP  0xC400
-#define ED_USBMODE_RD     0xC600
-#define ED_USBMODE_WRNOP  0xC000
-#define ED_USBMODE_WR     0xC200
+#define ED_USBMODE_RDNOP 0xC400
+#define ED_USBMODE_RD    0xC600
+#define ED_USBMODE_WRNOP 0xC000
+#define ED_USBMODE_WR    0xC200
 
-#define ED_USBSTAT_ACT     0x0200
-#define ED_USBSTAT_BUSY    0x2000
+#define ED_USBSTAT_ACT   0x0200
+#define ED_USBSTAT_RXF   0x0400
+#define ED_USBSTAT_TXE   0x0800
+#define ED_USBSTAT_POWER 0x1000
+#define ED_USBSTAT_BUSY  0x2000
 
 #define ED_REGKEY  0xAA55
 
@@ -470,11 +475,11 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         osWritebackDCache(usb_bufferout, block);
         #if USE_OSRAW
             osPiRawStartDma(OS_WRITE, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
                          usb_bufferout, block);
         #else
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                         D64_BASE_ADDRESS + D64_DEBUG_ADDRESS + read, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
                          usb_bufferout, block, &dmaMessageQ);
             (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
@@ -486,11 +491,11 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     
     // Send the data through USB
     #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #endif
@@ -535,11 +540,11 @@ static int usb_64drive_poll()
         
         // Arm the USB FIFO DMA
         #if USE_OSRAW
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #else
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #endif
@@ -599,11 +604,11 @@ static void usb_64drive_read(void* buffer, int nbytes)
         
         // Arm the USB FIFO DMA
         #if USE_OSRAW
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #else
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, D64_DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
         #endif
@@ -616,11 +621,11 @@ static void usb_64drive_read(void* buffer, int nbytes)
     osWritebackDCache(buffer, nbytes);
     #if USE_OSRAW
         osPiRawStartDma(OS_READ, 
-                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     D64_BASE_ADDRESS + DEBUG_ADDRESS, buffer, 
                      nbytes);
     #else
         osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     D64_BASE_ADDRESS + D64_DEBUG_ADDRESS, buffer, 
+                     D64_BASE_ADDRESS + DEBUG_ADDRESS, buffer, 
                      nbytes, &dmaMessageQ);
         (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     #endif
@@ -771,6 +776,23 @@ static void usb_everdrive_usbbusy()
 
 
 /*==============================
+    usb_everdrive_canread
+    Checks if the EverDrive's USB can read
+    @return 1 if it can read, 0 if not
+==============================*/
+
+static u8 usb_everdrive_canread() 
+{
+    u32 val, status = ED_USBSTAT_POWER;
+    
+    // Read the USB register and check its status
+    usb_everdrive_readreg(ED_REG_USBCFG, &val);
+    status = val & (ED_USBSTAT_POWER | ED_USBSTAT_RXF);
+    return status == ED_USBSTAT_POWER;
+}
+
+
+/*==============================
     usb_everdrive_write
     Sends data through USB from the EverDrive
     @param The DATATYPE that is being sent
@@ -847,8 +869,26 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 
 static int usb_everdrive_poll()
 {
-    // TODO: Implement this function
-    return 0;
+    u32 ret=0;
+    
+    // Wait for the USB to be ready
+    usb_everdrive_usbbusy();
+    
+    // Check if the USB is ready to be read
+    if (usb_everdrive_canread())
+    {
+        // Read the first 4 bytes that are being received
+        usb_everdrive_read((void*)DEBUG_ADDRESS, 4);
+    
+        // Check if we've received data
+        #if USE_OSRAW
+            osPiRawReadIo(DEBUG_ADDRESS, &ret);
+        #else
+            osPiReadIo(DEBUG_ADDRESS, &ret);
+        #endif
+    }
+    
+    return ret;
 }
 
 
@@ -859,5 +899,23 @@ static int usb_everdrive_poll()
 
 static void usb_everdrive_read(void* buffer, int nbytes)
 {        
-    // TODO: Implement this function
+    u8 resp = 0;
+    u16 blen, baddr;
+
+    while (nbytes) {
+
+        blen = 512; //rx block len
+        if (blen > nbytes)
+            blen = nbytes;
+        baddr = 512 - blen; //address in fpga internal buffer. requested data length equal to 512-int buffer addr
+
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | baddr); //usb read request. fpga will receive usb bytes until the buffer address reaches 512
+
+        usb_everdrive_usbbusy(); //wait until requested data amount will be transferred to the internal buffer
+
+        usb_everdrive_readdata(buffer, ED_GET_REGADD(ED_REG_USBDAT + baddr), blen); //get data from internal buffer
+
+        buffer += blen;
+        nbytes -= blen;
+    }
 }

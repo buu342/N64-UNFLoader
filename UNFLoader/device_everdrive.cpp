@@ -245,7 +245,6 @@ void device_senddata_everdrive(ftdi_context_t* cart, char* data, u32 size)
     char DMA[4] = {'D', 'M', 'A', '@'};
 
     // Send a command saying we're about to write to the cart
-    device_sendcmd_everdrive(cart, 'W', 0x10000000 + 0x3F00000, 4, 0);
     FT_Write(cart->handle, DMA, 4, &cart->bytes_written);
 }
 

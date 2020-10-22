@@ -22,7 +22,7 @@
     /*==============================
         usb_initialize
         Initializes the USB buffers and pointers
-        @returns 1 if the USB initialization was successful, 0 if not
+        @return 1 if the USB initialization was successful, 0 if not
     ==============================*/
     
     extern char usb_initialize();
@@ -43,7 +43,7 @@
         usb_poll
         Returns the header of data being received via USB
         The first byte contains the data type, the next 3 the size
-        @return The header of incoming data, or 0 if no data
+        @return The number of bytes of incoming data, or 0
     ==============================*/
     
     extern int usb_poll();
