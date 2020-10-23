@@ -20,7 +20,8 @@ http://krikzz.com/pub/support/everdrive-64/x-series/dev/
 
 bool device_test_everdrive(ftdi_context_t* cart, int index)
 {
-    if (strcmp(cart->dev_info[index].Description, "FT245R USB FIFO") == 0 &&cart->dev_info[index].ID == 0x04036001){
+    if (strcmp(cart->dev_info[index].Description, "FT245R USB FIFO") == 0 &&cart->dev_info[index].ID == 0x04036001)
+    {
         char send_buff[16];
         char recv_buff[16];
         memset(send_buff, 0, 16);
@@ -240,12 +241,62 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     @param The size of the data
 ==============================*/
 
-void device_senddata_everdrive(ftdi_context_t* cart, char* data, u32 size)
+void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    char DMA[4] = {'D', 'M', 'A', '@'};
+    char wrotecmp = 0;
+    char cmp[] = {'C', 'M', 'P', 'H'};
+    int read = 0;
+    int left = size;
+    int offset = 8;
+    u32 header = (size & 0xFFFFFF) | (datatype << 24);
+    char*  databuffer = (char*) malloc(sizeof(char) * 512);
 
-    // Send a command saying we're about to write to the cart
-    FT_Write(cart->handle, DMA, 4, &cart->bytes_written);
+    // Put in the DMA header along with length and type information in the global buffer
+    databuffer[0] = 'D';
+    databuffer[1] = 'M';
+    databuffer[2] = 'A';
+    databuffer[3] = '@';
+    databuffer[4] = (header >> 24) & 0xFF;
+    databuffer[5] = (header >> 16) & 0xFF;
+    databuffer[6] = (header >> 8)  & 0xFF;
+    databuffer[7] = header & 0xFF;
+
+    // Write data to USB until we've finished
+    while (left > 0)
+    {
+        int block = left;
+        int blocksend;
+        if (block+offset > 512)
+            block = 512-offset;
+
+        // Copy the data to the next available spots in the data buffer
+        memcpy(databuffer+offset, (void*)((char*)data+read), block);
+
+        // Restart the loop to write the CMP signal if we've finished
+        if (!wrotecmp && read+block >= (int)size)
+        {
+            left = 4;
+            offset = block+offset;
+            data = cmp;
+            wrotecmp = 1;
+            read = 0;
+            continue;
+        }
+
+        // Ensure the data is 16 byte aligned
+        blocksend = (block+offset)+15 - ((block+offset)+15)%16;
+
+        // Send data through USB
+        FT_Write(cart->handle, databuffer, blocksend, &cart->bytes_written);
+
+        // Keep track of what we've read so far
+        left -= block;
+        read += block;
+        offset = 0;
+    }
+
+    // Free the data used by the buffer
+    free(databuffer);
 }
 
 

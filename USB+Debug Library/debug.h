@@ -95,15 +95,23 @@
         ==============================*/
         
         //extern char* debug_parsecommand();
-        
+                
         
         /*==============================
-            debug_commandsize
+            debug_sizecommand
             Returns the size of the data from this part of the command
             @return The size of the data in bytes, or -1
         ==============================*/
         
-        //extern int debug_commandsize();
+        //extern int debug_sizecommand();
+        
+        
+        /*==============================
+            debug_trashcommand
+            Trash the incoming data if it's not needed anymore
+        ==============================*/
+        
+        //extern void debug_trashcommand();
         
         
         /*==============================
@@ -130,6 +138,8 @@
         #define debug_pollcommands()
         #define debug_addcommand(a, b, c)
         #define debug_parsecommand() NULL
+        #define debug_sizecommand() 0
+        #define debug_trashcommand()
         #define debug_printcommands()
         #define usb_write(a, b, c)
         #define usb_poll() 0

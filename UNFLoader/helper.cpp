@@ -54,11 +54,12 @@ void __pdprint(short color, const char* str, ...)
     Prints text using PDCurses to a specific window. Don't use directly.
     @param The window to print to
     @param A color pair to use (use the CR_ macros)
+    @param Whether to allow logging
     @param A string to print
     @param Variadic arguments to print as well
 ==============================*/
 
-void __pdprintw(WINDOW *win, short color, const char* str, ...)
+void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
 {
     int i;
     va_list args;
@@ -78,7 +79,7 @@ void __pdprintw(WINDOW *win, short color, const char* str, ...)
     wrefresh(win);
 
     // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
+    if (log && global_debugoutptr != NULL)
         vfprintf(global_debugoutptr, str, args);
     va_end(args);
 }

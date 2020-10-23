@@ -43,7 +43,7 @@
     void  device_set_everdrive(ftdi_context_t* cart, int index);
     void  device_open();
     void  device_sendrom(char* rompath);
-    void  device_senddata(char* data, u32 size);
+    void  device_senddata(int datatype, char* data, u32 size);
     bool  device_isopen();
     DWORD device_getcarttype();
     void  device_close();

@@ -278,7 +278,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     @param The size of the data
 ==============================*/
 
-void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
+void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
     u8 buf[4];
     u32 cmp_magic;
@@ -293,7 +293,7 @@ void device_senddata_64drive(ftdi_context_t* cart, char* data, u32 size)
     }
 
     // Send the command, and then the data
-    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (size & 0xffffff) | 0x20 << 24, 0);
+    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (size & 0x00FFFFFF) | datatype << 24, 0);
     cart->status = FT_Write(cart->handle, data, size, &cart->bytes_written);
 
     // Read the CMP signal

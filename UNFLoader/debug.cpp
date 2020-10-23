@@ -178,7 +178,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
         pdprint("Sending command %s\n", CRDEF_INFO, buffer);
-        device_senddata(buffer, size);
+        device_senddata(DATATYPE_TEXT, buffer, size);
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
@@ -198,7 +198,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     }
 
     // Display what we've written
-    pdprintw(inputwin, buffer, CRDEF_INPUT);
+    pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
 
     // Draw the blinker
     blinker = (blinker++) % (1+BLINKRATE * 2);

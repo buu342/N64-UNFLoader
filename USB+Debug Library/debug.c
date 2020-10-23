@@ -552,10 +552,10 @@ https://github.com/buu342/N64-UNFLoader
             osRecvMesg(&usbMessageQ, (OSMesg *)&threadMsg, OS_MESG_BLOCK);
             
             // Ensure there's no data in the USB (which handles MSG_READ)
-            while (usb_poll() != 0)
+            /*while (usb_poll() != 0)
             {
                 // Service the data
-            }
+            }*/
             
             // Write to the USB if the message requested it
             if (threadMsg->msgtype == MSG_WRITE)

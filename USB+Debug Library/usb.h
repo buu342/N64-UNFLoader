@@ -14,6 +14,15 @@
     #define DATATYPE_HEADER     0x03
     #define DATATYPE_SCREENSHOT 0x04
     
+    
+    /*********************************
+            Convenience macros
+    *********************************/
+    
+    #define USBHEADER_GETTYPE(header) ((header & 0xFF000000) >> 24)
+    #define USBHEADER_GETSIZE(header) ((header & 0x00FFFFFF))
+    #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
+    
 
     /*********************************
               USB Functions
@@ -42,8 +51,8 @@
     /*==============================
         usb_poll
         Returns the header of data being received via USB
-        The first byte contains the data type, the next 3 the size
-        @return The number of bytes of incoming data, or 0
+        The first byte contains the data type, the next 3 the size left to read
+        @return The data header, or 0
     ==============================*/
     
     extern int usb_poll();

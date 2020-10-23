@@ -19,7 +19,7 @@ Passes flashcart communication to more specific functions
 
 void (*funcPointer_open)(ftdi_context_t*);
 void (*funcPointer_sendrom)(ftdi_context_t*, FILE *file, u32 size);
-void (*funcPointer_senddata)(ftdi_context_t*, char *data, u32 size);
+void (*funcPointer_senddata)(ftdi_context_t*, int datatype, char *data, u32 size);
 void (*funcPointer_close)(ftdi_context_t*);
 
 
@@ -298,9 +298,9 @@ void device_sendrom(char* rompath)
     @param The number of bytes in the data
 ==============================*/
 
-void device_senddata(char* data, u32 size)
+void device_senddata(int datatype, char* data, u32 size)
 {
-    funcPointer_senddata(&local_usb, data, size);
+    funcPointer_senddata(&local_usb, datatype, data, size);
 }
 
 
