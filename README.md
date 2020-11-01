@@ -3,7 +3,7 @@
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
-* [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
+* [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/), using firmware 2.05+
 * EverDrive 3.0 (No longer comercially sold), using OS version 3.04+
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 
@@ -23,7 +23,7 @@ Currently supported devices:
 * Ubuntu (Haven't tested with others)
 * [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * You must run UNFLoader with `sudo`.
-* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands first: 
+* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands every time you start a new terminal session: 
 ```
 sudo rmmod usbserial
 sudo rmmod ftdi_sio
@@ -46,12 +46,14 @@ sudo rmmod ftdi_sio
 ### Using UNFLoader
 Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart). 
 The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. 
+
 Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). If you wrap a part of a command in '@' characters, the data will be treated as a file and will be uploaded to the cart. When uploading files in a command, the filepath wrapped between the '@' characters will be replaced with the size of the data inside the file, with the data in the file itself being appended after. For example, if there is a file called `file.txt` with 4 bytes containing `abcd`, sending the following command: `commandname arg1 arg2 @file.txt@ arg4` will send `commandname arg1 arg2 @4@abcd arg4` to the console.
+
 Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
 
 
 ### Using the USB Library
-Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read (unimplemented) and write function for USB communication. This library **is not multithreaded**, so care must be taken when mixing printfs from different threads, as well as writing to the USB when there is data in the USB that needs to be serviced first.
+Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -98,7 +100,7 @@ void usb_read(void* buffer, int size);
 </details>
 
 ### Using the Debug Library
-Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library support multithreading, by blocking the thread that called a debug function until it is finished reading/writing to the USB.
+Simply include the `debug.c` and `debug.h` in your project. You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -183,11 +185,11 @@ void debug_printcommands();
 <p>
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-* By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB.
+* By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB. More space can be allocated by changing `usb.h`.
 * Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users and will potentially overwrite the USB buffers on the EverDrive. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
 
 **64Drive**
-* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB, which will be padded with zeroes.
 
 **EverDrive**
 \<Nothing>
