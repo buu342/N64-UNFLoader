@@ -7,7 +7,7 @@
 
     // Settings
     #define DEBUG_MODE        1   // Enable/Disable debug mode
-    #define DEBUG_INIT_MSG    1   // Print a messgae when debug mode has initialized
+    #define DEBUG_INIT_MSG    1   // Print a message when debug mode has initialized
     #define USE_FAULTTHREAD   1   // Create a fault detection thread 
     #define OVERWRITE_OSPRINT 1   // Replaces osSyncPrintf calls with debug_printf
     #define MAX_COMMANDS      25  // The max amount of user defined commands possible
@@ -82,7 +82,7 @@
             Adds a command for the USB to read
             @param The command name
             @param The command description
-            @param The function pointer to execute
+            @param The function pointer to execute                                                                                  
         ==============================*/
         
         extern void debug_addcommand(char* command, char* description, void(*execute)());

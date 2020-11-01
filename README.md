@@ -44,7 +44,10 @@ sudo rmmod ftdi_sio
 </details>
 
 ### Using UNFLoader
-Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart). The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
+Simply execute the program for a full list of commands. If you run the program with the `-help` argument, you have access to even more information (such as how to upload via USB with your specific flashcart). 
+The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`. 
+Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). If you wrap a part of a command in '@' characters, the data will be treated as a file and will be uploaded to the cart. When uploading files in a command, the filepath wrapped between the '@' characters will be replaced with the size of the data inside the file, with the data in the file itself being appended after. For example, if there is a file called `file.txt` with 4 bytes containing `abcd`, sending the following command: `commandname arg1 arg2 @file.txt@ arg4` will send `commandname arg1 arg2 @4@abcd arg4` to the console.
+Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
 
 
 ### Using the USB Library
@@ -63,6 +66,7 @@ char usb_initialize();
 /*==============================
     usb_write
     Writes data to the USB.
+    Will not write if there is data to read from USB
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
@@ -71,21 +75,24 @@ void usb_write(int datatype, const void* data, int size);
 
 /*==============================
     usb_poll
-    Unimplemented!
-    Checks how many bytes are in the USB buffer.
-    Only tells you the bytes left on a per command basis!
-    @return The number of bytes of incoming data, or 0
+    Returns the header of data being received via USB
+    The first byte contains the data type, the next 3 the number of bytes left to read
+    @return The data header, or 0
 ==============================*/
 int usb_poll();
 
 /*==============================
     usb_read
-    Unimplemented!
-    Reads bytes from the USB into the provided buffer
+    Reads bytes from USB into the provided buffer
+    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 void usb_read(void* buffer, int size);
+
+// Use these to conveniently read the header from usb_poll
+#define USBHEADER_GETTYPE(header) ((header & 0xFF000000) >> 24)
+#define USBHEADER_GETSIZE(header) ((header & 0x00FFFFFF))
 ```
 </p>
 </details>
@@ -176,15 +183,14 @@ void debug_printcommands();
 <p>
 **General**
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-* The USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB.
-* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
+* By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users and will potentially overwrite the USB buffers on the EverDrive. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
 
 **64Drive**
 * All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB.
-* Due to the size of the dedicated USB FIFO buffer, a maximum of 8MB can be received through USB in a single `usb_read` call. This 8MB does not include the DMA and CMP data headers.
 
 **EverDrive**
-* Due to the location of the USB buffer, a maximum of 1MB can be received through USB in a single `usb_read` call. This 1MB includes the DMA and CMP data headers.
+\<Nothing>
 </p>
 </details>
 

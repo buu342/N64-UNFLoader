@@ -6,7 +6,8 @@
     *********************************/
 
     // Settings
-    #define USE_OSRAW 0 // Use if you're doing USB operations without the PI Manager
+    #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager
+    #define DEBUG_ADDRESS_SIZE 1*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
     
     // Data types defintions
     #define DATATYPE_TEXT       0x01
@@ -19,9 +20,9 @@
             Convenience macros
     *********************************/
     
+    // Use these to conveniently read the header from usb_poll
     #define USBHEADER_GETTYPE(header) ((header & 0xFF000000) >> 24)
     #define USBHEADER_GETSIZE(header) ((header & 0x00FFFFFF))
-    #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
     
 
     /*********************************
@@ -40,6 +41,7 @@
     /*==============================
         usb_write
         Writes data to the USB.
+        Will not write if there is data to read from USB
         @param The DATATYPE that is being sent
         @param A buffer with the data to send
         @param The size of the data being sent
@@ -51,16 +53,17 @@
     /*==============================
         usb_poll
         Returns the header of data being received via USB
-        The first byte contains the data type, the next 3 the size left to read
+        The first byte contains the data type, the next 3 the number of bytes left to read
         @return The data header, or 0
     ==============================*/
     
-    extern int usb_poll();
+    extern u32 usb_poll();
     
     
     /*==============================
         usb_read
-        Reads bytes from the USB into the provided buffer
+        Reads bytes from USB into the provided buffer
+        An even number of bytes will ALWAYS be read
         @param The buffer to put the read data in
         @param The number of bytes to read
     ==============================*/

@@ -35,21 +35,21 @@ bool device_test_everdrive(ftdi_context_t* cart, int index)
 
         // Open the device
         cart->status = FT_Open(index, &cart->handle);
-        if(cart->status != FT_OK || !cart->handle) 
+        if (cart->status != FT_OK || !cart->handle) 
         {
             free(cart->dev_info);
-            terminate("Error: Could not open device.\n");
+            terminate("Could not open device.");
         }
 
         // Initialize the USB
-        testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
-        testcommand(FT_SetTimeouts(cart->handle, 500, 500), "Error: Unable to set flashcart timeouts.\n");
-        testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Error: Unable to purge USB contents.\n");
+        testcommand(FT_ResetDevice(cart->handle), "Unable to reset flashcart.");
+        testcommand(FT_SetTimeouts(cart->handle, 500, 500), "Unable to set flashcart timeouts.");
+        testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Unable to purge USB contents.");
 
         // Send the test command
-        testcommand(FT_Write(cart->handle, send_buff, 16, &cart->bytes_written), "Error: Unable to write to flashcart.\n");
-        testcommand(FT_Read(cart->handle, recv_buff, 16, &cart->bytes_read), "Error: Unable to read from flashcart.\n");
-        testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
+        testcommand(FT_Write(cart->handle, send_buff, 16, &cart->bytes_written), "Unable to write to flashcart.");
+        testcommand(FT_Read(cart->handle, recv_buff, 16, &cart->bytes_read), "Unable to read from flashcart.");
+        testcommand(FT_Close(cart->handle), "Unable to close flashcart.");
 
         // Check if the EverDrive responded correctly
         return recv_buff[3] == 'r';
@@ -69,12 +69,12 @@ void device_open_everdrive(ftdi_context_t* cart)
     // Open the cart
     cart->status = FT_Open(cart->device_index, &cart->handle);
     if (cart->status != FT_OK || !cart->handle)
-        terminate("Error: Unable to open flashcart.\n");
+        terminate("Unable to open flashcart.");
 
     // Reset the cart
-    testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
-    testcommand(FT_SetTimeouts(cart->handle, 500, 500), "Error: Unable to set flashcart timeouts.\n");
-    testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Error: Unable to purge USB contents.\n");
+    testcommand(FT_ResetDevice(cart->handle), "Unable to reset flashcart.");
+    testcommand(FT_SetTimeouts(cart->handle, 500, 500), "Unable to set flashcart timeouts.");
+    testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Unable to purge USB contents.");
 }
 
 /*==============================
@@ -94,7 +94,7 @@ void device_sendcmd_everdrive(ftdi_context_t* cart, char command, int address, i
 
     // Check we managed to malloc
     if (cmd_buffer == NULL)
-        terminate("Error: Unable to allocate memory for buffer.\n");
+        terminate("Unable to allocate memory for buffer.");
 
     // Define the command and send it
     cmd_buffer[0] = 'c';
@@ -139,7 +139,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
     // Check we managed to malloc
     if (rom_buffer == NULL)
-        terminate("Error: Unable to allocate memory for buffer.\n");
+        terminate("Unable to allocate memory for buffer.");
 
     // Fill memory if the file is too small
     if ((int)size < crc_area)
@@ -168,7 +168,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
         int i;
 
         // Decide how many bytes to send
-		if(bytes_left >= 0x8000) 
+		if (bytes_left >= 0x8000) 
 			bytes_do = 0x8000;
 		else
 			bytes_do = bytes_left;
@@ -199,16 +199,13 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 			FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
-			if(cart->bytes_written) 
+			if (cart->bytes_written) 
                 break;
 		}
 
         // Check for a timeout
-		if(cart->bytes_written == 0) 
-        {
-            free(rom_buffer);
-            terminate("Error: Everdrive timed out");
-        }
+		if (cart->bytes_written == 0) 
+            terminate("Everdrive timed out.");
 
          // Keep track of how many bytes were uploaded
 		bytes_left -= bytes_do;
@@ -243,60 +240,75 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
 void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    char wrotecmp = 0;
-    char cmp[] = {'C', 'M', 'P', 'H'};
-    int read = 0;
     int left = size;
-    int offset = 8;
+    int read = 0;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
-    char*  databuffer = (char*) malloc(sizeof(char) * 512);
+    char*  buffer = (char*) malloc(sizeof(char) * 512);
+    char cmp[] = {'C', 'M', 'P', 'H'};
 
-    // Put in the DMA header along with length and type information in the global buffer
-    databuffer[0] = 'D';
-    databuffer[1] = 'M';
-    databuffer[2] = 'A';
-    databuffer[3] = '@';
-    databuffer[4] = (header >> 24) & 0xFF;
-    databuffer[5] = (header >> 16) & 0xFF;
-    databuffer[6] = (header >> 8)  & 0xFF;
-    databuffer[7] = header & 0xFF;
+    // Put in the DMA header along with length and type information in the buffer
+    buffer[0] = 'D';
+    buffer[1] = 'M';
+    buffer[2] = 'A';
+    buffer[3] = '@';
+    buffer[4] = (header >> 24) & 0xFF;
+    buffer[5] = (header >> 16) & 0xFF;
+    buffer[6] = (header >> 8)  & 0xFF;
+    buffer[7] = header & 0xFF;
 
-    // Write data to USB until we've finished
-    while (left > 0)
+    // Send the DMA message
+    FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
+
+    // Upload the data
+    for ( ; ; )
     {
-        int block = left;
-        int blocksend;
-        if (block+offset > 512)
-            block = 512-offset;
+        int i, block;
 
-        // Copy the data to the next available spots in the data buffer
-        memcpy(databuffer+offset, (void*)((char*)data+read), block);
+        // Decide how many bytes to send
+		if (left >= 512) 
+			block = 512;
+		else
+			block = left;
 
-        // Restart the loop to write the CMP signal if we've finished
-        if (!wrotecmp && read+block >= (int)size)
+        // End if we've got nothing else to send
+		if (block <= 0) 
+            break;
+
+        // Try to send chunks
+		for (i=0; i<2; i++)
         {
-            left = 4;
-            offset = block+offset;
-            data = cmp;
-            wrotecmp = 1;
-            read = 0;
-            continue;
-        }
+            // If we failed the first time, clear the USB and try again
+			if (i == 1) 
+            {
+				FT_ResetPort(cart->handle);
+				FT_ResetDevice(cart->handle);
+				FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
+			}
 
-        // Ensure the data is 16 byte aligned
-        blocksend = (block+offset)+15 - ((block+offset)+15)%16;
+			// Send the chunk through USB
+			memcpy(buffer, data+read, block);
+			FT_Write(cart->handle, buffer, 512, &cart->bytes_written);
 
-        // Send data through USB
-        FT_Write(cart->handle, databuffer, blocksend, &cart->bytes_written);
+            // If we managed to write, don't try again
+			if (cart->bytes_written)
+                break;
+		}
 
-        // Keep track of what we've read so far
-        left -= block;
-        read += block;
-        offset = 0;
+        // Check for a timeout
+		if (cart->bytes_written == 0) 
+            terminate("Everdrive timed out.");
+
+        // Keep track of how many bytes were uploaded
+		left -= block;
+		read += block;
     }
 
+    // Send the CMP signal
+    memcpy(buffer, cmp, 4);
+    FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
+
     // Free the data used by the buffer
-    free(databuffer);
+    free(buffer);
 }
 
 
@@ -308,5 +320,5 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
 
 void device_close_everdrive(ftdi_context_t* cart)
 {
-    testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
+    testcommand(FT_Close(cart->handle), "Unable to close flashcart.");
 }

@@ -27,6 +27,7 @@ Handles USB I/O.
 *********************************/
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
+char debug_appendfilesend(char* data, u32 size);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
 void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
@@ -71,13 +72,12 @@ void debug_main(ftdi_context_t *cart)
     // Open file for debug output
     if (global_debugout != NULL)
     {
-        #ifndef LINUX
-            fopen_s(&global_debugoutptr, global_debugout, "w+");
-        #else
-            global_debugoutptr = fopen(global_debugout, "w+");
-        #endif
+        global_debugoutptr = fopen(global_debugout, "w+");
         if (global_debugoutptr == NULL)
-            terminate("\nError: Unable to open %s for writing debug output.", global_debugout);
+        {
+            pdprint("\n", CRDEF_ERROR);
+            terminate("Unable to open %s for writing debug output.", global_debugout);
+        }
     }
 
     // Decide the alignment based off the cart that's connected
@@ -110,7 +110,7 @@ void debug_main(ftdi_context_t *cart)
             FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
             read += cart->bytes_read;
             if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
-                terminate("Error: Unexpected DMA header: %c %c %c %c\n", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+                terminate("Unexpected DMA header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
 
             // Get information about the incoming data
             FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
@@ -124,7 +124,7 @@ void debug_main(ftdi_context_t *cart)
             FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
             read += cart->bytes_read;
             if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
-                terminate("Error: Did not receive completion signal: %c %c %c %c.\n", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+                terminate("Did not receive completion signal: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
 
             // Ensure byte alignment by reading X amount of bytes needed
             if (alignment != 0 && (read % alignment) != 0)
@@ -166,7 +166,12 @@ void debug_main(ftdi_context_t *cart)
 
 /*==============================
     debug_textinput
-    TODO: Write this header
+    Handles text input in the console
+    @param A pointer to the cart context
+    @param A pointer to the input window
+    @param A pointer to the input buffer
+    @param A pointer to the cursor position value
+    @param The inputted character
 ==============================*/
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
@@ -177,8 +182,8 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     // Decide what to do on key presses
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
-        pdprint("Sending command %s\n", CRDEF_INFO, buffer);
-        device_senddata(DATATYPE_TEXT, buffer, size);
+        if (debug_appendfilesend(buffer, size))
+            pdprint("Sending command %s\n", CRDEF_INFO, buffer);
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
@@ -214,6 +219,100 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
 
 
 /*==============================
+    debug_appendfilesend
+    Sends the data to the flashcart with a file appended if needed
+    @param A pointer to the cart context
+    @param A pointer to the input window
+    @param A pointer to the input buffer
+    @param A pointer to the cursor position value
+    @param The inputted character
+==============================*/
+
+char debug_appendfilesend(char* data, u32 size)
+{
+    char* finaldata; 
+    char* filestart = strchr(data, '@');
+    if (filestart != NULL)
+    {
+        FILE *fp;
+        int charcount = 0;
+        int filesize = 0;
+        char sizestring[8];
+        char* filepath = (char*)malloc(512);
+        char* lastat;
+        char* fileend = strchr(++filestart, '@');
+
+        // Ensure we managed to malloc for the filename
+        if (filepath == NULL)
+        {
+            pdprint("Unable to allocate memory for filepath\n", CRDEF_ERROR);
+            return 0;
+        }
+
+        // Check if the filepath is valid
+        if (fileend == NULL || (*filestart) == '\0')
+        {
+            pdprint("Missing terminating '@'\n", CRDEF_ERROR);
+            free(filepath);
+            return 0;
+        }
+
+        // Store the filepath and its character count
+        charcount = fileend-filestart;
+        strncpy(filepath, filestart, charcount);
+        filepath[charcount] = '\0';
+        fileend++;
+
+        // Attempt to open the file
+        fp = fopen(filepath, "rb+");
+        if (fp == NULL)
+        {
+            pdprint("Unable to open file '%s'\n", CRDEF_ERROR, filepath);
+            free(filepath);
+            return 0;
+        }
+
+        // Get the filesize
+        fseek(fp, 0L, SEEK_END);
+        filesize = ftell(fp);
+        rewind(fp);
+        sprintf(sizestring, "%d", filesize);
+
+        // Allocate memory for the new data buffer
+        size = (size-charcount)+filesize+strlen(sizestring);
+        finaldata = (char*)malloc(size);
+        if (finaldata == NULL)
+        {
+            pdprint("Unable to allocate memory for USB data\n", CRDEF_ERROR);
+            free(filepath);
+            return 0;
+        }
+        memset(finaldata, 0, size);
+
+        // Rewrite the data with the new format
+        memcpy(finaldata, data, filestart-data);
+        strcat(finaldata, sizestring);
+        strcat(finaldata, "@");
+        lastat = strchr(finaldata, '@')+strlen(sizestring)+2;
+        fread(lastat, 1, filesize, fp);
+        strcat(lastat+filesize, fileend);
+
+        // clean up all the memory we borrowed
+        fclose(fp);
+        free(filepath);
+    }
+    else
+        finaldata = data;
+    device_senddata(DATATYPE_TEXT, finaldata, size);
+
+    // Free the final data buffer and return success
+    if (filestart != NULL)
+        free(finaldata);
+    return 1;
+}
+
+
+/*==============================
     debug_decidedata
     Decides what function to call based on the command type stored in the info
     @param A pointer to the cart context
@@ -234,7 +333,7 @@ void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read)
         case DATATYPE_RAWBINARY:  debug_handle_rawbinary(cart, size, buffer, read); break;
         case DATATYPE_HEADER:     debug_handle_header(cart, size, buffer, read); break;
         case DATATYPE_SCREENSHOT: debug_handle_screenshot(cart, size, buffer, read); break;
-        default:                  terminate("Error: Unknown data type.");
+        default:                  terminate("Unknown data type.");
     }
 }
 
@@ -295,7 +394,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 
     // Ensure we malloced successfully
     if (filename == NULL || extraname == NULL)
-        terminate("Error: Unable to allocate memory for binary file.");
+        terminate("Unable to allocate memory for binary file.");
 
     // Create the binary file to save data to
     memset(filename, 0, PATH_SIZE);
@@ -317,7 +416,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 
     // Ensure the file was created
     if (fp == NULL)
-        terminate("Error: Unable to create binary file.");
+        terminate("Unable to create binary file.");
 
     // Ensure the data fits within our buffer
     if (left > BUFFER_SIZE)
@@ -407,14 +506,14 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
 
     // Ensure we got a data header of type screenshot
     if (debug_headerdata[0] != DATATYPE_SCREENSHOT)
-        terminate("Error: Unexpected data header for screenshot.");
+        terminate("Unexpected data header for screenshot.");
 
     // Allocate space for the image
     image = (u8*) malloc(4*w*h);
 
     // Ensure we malloced successfully
     if (filename == NULL || extraname == NULL || image == NULL)
-        terminate("Error: Unable to allocate memory for binary file.");
+        terminate("Unable to allocate memory for binary file.");
 
     // Create the binary file to save data to
     memset(filename, 0, PATH_SIZE);

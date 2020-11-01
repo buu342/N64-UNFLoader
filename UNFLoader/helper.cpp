@@ -167,8 +167,11 @@ void terminate(const char* reason, ...)
 
     // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
+    {
+        pdprint("Error: ", CRDEF_ERROR);
         __pdprint_v(CRDEF_ERROR, reason, args);
-    pdprint("\n", CRDEF_ERROR);
+    }
+    pdprint("\n\n", CRDEF_ERROR);
     va_end(args);
 
     // Close output debug file if it exists
@@ -213,8 +216,11 @@ static void terminate_v(const char* reason, va_list args)
 
     // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
+    {
+        pdprint("Error: ", CRDEF_ERROR);
         __pdprint_v(CRDEF_ERROR, reason, args);
-    pdprint("\n", CRDEF_ERROR);
+    }
+    pdprint("\n\n", CRDEF_ERROR);
 
     // Close output debug file if it exists
     if (global_debugoutptr != NULL)
@@ -356,11 +362,7 @@ char* gen_filename()
     struct tm* tmp = &tm;
 
     // Get the time
-    #ifndef LINUX
-        localtime_s(tmp, &t);
-    #else
-        tm = *localtime(&t);
-    #endif
+    tm = *localtime(&t);
     curtime = tmp->tm_hour*60*60+tmp->tm_min*60+tmp->tm_sec;
 
     // Increment the last value if two files were created at the same second
@@ -373,12 +375,7 @@ char* gen_filename()
         increment++;
 
     // Generate the string and return it
-    #ifndef LINUX
-        sprintf_s(str, DATESIZE, "%02d%02d%02d%02d%02d%02d%02d", 
-                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
-    #else
-        sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
-                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
-    #endif
+    sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
+                 (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
     return str;
 }

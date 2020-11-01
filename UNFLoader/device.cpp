@@ -45,11 +45,11 @@ void device_find(int automode)
     // Initialize FTD
     if (automode == CART_NONE)
         pdprint("Attempting flashcart autodetection.\n", CRDEF_PROGRAM);
-    testcommand(FT_CreateDeviceInfoList(&cart->devices), "Error: USB Device not ready.\n");
+    testcommand(FT_CreateDeviceInfoList(&cart->devices), "USB Device not ready.");
 
     // Check if the device exists
-    if(cart->devices == 0)
-        terminate("Error: No devices found.\n");
+    if (cart->devices == 0)
+        terminate("No devices found.");
 
     // Allocate storage and get device info list
     cart->dev_info = (FT_DEVICE_LIST_INFO_NODE*) malloc( sizeof(FT_DEVICE_LIST_INFO_NODE) *cart->devices);
@@ -91,9 +91,9 @@ void device_find(int automode)
     if (cart->carttype == CART_NONE)
     {
         if (automode == CART_NONE)
-            terminate("Error: No flashcart detected.\n");
+            terminate("No flashcart detected.");
         else
-            terminate("Error: Requested flashcart not found.\n");
+            terminate("Requested flashcart not found.");
     }
 }
 
@@ -183,7 +183,6 @@ void device_sendrom(char* rompath)
     bool resend = false;
     time_t  lastmod = 0;
     struct  stat finfo;
-    errno_t err;
     FILE    *file;
 
     for ( ; ; )
@@ -191,13 +190,8 @@ void device_sendrom(char* rompath)
         unsigned char rom_header[4];
 
         // Open the ROM and get info about it 
-        #ifndef LINUX
-        err = fopen_s(&file, rompath, "rb");
-        if (err != 0)
-        #else
         file = fopen(rompath, "rb");
         if (file == NULL)
-        #endif
         {
             device_close();
             terminate("Unable to open file '%s'.\n", rompath);
@@ -296,6 +290,7 @@ void device_sendrom(char* rompath)
     Sends data to the flashcart via USB
     @param The data to send
     @param The number of bytes in the data
+    @returns 1 if success, 0 if failure
 ==============================*/
 
 void device_senddata(int datatype, char* data, u32 size)

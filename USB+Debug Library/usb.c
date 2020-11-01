@@ -24,8 +24,10 @@ https://github.com/buu342/N64-UNFLoader
 #define CART_EVERDRIVE 3
 
 // USB Memory location
-#define DEBUG_ADDRESS  0x03F00000 // Put the debug area at the 63MB area in ROM space
-#define DEBUG_ADDRESS_SIZE 1*1024*1024
+#define DEBUG_ADDRESS  0x04000000-DEBUG_ADDRESS_SIZE // Put the debug area at the 63MB area in ROM space
+
+// Data header related
+#define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
 
 /*********************************
@@ -123,11 +125,11 @@ https://github.com/buu342/N64-UNFLoader
 
 static void usb_findcart();
 static void usb_64drive_write(int datatype, const void* data, int size);
-static int  usb_64drive_poll();
+static u32  usb_64drive_poll();
 static void usb_64drive_read(void* buffer, int size);
 static void usb_everdrive_readreg(u32 reg, u32* result);
 static void usb_everdrive_write(int datatype, const void* data, int size);
-static int  usb_everdrive_poll();
+static u32  usb_everdrive_poll();
 static void usb_everdrive_read(void* buffer, int size);
 static void usb_everdrive_writereg(u64 reg, u32 value);
 
@@ -138,13 +140,14 @@ static void usb_everdrive_writereg(u64 reg, u32 value);
 
 // Function pointers
 void (*funcPointer_write)(int datatype, const void* data, int size);
-int  (*funcPointer_poll)();
+u32  (*funcPointer_poll)();
 void (*funcPointer_read)(void* buffer, int size);
 
 // USB globals
 static s8 usb_cart = CART_NONE;
-static u8 usb_bufferout[BUFFER_SIZE] __attribute__((aligned(16)));
+static u8 usb_buffer[BUFFER_SIZE] __attribute__((aligned(16)));
 static int usb_datatype = 0;
+static int usb_datasize = 0;
 static int usb_dataleft = 0;
 
 // Message globals
@@ -179,7 +182,7 @@ static int usb_dataleft = 0;
 char usb_initialize()
 {
     // Initialize the debug related globals
-    memset(usb_bufferout, 0, BUFFER_SIZE);
+    memset(usb_buffer, 0, BUFFER_SIZE);
         
     // Create the message queue
     #if !USE_OSRAW
@@ -265,6 +268,7 @@ static void usb_findcart()
 /*==============================
     usb_write
     Writes data to the USB.
+    Will not write if there is data to read from USB
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
@@ -276,6 +280,10 @@ void usb_write(int datatype, const void* data, int size)
     if (usb_cart == CART_NONE)
         return;
         
+    // If there's data to read first, stop
+    if (usb_dataleft != 0)
+        return;
+        
     // Call the correct write function
     funcPointer_write(datatype, data, size);
 }
@@ -284,15 +292,19 @@ void usb_write(int datatype, const void* data, int size)
 /*==============================
     usb_poll
     Returns the header of data being received via USB
-    The first byte contains the data type, the next 3 the size left to read
+    The first byte contains the data type, the next 3 the number of bytes left to read
     @return The data header, or 0
 ==============================*/
 
-int usb_poll()
+u32 usb_poll()
 {
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
         return 0;
+        
+    // If there's still data that needs to be read, return the header with the data left
+    if (usb_dataleft != 0)
+        return USBHEADER_CREATE(usb_datatype, usb_dataleft);
         
     // Call the correct read function
     return funcPointer_poll();
@@ -301,19 +313,37 @@ int usb_poll()
 
 /*==============================
     usb_read
-    Reads bytes from the USB into the provided buffer
+    Reads bytes from USB into the provided buffer
+    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 
-void usb_read(void* buffer, int size)
+void usb_read(void* buffer, int nbytes)
 {       
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
         return;
         
+    // If there's no data to read, exit.
+    if (usb_dataleft == 0)
+        return;
+        
+    // osPiStarDma only takes even sizes, so correct it if it isn't
+    if ((nbytes % 2) != 0) 
+        nbytes++;
+
     // Call the correct read function
-    funcPointer_read(buffer, size);
+    funcPointer_read(buffer, nbytes);
+    
+    // If we're out of USB data to read, we don't need the header info anymore
+    usb_dataleft -= nbytes;
+    if (usb_dataleft <= 0)
+    {
+        usb_dataleft = 0;
+        usb_datatype = 0;
+        usb_datasize = 0;
+    }
 }
 
 
@@ -392,6 +422,24 @@ static void usb_64drive_waitidle()
 
 
 /*==============================
+    usb_64drive_armstatus
+    Checks if the 64Drive is armed
+    @return The arming status
+==============================*/
+
+static u32 usb_64drive_armstatus()
+{
+    u32 status;
+    #if USE_OSRAW
+        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+    #else
+        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+    #endif
+    return status & 0xf;
+}
+
+
+/*==============================
     usb_64drive_waitdata
     Waits for the 64Drive's USB be ablt to receive data
 ==============================*/
@@ -436,6 +484,7 @@ static void usb_64drive_waitdisarmed()
 /*==============================
     usb_64drive_write
     Sends data through USB from the 64Drive
+    Will not write if there is data to read from USB
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
@@ -458,7 +507,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
             block = BUFFER_SIZE;
             
         // Copy the data to the global buffer
-        memcpy(usb_bufferout, (void*)((char*)data+read), block);
+        memcpy(usb_buffer, (void*)((char*)data+read), block);
 
         // If the data was not 32-bit aligned, pad the buffer
         if(block < BUFFER_SIZE && size%4 != 0)
@@ -467,7 +516,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
             u32 size_new = (size & ~3)+4;
             block += size_new-size;
             for(i=size; i<size_new; i++) 
-                usb_bufferout[i] = 0;
+                usb_buffer[i] = 0;
             size = size_new;
         }
         
@@ -475,15 +524,15 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         usb_64drive_waitidle();
         
         // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_bufferout, block);
+        osWritebackDCache(usb_buffer, block);
         #if USE_OSRAW
             osPiRawStartDma(OS_WRITE, 
                          D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
-                         usb_bufferout, block);
+                         usb_buffer, block);
         #else
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
                          D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
-                         usb_bufferout, block, &dmaMessageQ);
+                         usb_buffer, block, &dmaMessageQ);
             (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
         
@@ -512,61 +561,47 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 /*==============================
     usb_64drive_poll
     Returns the header of data being received via USB on the 64Drive
-    The first byte contains the data type, the next 3 the size left to read
+    The first byte contains the data type, the next 3 the number of bytes left to read
     @return The data header, or 0
 ==============================*/
 
-static int usb_64drive_poll()
+static u32 usb_64drive_poll()
 {   
     u32 ret;
     
-    // If there's still data that needs to be read, return the header with the data left
-    if (usb_dataleft != 0)
-        return USBHEADER_CREATE(usb_datatype, usb_dataleft);
-    
-    // Check if we've received data
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
-    #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
-    #endif
-    
-    // No data, stop here
-    if (ret != D64_USB_DATA)
-        return 0;
-        
-    // Check if the USB is armed, and arm it if it isn't
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
-    #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
-    #endif
-    if (ret != D64_USB_ARMING || ret != D64_USB_ARMED)
+    // Check if the USB is armed, and if it isn't, arm it.
+    ret = usb_64drive_armstatus();
+    if (ret != D64_USB_ARMING && ret != D64_USB_ARMED)
     {
-        // Ensure the 64Drive is idle
         usb_64drive_waitidle();
         
-        // Arm the USB FIFO DMA
+        // Copy the data to the ROM address
         #if USE_OSRAW
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, DEBUG_ADDRESS_SIZE & 0xFFFFFF);
         #else
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, DEBUG_ADDRESS_SIZE & 0xFFFFFF);
         #endif
-    }  
-        
-    // Wait for the data to arrive
-    usb_64drive_waitdata();
-        
-    // Read the data header
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-    #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
-    #endif
+    }
+    
+    // Check if the USB has data
+    if (usb_64drive_armstatus() == D64_USB_DATA)
+    {
+        // Read the data header and get the data type
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret); 
+        #endif
+        usb_datatype = USBHEADER_GETTYPE(ret);
+        usb_dataleft = USBHEADER_GETSIZE(ret);
+        usb_datasize = usb_dataleft;
+            
+        return USBHEADER_CREATE(usb_datatype, usb_datasize);
+    }
     
     // Disarm the USB
     #if USE_OSRAW
@@ -575,86 +610,34 @@ static int usb_64drive_poll()
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
     #endif
     usb_64drive_waitdisarmed();
-    
-    // Store information about the incoming data, then return the header
-    usb_datatype = USBHEADER_GETTYPE(ret);
-    usb_dataleft = USBHEADER_GETSIZE(ret);
-    return ret;
+    return 0;
 }
 
 
 /*==============================
     usb_64drive_read
-    Reads bytes from the 64Drive USB into the provided buffer
+    Reads bytes from the 64Drive ROM into the provided buffer
+    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 
 static void usb_64drive_read(void* buffer, int nbytes)
 {
-    u32 ret;
-    
-    // Check if we've received data
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
-    #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret);
-    #endif
-    if (ret != D64_USB_DATA)
-        return;
-        
-    // Check if the USB is armed, and arm it if it isn't
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
-    #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &ret); 
-    #endif
-    if (ret != D64_USB_ARMING || ret != D64_USB_ARMED)
-    {
-        // Ensure the 64Drive is idle
-        usb_64drive_waitidle();
-        
-        // Arm the USB FIFO DMA
-        #if USE_OSRAW
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-        #else
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, BUFFER_SIZE & 0xFFFFFF);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-        #endif
-    }  
-    
-    // Wait for data
-    usb_64drive_waitdata();
+    int offset = usb_datasize-usb_dataleft;
 
     // Set up DMA transfer between RDRAM and the PI
     osWritebackDCache(buffer, nbytes);
-    // osWritebackDCacheAll();
     #if USE_OSRAW
         osPiRawStartDma(OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS, buffer, 
+                     D64_BASE_ADDRESS + DEBUG_ADDRESS + offset, buffer, 
                      nbytes);
     #else
         osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS, buffer, 
+                     D64_BASE_ADDRESS + DEBUG_ADDRESS + offset, buffer, 
                      nbytes, &dmaMessageQ);
         (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
     #endif
-    usb_dataleft -= nbytes;
-    
-    // If we're out of USB data, we don't need the header anymore...
-    if (usb_dataleft == 0)
-        usb_datatype = 0;
-    
-    // Disarm the USB
-    #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
-    #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
-    #endif
-    usb_64drive_waitdisarmed();
 }
 
 
@@ -811,8 +794,43 @@ static u8 usb_everdrive_canread()
 
 
 /*==============================
+    usb_everdrive_readusb
+    Reads from the EverDrive USB buffer
+    @param The buffer to put the read data in
+    @param The number of bytes to read
+==============================*/
+
+static void usb_everdrive_readusb(void* buffer, int size)
+{
+    u16 block, addr;
+    
+    while (size) 
+    {
+        // Get the block size
+        block = 512;
+        if (block > size)
+            block = size;
+        addr = 512 - block;
+        
+        // Request to read from the USB
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
+
+        // Wait for the FPGA to transfer the data to its internal buffer
+        usb_everdrive_usbbusy(); 
+
+        // Read from the internal buffer and store it in our buffer
+        usb_everdrive_readdata(buffer, ED_GET_REGADD(ED_REG_USBDAT + addr), block); 
+
+        buffer = (char*)buffer + block;
+        size -= block;
+    }
+}
+
+
+/*==============================
     usb_everdrive_write
     Sends data through USB from the EverDrive
+    Will not write if there is data to read from USB
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
@@ -828,14 +846,14 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
     u32 header = (size & 0x00FFFFFF) | (datatype << 24);
     
     // Put in the DMA header along with length and type information in the global buffer
-    usb_bufferout[0] = 'D';
-    usb_bufferout[1] = 'M';
-    usb_bufferout[2] = 'A';
-    usb_bufferout[3] = '@';
-    usb_bufferout[4] = (header >> 24) & 0xFF;
-    usb_bufferout[5] = (header >> 16) & 0xFF;
-    usb_bufferout[6] = (header >> 8)  & 0xFF;
-    usb_bufferout[7] = header & 0xFF;
+    usb_buffer[0] = 'D';
+    usb_buffer[1] = 'M';
+    usb_buffer[2] = 'A';
+    usb_buffer[3] = '@';
+    usb_buffer[4] = (header >> 24) & 0xFF;
+    usb_buffer[5] = (header >> 16) & 0xFF;
+    usb_buffer[6] = (header >> 8)  & 0xFF;
+    usb_buffer[7] = header & 0xFF;
     
     // Write data to USB until we've finished
     while (left > 0)
@@ -846,7 +864,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
             block = BUFFER_SIZE-offset;
             
         // Copy the data to the next available spots in the global buffer
-        memcpy(usb_bufferout+offset, (void*)((char*)data+read), block);
+        memcpy(usb_buffer+offset, (void*)((char*)data+read), block);
         
         // Restart the loop to write the CMP signal if we've finished
         if (!wrotecmp && read+block >= size)
@@ -865,7 +883,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 
         // Set USB to write mode and send data through USB
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WRNOP);
-        usb_everdrive_writedata(usb_bufferout, ED_GET_REGADD(ED_REG_USBDAT + baddr), blocksend);
+        usb_everdrive_writedata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT + baddr), blocksend);
         
         // Set USB to write mode with the new address and wait for USB to end
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
@@ -882,17 +900,15 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 /*==============================
     usb_everdrive_poll
     Returns the header of data being received via USB on the EverDrive
-    The first byte contains the data type, the next 3 the size left to read
+    The first byte contains the data type, the next 3 the number of bytes left to read
     @return The data header, or 0
 ==============================*/
 
-static int usb_everdrive_poll()
+static u32 usb_everdrive_poll()
 {
-    char buff[8];
-    
-    // If there's still data that needs to be read, return how much
-    if (usb_dataleft != 0)
-        return USBHEADER_CREATE(usb_datatype, usb_dataleft);
+    char buff[16], firstread = 1;
+    int len;
+    int offset = 0;
     
     // Wait for the USB to be ready
     usb_everdrive_usbbusy();
@@ -902,56 +918,74 @@ static int usb_everdrive_poll()
         return 0;
     
     // Read the first 8 bytes that are being received and check if they're valid
-    usb_everdrive_read(&buff, 8);
+    usb_everdrive_readusb(buff, 16);
     if (buff[0] != 'D' || buff[1] != 'M' || buff[2] != 'A' || buff[3] != '@')
         return 0;
         
-    // Store information about the incoming data, then return the header
+    // Store information about the incoming data
     usb_datatype = (int)buff[4];
-    usb_dataleft = (int)buff[5]<<16 | (int)buff[6]<<8 | (int)buff[7]<<0;
-    return USBHEADER_CREATE(usb_datatype, usb_dataleft);
+    usb_datasize = (int)buff[5]<<16 | (int)buff[6]<<8 | (int)buff[7]<<0;
+    usb_dataleft = usb_datasize;
+    
+    // Begin receiving data
+    usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | 512);
+    len = (usb_datasize + 512-usb_datasize%512)/512;
+    
+    // While there's data to service
+    while (len--) 
+    {
+        // Wait for the USB to be ready and then read data
+        usb_everdrive_usbbusy();
+        usb_everdrive_readdata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT), 512);
+        
+        // Tell the FPGA we can receive more data
+        if (len != 0)
+            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | 512);
+        
+        // Copy received block to ROM
+        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, 512);
+        offset += 512;
+    }
+    
+    // Read the CMP Signal
+    usb_everdrive_usbbusy();
+    usb_everdrive_readusb(buff, 16);
+    if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
+    {
+        // Something went wrong with the data
+        usb_datatype = 0;
+        usb_datasize = 0;
+        usb_dataleft = 0;
+        return 0;
+    }
+
+    // Return the data header
+    return USBHEADER_CREATE(usb_datatype, usb_datasize);
 }
 
 
 /*==============================
     usb_everdrive_read
-    Reads bytes from the EverDrive USB into the provided buffer
+    Reads bytes from the EverDrive ROM into the provided buffer
+    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 
 static void usb_everdrive_read(void* buffer, int nbytes)
 {
-    char buff[4];
-    char checkCMP = 0;
-    u16 blen, baddr;
-
-    // If there's a CMP signal at the end of this data block, mark to read it
-    if (usb_dataleft > 0 && usb_dataleft-nbytes == 0)
-        checkCMP = 1;
+    int offset = usb_datasize-usb_dataleft;
     
-    while (nbytes) 
-    {
-        blen = 512; //rx block len
-        if (blen > nbytes)
-            blen = nbytes;
-        baddr = 512 - blen; //address in fpga internal buffer. requested data length equal to 512-int buffer addr
-        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | baddr); //usb read request. fpga will receive usb bytes until the buffer address reaches 512
-
-        usb_everdrive_usbbusy(); //wait until requested data amount will be transferred to the internal buffer
-
-        usb_everdrive_readdata(buffer, ED_GET_REGADD(ED_REG_USBDAT + baddr), blen); //get data from internal buffer
-
-        buffer += blen;
-        nbytes -= blen;
-        usb_dataleft -= blen;
-    }
-    
-    // If we're out of USB data, we don't need the header anymore...
-    if (usb_dataleft == 0)
-        usb_datatype = 0;
-    
-    // Read the CMP signal to finish, if needed
-    if (checkCMP)
-        usb_everdrive_read(&buff, 4);
+    // Set up DMA transfer between RDRAM and the PI
+    osWritebackDCache(buffer, nbytes);
+    #if USE_OSRAW
+        osPiRawStartDma(OS_READ, 
+                     ED_BASE + DEBUG_ADDRESS, buffer, 
+                     nbytes);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                     ED_BASE + DEBUG_ADDRESS, buffer, 
+                     nbytes, &dmaMessageQ);
+        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
 }

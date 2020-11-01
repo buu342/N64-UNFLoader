@@ -55,21 +55,21 @@ void device_open_64drive(ftdi_context_t* cart)
     // Open the cart
     cart->status = FT_Open(cart->device_index, &cart->handle);
     if (cart->status != FT_OK || !cart->handle)
-        terminate("Error: Unable to open flashcart.\n");
+        terminate("Unable to open flashcart.");
 
     // Reset the cart and set its timeouts
-    testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
-    testcommand(FT_SetTimeouts(cart->handle, 5000, 5000), "Error: Unable to set flashcart timeouts.\n");
+    testcommand(FT_ResetDevice(cart->handle), "Unable to reset flashcart.");
+    testcommand(FT_SetTimeouts(cart->handle, 5000, 5000), "Unable to set flashcart timeouts.");
 
     // If the cart is in synchronous mode, enable the bits
     if (cart->synchronous)
     {
-        testcommand(FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_RESET), "Error: Unable to set bitmode %d.\n", FT_BITMODE_RESET);
-        testcommand(FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_SYNC_FIFO), "Error: Unable to set bitmode %d.\n", FT_BITMODE_SYNC_FIFO);
+        testcommand(FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_RESET), "Unable to set bitmode %d.", FT_BITMODE_RESET);
+        testcommand(FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_SYNC_FIFO), "Unable to set bitmode %d.", FT_BITMODE_SYNC_FIFO);
     }
 
     // Purge USB contents
-    testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Error: Unable to purge USB contents.\n");
+    testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Unable to purge USB contents.");
 }
 
 
@@ -108,22 +108,22 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u8 num
     va_end(params);
 
     // Write to the cart
-    testcommand(FT_Write(cart->handle, send_buff, 4+(numparams*4), &cart->bytes_written), "Error: Unable to write to 64Drive.\n"); 
+    testcommand(FT_Write(cart->handle, send_buff, 4+(numparams*4), &cart->bytes_written), "Unable to write to 64Drive."); 
     if (cart->bytes_written == 0)
-        terminate("Error: No bytes were written to 64Drive.\n");
+        terminate("No bytes were written to 64Drive.");
 
     // If the command expects a response
     if (reply)
     {
         // These two instructions do not return a success, so ignore them
-	    if(command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG) 
+	    if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG) 
             return;
     		
         // Check that we received the signal that the operation completed
-        testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Error: Unable to read completion signal.\n");
+        testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
 	    recv_buff[1] = command << 24 | 0x504D43;
 	    if (memcmp(recv_buff, &recv_buff[1], 4) != 0)
-            terminate("Error: Did not receive completion signal.\n");
+            terminate("Did not receive completion signal.");
     }
 }
 
@@ -147,7 +147,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     
     // Check we managed to malloc
     if (rom_buffer == NULL)
-        terminate("Error: Unable to allocate memory for buffer.\n");
+        terminate("Unable to allocate memory for buffer.");
 
     // If the CIC argument was provided
     if (global_cictype != 0 && cart->cictype == 0)
@@ -168,7 +168,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             case 6106:
             case 7106: cic = 6; break;
             case 5101: cic = 7; break;
-            default: terminate("Unknown CIC type '%d'.\n", global_cictype);
+            default: terminate("Unknown CIC type '%d'.", global_cictype);
         }
 
         // Set the CIC
@@ -185,9 +185,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Decide a better, more optimized chunk size
-	if(size > 16 * 1024 * 1024) 
+	if (size > 16 * 1024 * 1024) 
 		chunk = 32;
-	else if( size > 2 * 1024 * 1024)
+	else if ( size > 2 * 1024 * 1024)
 		chunk = 16;
 	else 
 		chunk = 4;
@@ -201,7 +201,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         int i;
 
         // Decide how many bytes to send
-		if(bytes_left >= chunk) 
+		if (bytes_left >= chunk) 
 			bytes_do = chunk;
 		else
 			bytes_do = bytes_left;
@@ -236,15 +236,15 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 			FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
-			if(cart->bytes_written) 
+			if (cart->bytes_written) 
                 break;
 		}
 
         // Check for a timeout
-		if(cart->bytes_written == 0) 
+		if (cart->bytes_written == 0) 
         {
             free(rom_buffer);
-            terminate("Error: 64Drive timed out");
+            terminate("64Drive timed out.");
         }
 
 		// Ignore the success response
@@ -262,7 +262,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
     FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
     if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
-        terminate("Error: Received wrong CMPlete signal: %c %c %c %02x", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+        terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
 
     // Print that we've finished
     pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
@@ -300,7 +300,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
     cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
     cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
     if (cmp_magic != 0x434D5040) {
-        terminate("Error: Received wrong CMPlete signal.");
+        terminate("Received wrong CMPlete signal.");
     }
 }
 
@@ -313,5 +313,5 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
 
 void device_close_64drive(ftdi_context_t* cart)
 {
-    testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
+    testcommand(FT_Close(cart->handle), "Unable to close flashcart.");
 }

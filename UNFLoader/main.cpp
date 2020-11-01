@@ -143,10 +143,10 @@ void parse_args(int argc, char* argv[])
 
                 // Validate that the cart number is between our range
                 if (local_flashcart < CART_64DRIVE1 || local_flashcart > CART_EVERDRIVE) 
-                    terminate("Error: Invalid parameter '%s' for command '%s'.\n", value, command);
+                    terminate("Invalid parameter '%s' for command '%s'.", value, command);
             } 
             else
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
         }
         else if (!strcmp(command, "-r")) // Upload ROM command
         {
@@ -156,7 +156,7 @@ void parse_args(int argc, char* argv[])
             if (i<argc && argv[i][0] != '-') 
                 local_rom = argv[i];
             else 
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
         }
         else if (!strcmp(command, "-c")) // Set CIC command
         {
@@ -166,7 +166,7 @@ void parse_args(int argc, char* argv[])
             if (i<argc && argv[i][0] != '-') 
                 global_cictype = strtol(argv[i], NULL, 0);
             else 
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
         }
         else if (!strcmp(command, "-h")) // Set terminal height
         {
@@ -176,7 +176,7 @@ void parse_args(int argc, char* argv[])
             if (i<argc && argv[i][0] != '-')
                 resize_term(strtol(argv[i], NULL, 0), 80);
             else
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
         }
         else if (!strcmp(command, "-w")) // Disable terminal colors command
             global_usecolors = false;
@@ -191,11 +191,11 @@ void parse_args(int argc, char* argv[])
                 if (argv[i][len-1] == '/')
                     global_exportpath = argv[i];
                 else
-                    terminate("Error: Incorrect path '%s'.\n", argv[i]);
+                    terminate("Incorrect path '%s'.", argv[i]);
                 pdprint("Set export path to '%s'.\n", CRDEF_PROGRAM, global_exportpath);
             }
             else
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
         }
         else if (!strcmp(command, "-l")) // Listen mode
         {
@@ -215,13 +215,8 @@ void parse_args(int argc, char* argv[])
                 {
                     char* filepath = (char*)malloc(256);
                     memset(filepath, 0 ,256);
-                    #ifndef LINUX
-                        strcat_s(filepath, 256, global_exportpath);
-                        strcat_s(filepath, 256, argv[i]);
-                    #else
-                        strcat(filepath, global_exportpath);
-                        strcat(filepath, argv[i]);
-                    #endif
+                    strcat(filepath, global_exportpath);
+                    strcat(filepath, argv[i]);
                     global_debugout = filepath;
                 }
                 else
@@ -238,11 +233,11 @@ void parse_args(int argc, char* argv[])
             if (i<argc && argv[i][0] != '-') 
                 global_timeout = atoi(argv[i]);
             else 
-                terminate("Error: Missing parameter(s) for command '%s'.\n", command);
+                terminate("Missing parameter(s) for command '%s'.", command);
             pdprint("Set timeout to %d seconds.\n", CRDEF_PROGRAM, global_timeout);
         }
         else 
-            terminate("Error: Unknown command '%s'.\n", command);
+            terminate("Unknown command '%s'.", command);
     }
 }
 
@@ -360,7 +355,7 @@ void show_help()
             break;
         case '4':
             pdprint("In order to use the debug mode, the N64 ROM that you are executing must already\n"
-                    "have implented the debug library that comes with this tool. Otherwise, the\n"
+                    "have implented the USB or debug library that comes with this tool. Otherwise,\n"
                     "debug mode will serve no purpose.\n\n", CRDEF_PROGRAM);
             pdprint("During debug mode, you are able to type commands, which show up in ", CRDEF_PROGRAM);
             pdprint(                                                                    "green", CRDEF_INPUT);
@@ -368,19 +363,18 @@ void show_help()
                     "the bottom of the terminal. You can press ENTER to send this command to the N64\n"
                     "as the ROM executes. The command you send must obviously be implemented by the\n"
                     "debug library, and can do various things, such as upload binary files, take\n"
-                    "screenshots, or change things in the game. It is recommended that developers\n"
-                    "implement a command to list implemented commands, which is '", CRDEF_PROGRAM);
-            pdprint(                                                            "list", CRDEF_INFO);
-            pdprint(                                                                 "' by default.\n\n", CRDEF_PROGRAM);
+                    "screenshots, or change things in the game. If you wrap a part of your command\n"
+                    "with the '@' symbol, the tool will treat that part as a file and will upload it\n"
+                    "along with the rest of the data.\n\n", CRDEF_PROGRAM);
             pdprint("During execution, the ROM is free to print things to the console where this\n"
                     "program is running. Messages from the console will appear in ", CRDEF_PROGRAM);
             pdprint(                                                              "yellow", CRDEF_PRINT);
             pdprint(                                                                     ".\n\n"
                     "For more information on how to implement the debug library, check the GitHub\n"
-                    "page where this tool was uploaded too, there should be plenty of examples there.\n"
+                    "page where this tool was uploaded to, there should be plenty of examples there.\n"
                     PROGRAM_GITHUB"\n", CRDEF_PROGRAM);
             break;
         default:
-            terminate("Unknown category.\n"); 
+            terminate("Unknown category."); 
     }
 }
