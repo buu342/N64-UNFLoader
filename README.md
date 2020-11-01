@@ -3,7 +3,7 @@
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
-* [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/)
+* [64Drive Hardware 1.0 and 2.0](http://64drive.retroactive.be/), using firmware 2.05+
 * EverDrive 3.0 (No longer comercially sold), using OS version 3.04+
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 
