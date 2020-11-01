@@ -183,19 +183,24 @@ void debug_printcommands();
 ### Important implementation details
 <details><summary>USB Library</summary>
 <p>
+
 **General**
 
 * Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
 * By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB. More space can be allocated by changing `usb.h`.
 * Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users and will potentially overwrite the USB buffers on the EverDrive. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
 
+
 **64Drive**
 
 * All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB, which will be padded with zeroes.
 
+
 **EverDrive**
 
 \<Nothing>
+
+
 </p>
 </details>
 
