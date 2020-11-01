@@ -91,8 +91,8 @@ int usb_poll();
 void usb_read(void* buffer, int size);
 
 // Use these to conveniently read the header from usb_poll
-#define USBHEADER_GETTYPE(header) ((header & 0xFF000000) >> 24)
-#define USBHEADER_GETSIZE(header) ((header & 0x00FFFFFF))
+#define USBHEADER_GETTYPE(header)
+#define USBHEADER_GETSIZE(header)
 ```
 </p>
 </details>
