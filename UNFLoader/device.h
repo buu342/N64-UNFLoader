@@ -10,6 +10,7 @@
     #define CART_64DRIVE1  1
     #define CART_64DRIVE2  2
     #define CART_EVERDRIVE 3
+    #define CART_SC64      4
 
 
     /*********************************
@@ -41,6 +42,7 @@
     void  device_set_64drive1(ftdi_context_t* cart, int index);
     void  device_set_64drive2(ftdi_context_t* cart, int index);
     void  device_set_everdrive(ftdi_context_t* cart, int index);
+    void  device_set_sc64(ftdi_context_t* cart, int index);
     void  device_open();
     void  device_sendrom(char* rompath);
     void  device_senddata(int datatype, char* data, u32 size);
