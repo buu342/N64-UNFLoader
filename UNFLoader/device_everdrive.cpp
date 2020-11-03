@@ -16,6 +16,7 @@ http://krikzz.com/pub/support/everdrive-64/x-series/dev/
     Checks whether the device passed as an argument is EverDrive
     @param A pointer to the cart context
     @param The index of the cart
+    @returns true if the cart is an EverDrive, or false otherwise
 ==============================*/
 
 bool device_test_everdrive(ftdi_context_t* cart, int index)

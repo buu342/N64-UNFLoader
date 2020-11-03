@@ -27,7 +27,8 @@ Handles USB I/O.
 *********************************/
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
-char debug_appendfilesend(char* data, u32 size);
+void debug_appendfilesend(char* data, u32 size);
+void debug_filesend(char* filename);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
 void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
@@ -182,8 +183,11 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     // Decide what to do on key presses
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
-        if (debug_appendfilesend(buffer, size))
-            pdprint("Sending command %s\n", CRDEF_INFO, buffer);
+        // Check if we're only sending a file or text (and potentially a file appended)
+        if (buffer[0] == '@' && buffer[size-1] == '@')
+            debug_filesend(buffer);
+        else
+            debug_appendfilesend(buffer, size);
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
@@ -221,14 +225,11 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
 /*==============================
     debug_appendfilesend
     Sends the data to the flashcart with a file appended if needed
-    @param A pointer to the cart context
-    @param A pointer to the input window
-    @param A pointer to the input buffer
-    @param A pointer to the cursor position value
-    @param The inputted character
+    @param The data to send
+    @param The size of the data
 ==============================*/
 
-char debug_appendfilesend(char* data, u32 size)
+void debug_appendfilesend(char* data, u32 size)
 {
     char* finaldata; 
     char* filestart = strchr(data, '@');
@@ -246,7 +247,7 @@ char debug_appendfilesend(char* data, u32 size)
         if (filepath == NULL)
         {
             pdprint("Unable to allocate memory for filepath\n", CRDEF_ERROR);
-            return 0;
+            return;
         }
 
         // Check if the filepath is valid
@@ -254,7 +255,7 @@ char debug_appendfilesend(char* data, u32 size)
         {
             pdprint("Missing terminating '@'\n", CRDEF_ERROR);
             free(filepath);
-            return 0;
+            return;
         }
 
         // Store the filepath and its character count
@@ -269,7 +270,7 @@ char debug_appendfilesend(char* data, u32 size)
         {
             pdprint("Unable to open file '%s'\n", CRDEF_ERROR, filepath);
             free(filepath);
-            return 0;
+            return;
         }
 
         // Get the filesize
@@ -285,7 +286,8 @@ char debug_appendfilesend(char* data, u32 size)
         {
             pdprint("Unable to allocate memory for USB data\n", CRDEF_ERROR);
             free(filepath);
-            return 0;
+            fclose(fp);
+            return;
         }
         memset(finaldata, 0, size);
 
@@ -297,18 +299,82 @@ char debug_appendfilesend(char* data, u32 size)
         fread(lastat, 1, filesize, fp);
         strcat(lastat+filesize, fileend);
 
-        // clean up all the memory we borrowed
+        // Clean up all the memory we borrowed
         fclose(fp);
         free(filepath);
     }
     else
         finaldata = data;
+
+    // Ensure the data isn't too large
+    if (size > 0x800000)
+    {
+        pdprint("Cannot upload data larger than 8MB\n", CRDEF_ERROR);
+        if (filestart != NULL)
+            free(finaldata);
+        return;
+    }
+
+    // Send the data to the connected flashcart
     device_senddata(DATATYPE_TEXT, finaldata, size);
 
-    // Free the final data buffer and return success
+    // Free the final data buffer and print success
     if (filestart != NULL)
         free(finaldata);
-    return 1;
+    pdprint("Sending command '%s'\n", CRDEF_INFO, data);
+}
+
+
+/*==============================
+    debug_filesend
+    Sends the file to the flashcart
+    @param The filename of the file to send wrapped around @ symbols
+==============================*/
+
+void debug_filesend(char* filename)
+{
+    int size;
+    FILE *fp;
+    char* buffer;
+    char* fixed = strtok(filename, "@");
+
+    // Attempt to open the file
+    fp = fopen(fixed, "rb+");
+    if (fp == NULL)
+    {
+        pdprint("Unable to open file '%s'\n", CRDEF_ERROR, fixed);
+        return;
+    }
+
+    // Get the filesize
+    fseek(fp, 0L, SEEK_END);
+    size = ftell(fp);
+    rewind(fp);
+
+    // Ensure the filesize isn't too large
+    if (size > 0x800000)
+    {
+        pdprint("Cannot upload data larger than 8MB\n", CRDEF_ERROR);
+        fclose(fp);
+        return;
+    }
+
+    // Allocate memory for our file buffer
+    buffer = (char*)malloc(size);
+    if (buffer == NULL)
+    {
+        pdprint("Unable to allocate memory for USB data\n", CRDEF_ERROR);
+        fclose(fp);
+        return;
+    }
+
+    // Fill the buffer with file data
+    fread(buffer, 1, size, fp);
+
+    // Send the data to the connected flashcart
+    device_senddata(DATATYPE_RAWBINARY, buffer, size);
+    pdprint("Sending file '%s'\n", CRDEF_INFO, fixed);
+    free(buffer);
 }
 
 
