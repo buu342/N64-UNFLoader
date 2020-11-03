@@ -25,6 +25,9 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="device_sc64.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="Include\lodepng.c">
       <Filter>Include</Filter>
     </ClCompile>
@@ -67,6 +70,9 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="device_everdrive.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="device_sc64.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

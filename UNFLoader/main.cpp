@@ -281,6 +281,7 @@ void list_args()
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE, "EverDrive");
+    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_SC64, "SummerCart64");
     pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only).\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
@@ -315,8 +316,9 @@ void show_help()
     pdprint("Which category are you interested in?\n"
             " 1 - Uploading ROMs on the 64Drive\n"
             " 2 - Uploading ROMs on the EverDrive\n"
-            " 3 - Using Listen mode\n"
-            " 4 - Using Debug mode\n", CRDEF_PROGRAM);
+            " 3 - Uploading ROMs on the SummerCart64\n"
+            " 4 - Using Listen mode\n"
+            " 5 - Using Debug mode\n", CRDEF_PROGRAM);
 
     // Get the category
     pdprint("\nCategory: ", CRDEF_INPUT);
@@ -347,13 +349,19 @@ void show_help()
                     " 4) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
             break;
         case '3':
+            pdprint(" 1) Plug your SummerCart64 USB into your PC, ensuring the console is turned OFF.\n"
+                    " 2) Run this program to upload a ROM. Example:\n" 
+                    " \t unfloader.exe -r myrom.n64\n"
+                    " 3) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
+            break;
+        case '4':
             pdprint("Listen mode automatically re-uploads the ROM via USB when it is modified. This\n"
                     "saves you the trouble of having to restart this program every recompile of your\n"
                     "homebrew. It is on YOU to ensure the cart is prepared to receive another ROM.\n"
                     "That means that the console must be switched OFF if you're using the 64Drive or\n"
                     "be in the menu if you're using an EverDrive.\n", CRDEF_PROGRAM);
             break;
-        case '4':
+        case '5':
             pdprint("In order to use the debug mode, the N64 ROM that you are executing must already\n"
                     "have implented the USB or debug library that comes with this tool. Otherwise,\n"
                     "debug mode will serve no purpose.\n\n", CRDEF_PROGRAM);

@@ -102,6 +102,7 @@
     <ClCompile Include="device.cpp" />
     <ClCompile Include="device_64drive.cpp" />
     <ClCompile Include="device_everdrive.cpp" />
+    <ClCompile Include="device_sc64.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="Include\lodepng.c" />
     <ClCompile Include="main.cpp" />
@@ -111,6 +112,7 @@
     <ClInclude Include="device.h" />
     <ClInclude Include="device_64drive.h" />
     <ClInclude Include="device_everdrive.h" />
+    <ClInclude Include="device_sc64.h" />
     <ClInclude Include="helper.h" />
     <ClInclude Include="helper_internal.h" />
     <ClInclude Include="include\curses.h" />

@@ -11,6 +11,7 @@ Passes flashcart communication to more specific functions
 #include "device.h"
 #include "device_64drive.h"
 #include "device_everdrive.h"
+#include "device_sc64.h"
 
 
 /*********************************
@@ -82,6 +83,15 @@ void device_find(int automode)
             device_set_everdrive(cart, i);
             if (automode == CART_NONE)
                 pdprint_replace("EverDrive autodetected!\n", CRDEF_PROGRAM);
+            break;
+        }
+
+        // Look for SummerCart64
+        if ((automode == CART_NONE || automode == CART_SC64) && device_test_sc64(cart, i))
+        {
+            device_set_sc64(cart, i);
+            if (automode == CART_NONE)
+                pdprint_replace("SummerCart64 autodetected!\n", CRDEF_PROGRAM);
             break;
         }
     }
@@ -156,6 +166,27 @@ void device_set_everdrive(ftdi_context_t* cart, int index)
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
     funcPointer_close = &device_close_everdrive;
+}
+
+
+/*==============================
+    device_set_sc64
+    Marks the cart as being SummerCart64
+    @param A pointer to the cart context
+    @param The index of the cart
+==============================*/
+
+void device_set_sc64(ftdi_context_t* cart, int index)
+{
+    // Set cart settings
+    cart->device_index = index;
+    cart->carttype = CART_SC64;
+
+    // Set function pointers
+    funcPointer_open = &device_open_sc64;
+    funcPointer_sendrom = &device_sendrom_sc64;
+    funcPointer_senddata = &device_senddata_sc64;
+    funcPointer_close = &device_close_sc64;
 }
 
 
