@@ -87,11 +87,24 @@ int usb_poll();
 /*==============================
     usb_read
     Reads bytes from USB into the provided buffer
-    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 void usb_read(void* buffer, int size);
+
+/*==============================
+    usb_rewind
+    Rewinds a USB read by the specified amount of bytes
+    An even number of bytes will ALWAYS be rewinded
+    @param The number of bytes to rewind
+==============================*/
+void usb_rewind(int nbytes);
+
+/*==============================
+    usb_purge
+    Purges the incoming USB data
+==============================*/
+void usb_purge();
 
 // Use these to conveniently read the header from usb_poll
 #define USBHEADER_GETTYPE(header)

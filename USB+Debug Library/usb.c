@@ -12,11 +12,11 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-       Standard Definitions
+           Data macros
 *********************************/
 
-// Input/Output buffer size. Keep at 512
-#define BUFFER_SIZE       512
+// Input/Output buffer size. Always keep it at 512
+#define BUFFER_SIZE 512
 
 // Cart definitions
 #define CART_NONE      0
@@ -302,6 +302,14 @@ u32 usb_poll()
     if (usb_cart == CART_NONE)
         return 0;
         
+    // If we're out of USB data to read, we don't need the header info anymore
+    if (usb_dataleft <= 0)
+    {
+        usb_dataleft = 0;
+        usb_datatype = 0;
+        usb_datasize = 0;
+    }
+        
     // If there's still data that needs to be read, return the header with the data left
     if (usb_dataleft != 0)
         return USBHEADER_CREATE(usb_datatype, usb_dataleft);
@@ -314,7 +322,6 @@ u32 usb_poll()
 /*==============================
     usb_read
     Reads bytes from USB into the provided buffer
-    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
@@ -325,25 +332,45 @@ void usb_read(void* buffer, int nbytes)
     if (usb_cart == CART_NONE)
         return;
         
-    // If there's no data to read, exit.
+    // If there's no data to read, stop
     if (usb_dataleft == 0)
         return;
-        
+
+    // Call the correct read function
+    funcPointer_read(buffer, nbytes);
+}
+
+
+/*==============================
+    usb_purge
+    Purges the incoming USB data
+==============================*/
+
+void usb_purge()
+{
+    usb_dataleft = 0;
+    usb_datatype = 0;
+    usb_datasize = 0;
+}
+
+
+/*==============================
+    usb_rewind
+    Rewinds a USB read by the specified amount of bytes
+    An even number of bytes will ALWAYS be rewinded
+    @param The number of bytes to rewind
+==============================*/
+
+void usb_rewind(int nbytes)
+{
     // osPiStarDma only takes even sizes, so correct it if it isn't
     if ((nbytes % 2) != 0) 
         nbytes++;
 
-    // Call the correct read function
-    funcPointer_read(buffer, nbytes);
-    
-    // If we're out of USB data to read, we don't need the header info anymore
-    usb_dataleft -= nbytes;
-    if (usb_dataleft <= 0)
-    {
-        usb_dataleft = 0;
-        usb_datatype = 0;
-        usb_datasize = 0;
-    }
+    // Add the amount of bytes to rewind by to the data pointers
+    usb_dataleft += nbytes;
+    if (usb_dataleft > usb_datasize)
+        usb_dataleft = usb_datasize;
 }
 
 
@@ -575,7 +602,7 @@ static u32 usb_64drive_poll()
     {
         usb_64drive_waitidle();
         
-        // Copy the data to the ROM address
+        // Arm the 64Drive, using the ROM space as a buffer
         #if USE_OSRAW
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
@@ -617,27 +644,52 @@ static u32 usb_64drive_poll()
 /*==============================
     usb_64drive_read
     Reads bytes from the 64Drive ROM into the provided buffer
-    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 
 static void usb_64drive_read(void* buffer, int nbytes)
 {
+    int read = 0;
+    int left = nbytes;
     int offset = usb_datasize-usb_dataleft;
+    int blockoffset = (offset/BUFFER_SIZE)*BUFFER_SIZE;
+    int copystart = offset%BUFFER_SIZE;
+    int copyamount = BUFFER_SIZE-copystart;
 
-    // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(buffer, nbytes);
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS + offset, buffer, 
-                     nbytes);
-    #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS + offset, buffer, 
-                     nbytes, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-    #endif
+    // Read chunks from ROM
+    while (left > 0)
+    {
+        // Ensure we don't read too much data
+        if (left > usb_dataleft)
+            left = usb_dataleft;
+        if (copyamount > left)
+            copyamount = left;
+            
+        // Set up DMA transfer between RDRAM and the PI
+        osWritebackDCache(usb_buffer, BUFFER_SIZE);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + blockoffset, usb_buffer, 
+                         BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + blockoffset, usb_buffer, 
+                         BUFFER_SIZE, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
+        
+        // Copy from the USB buffer to the supplied buffer
+        memcpy(buffer+read, usb_buffer+copystart, copyamount);
+        
+        // Increment/decrement all our counters
+        read += copyamount;
+        left -= copyamount;
+        usb_dataleft -= copyamount;
+        blockoffset+=BUFFER_SIZE;
+        copystart = 0;
+        copyamount = BUFFER_SIZE-copystart;
+    }
 }
 
 
@@ -807,10 +859,10 @@ static void usb_everdrive_readusb(void* buffer, int size)
     while (size) 
     {
         // Get the block size
-        block = 512;
+        block = BUFFER_SIZE;
         if (block > size)
             block = size;
-        addr = 512 - block;
+        addr = BUFFER_SIZE - block;
         
         // Request to read from the USB
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
@@ -928,23 +980,23 @@ static u32 usb_everdrive_poll()
     usb_dataleft = usb_datasize;
     
     // Begin receiving data
-    usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | 512);
-    len = (usb_datasize + 512-usb_datasize%512)/512;
+    usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
+    len = (usb_datasize + BUFFER_SIZE-usb_datasize%BUFFER_SIZE)/BUFFER_SIZE;
     
     // While there's data to service
     while (len--) 
     {
         // Wait for the USB to be ready and then read data
         usb_everdrive_usbbusy();
-        usb_everdrive_readdata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT), 512);
+        usb_everdrive_readdata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT), BUFFER_SIZE); // TODO: Replace with usb_everdrive_readusb?
         
         // Tell the FPGA we can receive more data
         if (len != 0)
-            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | 512);
+            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
         
         // Copy received block to ROM
-        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, 512);
-        offset += 512;
+        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, BUFFER_SIZE);
+        offset += BUFFER_SIZE;
     }
     
     // Read the CMP Signal
@@ -967,25 +1019,50 @@ static u32 usb_everdrive_poll()
 /*==============================
     usb_everdrive_read
     Reads bytes from the EverDrive ROM into the provided buffer
-    An even number of bytes will ALWAYS be read
     @param The buffer to put the read data in
     @param The number of bytes to read
 ==============================*/
 
 static void usb_everdrive_read(void* buffer, int nbytes)
 {
+    int read = 0;
+    int left = nbytes;
     int offset = usb_datasize-usb_dataleft;
-    
-    // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(buffer, nbytes);
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, 
-                     ED_BASE + DEBUG_ADDRESS, buffer, 
-                     nbytes);
-    #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     ED_BASE + DEBUG_ADDRESS, buffer, 
-                     nbytes, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-    #endif
+    int blockoffset = (offset/BUFFER_SIZE)*BUFFER_SIZE;
+    int copystart = offset%BUFFER_SIZE;
+    int copyamount = BUFFER_SIZE-copystart;
+
+    // Read chunks from ROM
+    while (left > 0)
+    {
+        // Ensure we don't read too much data
+        if (left > usb_dataleft)
+            left = usb_dataleft;
+        if (copyamount > left)
+            copyamount = left;
+            
+        // Set up DMA transfer between RDRAM and the PI
+        osWritebackDCache(usb_buffer, BUFFER_SIZE);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                         ED_BASE + DEBUG_ADDRESS + blockoffset, usb_buffer, 
+                         BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                         ED_BASE + DEBUG_ADDRESS + blockoffset, usb_buffer, 
+                         BUFFER_SIZE, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
+        
+        // Copy from the USB buffer to the supplied buffer
+        memcpy(buffer+read, usb_buffer+copystart, copyamount);
+        
+        // Increment/decrement all our counters
+        read += copyamount;
+        left -= copyamount;
+        usb_dataleft -= copyamount;
+        blockoffset+=BUFFER_SIZE;
+        copystart = 0;
+        copyamount = BUFFER_SIZE-copystart;
+    }
 }

@@ -332,8 +332,8 @@ void show_help()
             pdprint(" 1) Ensure your device is on the latest firmware/version.\n"
                     " 2) Plug your 64Drive USB into your PC, ensuring the console is turned OFF.\n"
                     " 3) Run this program to upload a ROM. Example:\n" 
-                    " \t unfloader.exe -r myrom.n64\n"
-                    " 4) If using 64Drive HW2, your game might not boot if you do not state the\n"
+                    " \t unfloader.exe -r myrom.n64\n", CRDEF_PROGRAM);
+            pdprint(" 4) If using 64Drive HW2, your game might not boot if you do not state the\n"
                     "    correct CIC as an argument. Most likely, you are using CIC 6102, so simply\n"
                     "    append that to the end of the arguments. Example:\n"
                     " \t unfloader.exe -r myrom.n64 -c 6102\n"
@@ -349,7 +349,7 @@ void show_help()
                     " 4) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
             break;
         case '3':
-            pdprint(" 1) Plug your SummerCart64 USB into your PC, ensuring the console is turned OFF.\n"
+            pdprint(" 1) Plug the SummerCart64 USB into your PC, ensuring the console is turned OFF.\n"
                     " 2) Run this program to upload a ROM. Example:\n" 
                     " \t unfloader.exe -r myrom.n64\n"
                     " 3) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
@@ -359,7 +359,7 @@ void show_help()
                     "saves you the trouble of having to restart this program every recompile of your\n"
                     "homebrew. It is on YOU to ensure the cart is prepared to receive another ROM.\n"
                     "That means that the console must be switched OFF if you're using the 64Drive or\n"
-                    "be in the menu if you're using an EverDrive.\n", CRDEF_PROGRAM);
+                    "the SummerCart64, or be in the menu if you're using an EverDrive.\n", CRDEF_PROGRAM);
             break;
         case '5':
             pdprint("In order to use the debug mode, the N64 ROM that you are executing must already\n"
