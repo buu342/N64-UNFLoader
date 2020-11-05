@@ -357,16 +357,11 @@ void usb_purge()
 /*==============================
     usb_rewind
     Rewinds a USB read by the specified amount of bytes
-    An even number of bytes will ALWAYS be rewinded
     @param The number of bytes to rewind
 ==============================*/
 
 void usb_rewind(int nbytes)
 {
-    // osPiStarDma only takes even sizes, so correct it if it isn't
-    if ((nbytes % 2) != 0) 
-        nbytes++;
-
     // Add the amount of bytes to rewind by to the data pointers
     usb_dataleft += nbytes;
     if (usb_dataleft > usb_datasize)
