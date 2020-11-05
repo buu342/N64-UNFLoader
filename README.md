@@ -95,7 +95,6 @@ void usb_read(void* buffer, int size);
 /*==============================
     usb_rewind
     Rewinds a USB read by the specified amount of bytes
-    An even number of bytes will ALWAYS be rewinded
     @param The number of bytes to rewind
 ==============================*/
 void usb_rewind(int nbytes);
