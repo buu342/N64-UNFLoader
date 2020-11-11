@@ -30,19 +30,21 @@ A NuSys ROM where an animation plays. After a very specific sequence in the anim
 7) Try to fix the program so the hang no longer occurs!
 
 
-### 3. Polling Commands
-Unimplemented.
-
-A ROM that allows you to modify parts of it during execution by sending commands via USB.
+### 3. Raw USB Reading
+A barebones ROM that demonstrates the `usb_read` and `usb_poll` functions by echoing back data sent from the PC. Does not output anything to the TV.
 
 **Usage**
-1) TODO: Write this section
+1) Upload the ROM.
+2) Type something into the command prompt and press enter.
+3) The N64 should echo back what you wrote.
+4) Try uploading a file mid command by wrapping it in `@` symbols. Example: `Hello @abc.txt@ World`.
+5) Try uploading a file by itself. Example: `@abc.txt@`.
 
 
-### 4. Data Uploading
-Unimplemented.
-
-A basic 32Bit RGBA texture previewer, designed to showcase binary data uploading during ROM execution.  
+### 4. Command Interpreter
+A ROM that demonstrates the command functions provided by the debug library. Allows you to modify parts of the ROM during execution, such as the square, its texture, or the background. Also shows how to use the 64Drive's button. 
 
 **Usage**
-1) TODO: Write this section
+1) Upload the ROM.
+2) On boot, a bunch of commands will appear on screen. 
+3) Play around with the different commands. Try seeing what happens when you provide more/less/wrong arguments.

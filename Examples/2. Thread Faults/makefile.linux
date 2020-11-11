@@ -15,7 +15,7 @@ DEBUGFILES = debug.c usb.c
 
 TARGETS = unflexa2.n64
 
-REGISTRATION = "UNFLEXAM2" B U1 I
+REGISTRATION = "UNFLEXAM2" B U2 I
 
 
 ################################################################
