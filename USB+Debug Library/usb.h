@@ -7,7 +7,12 @@
 
     // Settings
     #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager
-    #define DEBUG_ADDRESS_SIZE 1*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
+    #define DEBUG_ADDRESS_SIZE 8*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
+    
+    // Cart definitions
+    #define CART_NONE      0
+    #define CART_64DRIVE   1
+    #define CART_EVERDRIVE 2
     
     // Data types defintions
     #define DATATYPE_TEXT       0x01
@@ -20,7 +25,7 @@
             Convenience macros
     *********************************/
     
-    // Use these to conveniently read the header from usb_poll
+    // Use these to conveniently read the header from usb_poll()
     #define USBHEADER_GETTYPE(header) ((header & 0xFF000000) >> 24)
     #define USBHEADER_GETSIZE(header) ((header & 0x00FFFFFF))
     
@@ -36,6 +41,15 @@
     ==============================*/
     
     extern char usb_initialize();
+    
+    
+    /*==============================
+        usb_getcart
+        Returns which flashcart is currently connected
+        @return The CART macro that corresponds to the identified flashcart
+    ==============================*/
+    
+    extern char usb_getcart();
     
     
     /*==============================
@@ -68,6 +82,15 @@
     ==============================*/
     
     extern void usb_read(void* buffer, int size);
+    
+    
+    /*==============================
+        usb_skip
+        Skips a USB read by the specified amount of bytes
+        @param The number of bytes to skip
+    ==============================*/
+    
+    extern void usb_skip(int nbytes);
     
     
     /*==============================

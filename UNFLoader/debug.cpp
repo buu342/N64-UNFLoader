@@ -187,7 +187,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         if (buffer[0] == '@' && buffer[size-1] == '@')
             debug_filesend(buffer);
         else
-            debug_appendfilesend(buffer, size);
+            debug_appendfilesend(buffer, size+1);
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
@@ -281,7 +281,7 @@ void debug_appendfilesend(char* data, u32 size)
 
         // Allocate memory for the new data buffer
         size = (size-charcount)+filesize+strlen(sizestring);
-        finaldata = (char*)malloc(size);
+        finaldata = (char*)malloc(size+4); // Plus 4 for byte alignment on the 64Drive (so we don't write past the buffer)
         if (finaldata == NULL)
         {
             pdprint("Unable to allocate memory for USB data\n", CRDEF_ERROR);
@@ -289,7 +289,7 @@ void debug_appendfilesend(char* data, u32 size)
             fclose(fp);
             return;
         }
-        memset(finaldata, 0, size);
+        memset(finaldata, 0, size+4);
 
         // Rewrite the data with the new format
         memcpy(finaldata, data, filestart-data);
@@ -360,7 +360,7 @@ void debug_filesend(char* filename)
     }
 
     // Allocate memory for our file buffer
-    buffer = (char*)malloc(size);
+    buffer = (char*)malloc(size+4); // Plus 4 for byte alignment on the 64Drive (so we don't write past the buffer)
     if (buffer == NULL)
     {
         pdprint("Unable to allocate memory for USB data\n", CRDEF_ERROR);

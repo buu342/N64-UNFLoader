@@ -282,8 +282,19 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
 void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    u8 buf[4];
+    u8 buf[8];
     u32 cmp_magic;
+    u32 header = (size & 0xFFFFFF) | (datatype << 24);
+
+    // Put in the DMA header along with length and type information in the buffer
+    buf[0] = 'D';
+    buf[1] = 'M';
+    buf[2] = 'A';
+    buf[3] = '@';
+    buf[4] = (header >> 24) & 0xFF;
+    buf[5] = (header >> 16) & 0xFF;
+    buf[6] = (header >> 8)  & 0xFF;
+    buf[7] = header & 0xFF;
 
     // Pad data to be 32 bit aligned
     if (size % 4 != 0)
@@ -294,16 +305,25 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
         size = newsize;
     }
 
-    // Send the command, and then the data
+    // Send the command
+    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, 8, 0);
+    cart->status = FT_Write(cart->handle, buf, 8, &cart->bytes_written);
+
+    // Read the CMP signal
+    cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
+    cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
+    if (cmp_magic != 0x434D5040) 
+        terminate("Received wrong CMPlete signal.");
+
+    // Send the data
     device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (size & 0x00FFFFFF) | datatype << 24, 0);
     cart->status = FT_Write(cart->handle, data, size, &cart->bytes_written);
 
     // Read the CMP signal
     cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
     cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
-    if (cmp_magic != 0x434D5040) {
+    if (cmp_magic != 0x434D5040) 
         terminate("Received wrong CMPlete signal.");
-    }
 }
 
 

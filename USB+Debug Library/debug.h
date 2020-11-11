@@ -85,33 +85,26 @@
             @param The function pointer to execute                                                                                  
         ==============================*/
         
-        extern void debug_addcommand(char* command, char* description, void(*execute)());
+        extern void debug_addcommand(char* command, char* description, char*(*execute)());
 
         
         /*==============================
             debug_parsecommand
-            Gets the next part of the incoming command
-            @return A pointer to the next part of the command, or NULL
+            Stores the next part of the incoming command into the provided buffer
+            Make sure the buffer can fit the amount of data from debug_sizecommand!
+            @param The buffer to store the data in
         ==============================*/
         
-        //extern char* debug_parsecommand();
+        extern void debug_parsecommand(void* buffer);
                 
         
         /*==============================
             debug_sizecommand
             Returns the size of the data from this part of the command
-            @return The size of the data in bytes, or -1
+            @return The size of the data in bytes, or 0
         ==============================*/
         
-        //extern int debug_sizecommand();
-        
-        
-        /*==============================
-            debug_trashcommand
-            Trash the incoming data if it's not needed anymore
-        ==============================*/
-        
-        //extern void debug_trashcommand();
+        extern int debug_sizecommand();
         
         
         /*==============================
@@ -139,11 +132,15 @@
         #define debug_addcommand(a, b, c)
         #define debug_parsecommand() NULL
         #define debug_sizecommand() 0
-        #define debug_trashcommand()
         #define debug_printcommands()
+        #define usb_initialize() 0
+        #define usb_getcart() 0
         #define usb_write(a, b, c)
         #define usb_poll() 0
-        #define usb_read() 0
+        #define usb_read(a, b)
+        #define usb_skip(a)
+        #define usb_rewind(a)
+        #define usb_purge()
         
     #endif
     
