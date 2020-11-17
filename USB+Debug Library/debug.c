@@ -613,6 +613,7 @@ https://github.com/buu342/N64-UNFLoader
         int filesize = 0;
         char filestep = 0;
         char jump = 0;
+        int pee=0;
         
         // Initialize the starting offsets at -1
         memset(debug_command_incoming_start, -1, COMMAND_TOKENS*sizeof(int));
@@ -625,7 +626,16 @@ https://github.com/buu342/N64-UNFLoader
                 readsize = dataleft;
         
             // Read a block from USB
+            memset(debug_buffer, 0, BUFFER_SIZE);
             usb_read(debug_buffer, readsize);
+            
+            if (jump != 0)
+            {
+                usb_write(DATATYPE_RAWBINARY, debug_buffer, BUFFER_SIZE);
+                sprintf(debug_buffer, "%d %d %d %d %d %d", pee, usb_datasize, usb_dataleft, usb_readblock, readsize, dataleft);
+                usb_write(DATATYPE_RAWBINARY, debug_buffer, strlen(debug_buffer)+1);
+            }
+            jump++;
 
             // Parse the block
             for (i=0; i<readsize && dataleft > 0; i++)
@@ -673,6 +683,7 @@ https://github.com/buu342/N64-UNFLoader
                             // Skip a bunch of bytes
                             if ((readsize-i)-filesize < 0)
                                 usb_skip(filesize-(readsize-i));
+                                pee = filesize-(readsize-i);
                             dataleft -= filesize;
                             i += filesize;
                             filesize = 0;
