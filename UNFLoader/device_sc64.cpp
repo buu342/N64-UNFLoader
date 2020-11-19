@@ -17,6 +17,7 @@ https://github.com/Polprzewodnikowy/SummerCollection
 
 static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, char* manufacturer);
 static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u8 numparams, ...);
+static void device_write_bank_sc64(ftdi_context_t* cart, u8 bank, u32 offset, u8* write_buffer, u32 write_length);
 
 
 /*==============================
@@ -137,6 +138,22 @@ static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buff
 
 
 /*==============================
+    device_write_bank_sc64
+    Writes data to specified bank at offset
+    @param A pointer to the cart context
+    @param Bank to write to
+    @param Bank offset
+    @param A pointer to write data buffer
+    @param Length of data to be written
+==============================*/
+
+static void device_write_bank_sc64(ftdi_context_t* cart, u8 bank, u32 offset, u8* write_buffer, u32 write_length)
+{
+    device_sendcmd_sc64(cart, DEV_CMD_WRITE, write_buffer, write_length, NULL, 0, true, DEV_RW_PARAMS(offset, bank, write_length));
+}
+
+
+/*==============================
     device_test_sc64
     Checks whether the device passed as an argument is SummerCart64
     @param A pointer to the cart context
@@ -147,15 +164,18 @@ bool device_test_sc64(ftdi_context_t* cart, int index)
 {
     char manufacturer[32];
 
-    // Read manufacturer string
-    cart->status = device_read_manufacturer_sc64(cart, manufacturer);
-
-    return (
-        cart->status == FT_OK &&
-        strcmp(manufacturer, "Polprzewodnikowy") == 0 &&
+    bool candidate = (
         strcmp(cart->dev_info[index].Description, "Arrow USB Blaster B") == 0 &&
         cart->dev_info[index].ID == 0x04036010
     );
+
+    if (candidate) {
+        cart->status = device_read_manufacturer_sc64(cart, manufacturer);
+
+        return (cart->status == FT_OK && strcmp(manufacturer, "Polprzewodnikowy") == 0);
+    }
+
+    return false;
 }
 
 
@@ -206,15 +226,62 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     u32 offset;
     size_t bytes_left;
     time_t upload_time_start;
+    u32 cic_tv_type;
+    u32 cart_config;
 
     // Calculate suitable chunk size
-    chunk_size = DEV_MAX_RW_BYTES / 8;
+    chunk_size = DEV_MAX_RW_BYTES / 4;
 
     // Allocate ROM buffer
     rom_buffer = (u8 *)malloc(chunk_size * sizeof(u8));
     if (rom_buffer == NULL) {
         terminate("Error: Unable to allocate memory for buffer.\n");
     }
+
+    // Set unknown CIC and TV type as default
+    cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_UNKNOWN, DEV_TV_TYPE_UNKNOWN);
+
+    // Set CIC and TV type if provided
+    if (global_cictype != 0 && cart->cictype == 0) {
+        switch (global_cictype) {
+            case 5101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_5101, DEV_TV_TYPE_NTSC); break;
+            case 6101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_NTSC); break;
+            case 7102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_PAL); break;
+            case 6102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_NTSC); break;
+            case 7101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_PAL); break;
+            case 6103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_NTSC); break;
+            case 7103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_PAL); break;
+            case 6105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_NTSC); break;
+            case 7105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_PAL); break;
+            case 6106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_NTSC); break;
+            case 7106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_PAL); break;
+            case 8303: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_8303, DEV_TV_TYPE_NTSC); break;
+            default: terminate("Unknown or unsupported CIC type '%d'.", global_cictype);
+        }
+        cart->cictype = global_cictype;
+        pdprint("CIC set to %d.\n", CRDEF_PROGRAM, global_cictype);
+    }
+
+    // Write CIC and TV type
+    cic_tv_type = swap_endian(cic_tv_type);
+    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_CIC_TV_TYPE, (u8 *)(&cic_tv_type), 4);
+
+    // Set no save type as default
+    cart_config = 0;
+
+    // Set savetype if provided
+    if (global_savetype != 0) {
+        switch (global_savetype) {
+            case 1: cart_config = DEV_SAVE_TYPE_EEPROM_4K; break;
+            case 2: cart_config = DEV_SAVE_TYPE_EEPROM_16K; break;
+            default: terminate("Unknown or unsupported save type '%d'.", global_savetype);
+        }
+        pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
+    }
+
+    // Write save type
+    cart_config = swap_endian(cart_config);
+    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_SCR, (u8 *)(&cart_config), 4);
 
     // Init progressbar
     pdprint("\n", CRDEF_PROGRAM);
@@ -237,13 +304,13 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
         // Read ROM from file to buffer
         fread(rom_buffer, sizeof(u8), chunk_size, file);
         if (global_z64) {
-            for (int i = 0; i < chunk_size; i += 2) {
+            for (size_t i = 0; i < chunk_size; i += 2) {
                 SWAP(rom_buffer[i], rom_buffer[i + 1]);
             }
         }
 
         // Send data to SummerCart64
-        device_sendcmd_sc64(cart, DEV_CMD_WRITE, rom_buffer, chunk_size, NULL, 0, true, 2, DEV_RW_PARAM_1(offset), DEV_RW_PARAM_2(DEV_BANK_ROM, chunk_size));     
+        device_write_bank_sc64(cart, DEV_BANK_ROM, offset, rom_buffer, chunk_size);
 
         // Break from loop if not all bytes has been sent
         if (cart->bytes_written != chunk_size) {
@@ -251,7 +318,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
         }
 
         // Update offset and bytes left
-        offset += cart-> bytes_written;
+        offset += cart->bytes_written;
         bytes_left -= cart->bytes_written;
 
         // Update progressbar
