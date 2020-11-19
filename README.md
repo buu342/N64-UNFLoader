@@ -7,7 +7,7 @@ Currently supported devices:
 * [64Drive Hardware 2.0](http://64drive.retroactive.be/), using firmware 2.05+
 * EverDrive 3.0 (No longer comercially sold), using OS version 3.04+
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
-* [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection), no debug support
+* [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection), only N64 -> PC debug supported
 
 
 ### Requirements:
