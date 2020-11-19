@@ -13,6 +13,7 @@
     #define CART_NONE      0
     #define CART_64DRIVE   1
     #define CART_EVERDRIVE 2
+    #define CART_SC64      3
     
     // Data types defintions
     #define DATATYPE_TEXT       0x01

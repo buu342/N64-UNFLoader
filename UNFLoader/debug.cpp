@@ -85,6 +85,7 @@ void debug_main(ftdi_context_t *cart)
     switch (cart->carttype)
     {
         case CART_EVERDRIVE: alignment = 16; break;
+        case CART_SC64: alignment = 4; break;
         default: alignment = 0;
     }
 
