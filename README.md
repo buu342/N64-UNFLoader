@@ -90,7 +90,7 @@ void usb_write(int datatype, const void* data, int size);
     The first byte contains the data type, the next 3 the number of bytes left to read
     @return The data header, or 0
 ==============================*/
-int usb_poll();
+u32 usb_poll();
 
 /*==============================
     usb_read
@@ -99,6 +99,13 @@ int usb_poll();
     @param The number of bytes to read
 ==============================*/
 void usb_read(void* buffer, int size);
+
+/*==============================
+    usb_skip
+    Skips a USB read by the specified amount of bytes
+    @param The number of bytes to skip
+==============================*/
+void usb_skip(int nbytes);
 
 /*==============================
     usb_rewind
@@ -128,7 +135,7 @@ The debug library is a basic practical implementation of the USB library. Simply
 ```c
 /*==============================
     debug_initialize
-    Initializes the debug and USB library
+    Initializes the debug and USB library.
 ==============================*/
 void debug_initialize();
 
@@ -153,47 +160,44 @@ void debug_screenshot(int size, int w, int h);
 
 /*==============================
     debug_assert
-    Halts the program if the expression fails
+    Halts the program if the expression fails.
     @param The expression to test
 ==============================*/
 #define debug_assert(expr)
 
 /*==============================
     debug_pollcommands
-    Unimplemented!
-    Check the USB for incoming commands
+    Check the USB for incoming commands.
 ==============================*/
-extern void debug_pollcommands();
+void debug_pollcommands();
 
 /*==============================
     debug_addcommand
-    Unimplemented!
-    Adds a command for the USB to read
+    Adds a command for the USB to read.
     @param The command name
     @param The command description
-    @param The function pointer to execute
+    @param The function pointer to execute                                                                                  
 ==============================*/
-void debug_addcommand(char* command, char* description, void(*execute)());
+void debug_addcommand(char* command, char* description, char*(*execute)());
 
 /*==============================
     debug_parsecommand
-    Unimplemented!
-    Gets the next part of the incoming command
-    @return A pointer to the next part of the command, or NULL
+    Stores the next part of the incoming command into the provided buffer.
+    Make sure the buffer can fit the amount of data from debug_sizecommand!
+    If you pass NULL, it skips this command.
+    @param The buffer to store the data in
 ==============================*/
-char* debug_parsecommand();
+void debug_parsecommand(void* buffer);
 
 /*==============================
-    debug_commandsize
-    Unimplemented!
-    Returns the size of the data from this part of the command
-    @return The size of the data in bytes, or -1
+    debug_sizecommand
+    Returns the size of the data from this part of the command.
+    @return The size of the data in bytes, or 0
 ==============================*/
-int debug_commandsize();
+int debug_sizecommand();
 
 /*==============================
     debug_printcommands
-    Unimplemented!
     Prints a list of commands to the developer's command prompt.
 ==============================*/
 void debug_printcommands();
