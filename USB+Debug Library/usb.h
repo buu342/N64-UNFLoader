@@ -7,12 +7,13 @@
 
     // Settings
     #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager
-    #define DEBUG_ADDRESS_SIZE 8*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
+    #define DEBUG_ADDRESS_SIZE 1*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
     
     // Cart definitions
     #define CART_NONE      0
     #define CART_64DRIVE   1
     #define CART_EVERDRIVE 2
+    #define CART_SC64      3
     
     // Data types defintions
     #define DATATYPE_TEXT       0x01
