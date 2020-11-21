@@ -294,7 +294,7 @@ u32 swap_endian(u32 val)
     @param The percentage of completion
 ==============================*/
 
-void progressbar_draw(const char* text, float percent)
+void progressbar_draw(const char* text, short color, float percent)
 {
     int i;
     int prog_size = 16;
@@ -302,23 +302,23 @@ void progressbar_draw(const char* text, float percent)
 	int blocks_left = prog_size-blocks_done;
 
     // Print the head of the progress bar
-    pdprint_replace("%s [", CRDEF_PROGRAM, text);
+    pdprint_replace("%s [", color, text);
 
     // Draw the progress bar itself
     #ifndef LINUX
         for(i=0; i<blocks_done; i++) 
-            pdprint("%c", CRDEF_PROGRAM, 219);
+            pdprint("%c", color, 219);
         for(; i<prog_size; i++) 
-            pdprint("%c", CRDEF_PROGRAM, 176);
+            pdprint("%c", color, 176);
     #else
         for(i=0; i<blocks_done; i++) 
-            pdprint("%c", CRDEF_PROGRAM, '#');
+            pdprint("%c", color, '#');
         for(; i<prog_size; i++) 
-            pdprint("%c", CRDEF_PROGRAM, '.');
+            pdprint("%c", color, '.');
     #endif
 
     // Print the butt of the progress bar
-    pdprint("] %d%%\n", CRDEF_PROGRAM, (int)(percent*100.0f));
+    pdprint("] %d%%\n", color, (int)(percent*100.0f));
 }
 
 

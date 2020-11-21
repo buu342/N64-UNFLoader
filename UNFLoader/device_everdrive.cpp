@@ -156,9 +156,9 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     size = calc_padsize(size);
     bytes_left = size;
 
-    // State that we're gonna send
+    // Initialize the progress bar
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", 0);
+    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
 
     // Send a command saying we're about to write to the cart
     device_sendcmd_everdrive(cart, 'W', 0x10000000, size, 0);
@@ -213,7 +213,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 		bytes_done += bytes_do;
 
 		// Draw the progress bar
-		progressbar_draw("Uploading ROM", (float)bytes_done/size);
+		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
     }
 
     // Send the PIFboot command
@@ -261,6 +261,8 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
     FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
 
     // Upload the data
+    pdprint("\n", CRDEF_PROGRAM);
+    progressbar_draw("Uploading data", CRDEF_INFO, 0);
     for ( ; ; )
     {
         int i, block;
@@ -298,6 +300,9 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
         // Check for a timeout
 		if (cart->bytes_written == 0) 
             terminate("Everdrive timed out.");
+
+        // Draw the progress bar
+        progressbar_draw("Uploading data", CRDEF_INFO, (float)read/size);
 
         // Keep track of how many bytes were uploaded
 		left -= block;

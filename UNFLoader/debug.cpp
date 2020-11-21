@@ -142,11 +142,13 @@ void debug_main(ftdi_context_t *cart)
         // If we got no more data, sleep a bit to be kind to the CPU
         FT_GetQueueStatus(cart->handle, &pending);
         if (pending == 0)
+        {
             #ifndef LINUX // Delay is needed or it won't boot properly
                 Sleep(10);
             #else
                 usleep(10);
             #endif
+        }
     }
 
     // Close the debug output file if it exists
@@ -322,7 +324,7 @@ void debug_appendfilesend(char* data, u32 size)
     // Free the final data buffer and print success
     if (filestart != NULL)
         free(finaldata);
-    pdprint("Sending command '%s'\n", CRDEF_INFO, data);
+    pdprint_replace("Sent command '%s'\n", CRDEF_INFO, data);
 }
 
 
@@ -374,7 +376,7 @@ void debug_filesend(char* filename)
 
     // Send the data to the connected flashcart
     device_senddata(DATATYPE_RAWBINARY, buffer, size);
-    pdprint("Sending file '%s'\n", CRDEF_INFO, fixed);
+    pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
     free(buffer);
 }
 

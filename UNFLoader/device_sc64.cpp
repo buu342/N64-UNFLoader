@@ -285,7 +285,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 
     // Init progressbar
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", 0);
+    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
 
     // Prepare variables
     offset = 0;
@@ -322,7 +322,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
         bytes_left -= cart->bytes_written;
 
         // Update progressbar
-        progressbar_draw("Uploading ROM", (size - bytes_left) / (float)size);
+        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (size - bytes_left) / (float)size);
     } while (bytes_left > 0);
 
     // Free ROM buffer

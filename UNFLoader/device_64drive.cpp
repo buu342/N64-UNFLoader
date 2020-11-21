@@ -197,7 +197,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
     // Send chunks to the cart
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", 0);
+    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
     for ( ; ; )
     {
         int i;
@@ -258,7 +258,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 		ram_addr += bytes_do;
 
 		// Draw the progress bar
-		progressbar_draw("Uploading ROM", (float)bytes_done/size);
+		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
 	}
 
     // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
@@ -285,7 +285,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
     u8 buf[8];
     u32 cmp_magic;
     u32 header;
-    u32 left;
+    u32 left, read = 0;
 
     // Pad data to be 32 bit aligned
     if (size % 4 != 0)
@@ -319,6 +319,8 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
         terminate("Received wrong CMPlete signal.");
 
     // Send the data in blocks (but backwards!)
+    pdprint("\n", CRDEF_PROGRAM);
+    progressbar_draw("Uploading data", CRDEF_INFO, 0);
     while (left > 0)
     {
         u32 block = left%512;
@@ -329,14 +331,16 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
         device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (block & 0x00FFFFFF) | datatype << 24, 0);
         cart->status = FT_Write(cart->handle, data+(left-block), block, &cart->bytes_written);
         left -= block;
-
-        pdprint("%d\n", CRDEF_INFO, left);
+        read += block;
 
         // Read the CMP signal
         cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
         cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
         if (cmp_magic != 0x434D5040) 
             terminate("Received wrong CMPlete signal.");
+
+        // Draw the progress bar
+        progressbar_draw("Uploading data", CRDEF_INFO, (float)read/size);
     }
 }
 
