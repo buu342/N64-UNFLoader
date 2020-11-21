@@ -141,10 +141,10 @@ void (*funcPointer_read)();
 // USB globals
 static s8 usb_cart = CART_NONE;
 static u8 usb_buffer[BUFFER_SIZE] __attribute__((aligned(16)));
-int usb_datatype = 0;
-int usb_datasize = 0;
-int usb_dataleft = 0;
-int usb_readblock = -1;
+static int usb_datatype = 0;
+static int usb_datasize = 0;
+static int usb_dataleft = 0;
+static int usb_readblock = -1;
 
 // Message globals
 #if !USE_OSRAW
