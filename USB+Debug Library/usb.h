@@ -20,6 +20,12 @@
     #define DATATYPE_HEADER     0x03
     #define DATATYPE_SCREENSHOT 0x04
     
+    extern int usb_datatype;
+    extern int usb_datasize;
+    extern int usb_dataleft;
+    extern int usb_readblock;
+
+    
     
     /*********************************
             Convenience macros
