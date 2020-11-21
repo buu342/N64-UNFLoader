@@ -92,7 +92,7 @@ https://github.com/buu342/N64-UNFLoader
 
     // Debug globals
     static char  debug_initialized = 0;
-    static char  debug_buffer[256];
+    static char  debug_buffer[BUFFER_SIZE];
     
     // Commands hashtable related
     static debugCommand* debug_commands_hashtable[HASHTABLE_SIZE];
@@ -565,8 +565,9 @@ https://github.com/buu342/N64-UNFLoader
     
     /*==============================
         debug_parsecommand
-        Stores the next part of the incoming command into the provided buffer
+        Stores the next part of the incoming command into the provided buffer.
         Make sure the buffer can fit the amount of data from debug_sizecommand!
+        If you pass NULL, it skips this command.
         @param The buffer to store the data in
     ==============================*/
     
@@ -574,26 +575,21 @@ https://github.com/buu342/N64-UNFLoader
     {
         char curr = debug_command_current;
         
+        // Skip this command if no buffer exists
+        if (buffer == NULL)
+        {
+            debug_command_current++;
+            return;
+        }
+            
         // If we're out of commands to read, do nothing
         if (curr == debug_command_totaltokens)
-        {
-            sprintf(buffer, "End Start = %d, size = %d, total = %d\n", 
-                debug_command_incoming_start[curr-1], 
-                debug_command_incoming_size[curr-1], 
-                debug_command_totaltokens);
             return;
-            }
             
         // Read from the correct offset
-        /*
         usb_skip(debug_command_incoming_start[curr]);
         usb_read(buffer, debug_command_incoming_size[curr]);
         usb_rewind(debug_command_incoming_size[curr]+debug_command_incoming_start[curr]);
-        */
-        sprintf(buffer, "Start = %d, size = %d, total = %d\n", 
-            debug_command_incoming_start[curr], 
-            debug_command_incoming_size[curr], 
-            debug_command_totaltokens);
         debug_command_current++;
     }
 
@@ -604,7 +600,6 @@ https://github.com/buu342/N64-UNFLoader
         debug_parsecommand and debug_sizecommand
     ==============================*/
     
-    char testa[BUFFER_SIZE];
     static void debug_commands_setup()
     {
         int i;
@@ -612,8 +607,6 @@ https://github.com/buu342/N64-UNFLoader
         int dataleft = datasize;
         int filesize = 0;
         char filestep = 0;
-        char jump = 0;
-        int pee=0;
         
         // Initialize the starting offsets at -1
         memset(debug_command_incoming_start, -1, COMMAND_TOKENS*sizeof(int));
@@ -628,14 +621,6 @@ https://github.com/buu342/N64-UNFLoader
             // Read a block from USB
             memset(debug_buffer, 0, BUFFER_SIZE);
             usb_read(debug_buffer, readsize);
-            
-            if (jump != 0)
-            {
-                usb_write(DATATYPE_RAWBINARY, debug_buffer, BUFFER_SIZE);
-                sprintf(debug_buffer, "%d %d %d %d %d %d", pee, usb_datasize, usb_dataleft, usb_readblock, readsize, dataleft);
-                usb_write(DATATYPE_RAWBINARY, debug_buffer, strlen(debug_buffer)+1);
-            }
-            jump++;
 
             // Parse the block
             for (i=0; i<readsize && dataleft > 0; i++)
@@ -683,7 +668,6 @@ https://github.com/buu342/N64-UNFLoader
                             // Skip a bunch of bytes
                             if ((readsize-i)-filesize < 0)
                                 usb_skip(filesize-(readsize-i));
-                                pee = filesize-(readsize-i);
                             dataleft -= filesize;
                             i += filesize;
                             filesize = 0;
@@ -695,16 +679,8 @@ https://github.com/buu342/N64-UNFLoader
             }
         }
         
-            
-        debug_parsecommand(testa);
-        debug_parsecommand(testa);
-        debug_parsecommand(testa);
-        usb_purge();
-        usb_write(DATATYPE_TEXT, testa, BUFFER_SIZE);
-        /*
         // Rewind the USB fully
         usb_rewind(datasize);
-        */
     }
     
     
@@ -749,7 +725,6 @@ https://github.com/buu342/N64-UNFLoader
                 // Break the USB command into parts
                 debug_commands_setup();
                 
-                /*
                 // Ensure we don't read past our buffer
                 if (debug_sizecommand() > BUFFER_SIZE)
                 {
@@ -785,7 +760,6 @@ https://github.com/buu342/N64-UNFLoader
                     usb_purge();
                     errortype = USBERROR_UNKNOWN;
                 }
-                */
             }
             
             // Spit out an error if there was one during the command parsing
