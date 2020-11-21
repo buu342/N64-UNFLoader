@@ -337,9 +337,8 @@ void usb_write(int datatype, const void* data, int size)
         return;
         
     // If there's data to read first, stop
-    // TODO: REPAIR
-    //if (usb_dataleft != 0)
-    //    return;
+    if (usb_dataleft != 0)
+        return;
         
     // Call the correct write function
     funcPointer_write(datatype, data, size);
@@ -1305,7 +1304,8 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     {
         // Calculate data copy length
         size_t data_length = MIN(MIN(left, block_size - offset), usb_block_max_size - transfer_length);
-
+        u32 dma_length;
+        
         // Fill buffer
         memcpy(usb_buffer + offset, data_ptr, data_length);
 
@@ -1320,7 +1320,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         }
 
         // Calculate RDRAM -> PI transfer length
-        u32 dma_length = ALIGN(offset + data_length, 4);
+        dma_length = ALIGN(offset + data_length, 4);
 
         // Write data to buffer in SDRAM
         osWritebackDCache(usb_buffer, dma_length);
