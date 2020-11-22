@@ -124,9 +124,6 @@ https://github.com/buu342/N64-UNFLoader
     static OSMesg      usbMessageBuf;
     static OSThread    usbThread;
     static u64         usbThreadStack[USB_THREAD_STACK/sizeof(u64)];
-    
-    // Shared message for thread communication
-    static volatile usbMesg msg;
 
     // List of error causes
     static regDesc causeDesc[] = {
@@ -275,6 +272,7 @@ https://github.com/buu342/N64-UNFLoader
 
     void debug_printf(const char* message, ...)
     {
+        usbMesg msg;
         va_list args;
         int i, j=0, delimcount;
         int size = strlen(message);
@@ -391,7 +389,8 @@ https://github.com/buu342/N64-UNFLoader
         
         // Get the new size
         size = strlen(debug_buffer)+1;
-            
+        debug_buffer[size-1] = '\0';
+        
         // Send the printf to the usb thread
         msg.msgtype = MSG_WRITE;
         msg.datatype = DATATYPE_TEXT;
@@ -413,6 +412,7 @@ https://github.com/buu342/N64-UNFLoader
     
     void debug_screenshot(int size, int w, int h)
     {
+        usbMesg msg;
         void* frame = osViGetCurrentFramebuffer();
         int data[4];
         
@@ -536,6 +536,8 @@ https://github.com/buu342/N64-UNFLoader
     
     void debug_pollcommands()
     {
+        usbMesg msg;
+    
         // Ensure debug mode is initialized
         if (!debug_initialized)
             return;
@@ -692,6 +694,7 @@ https://github.com/buu342/N64-UNFLoader
 
     static void debug_thread_usb(void *arg)
     {
+        char test = 0;
         char errortype = USBERROR_NONE;
         usbMesg* threadMsg;
 
@@ -867,8 +870,7 @@ https://github.com/buu342/N64-UNFLoader
 
                     // Print the basic info
                     debug_printf("Fault in thread: %d\n\n", curr->id);
-                    debug_printf("pc\t\t0x");
-                    debug_printf("%08x\n", context->pc);
+                    debug_printf("pc\t\t0x%08x\n", context->pc);
                     if (assert_file == NULL)
                         debug_printreg(context->cause, "cause", causeDesc);
                     else
