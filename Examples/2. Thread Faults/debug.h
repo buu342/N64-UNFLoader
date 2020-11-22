@@ -14,12 +14,12 @@
     
     // Fault thread definitions
     #define FAULT_THREAD_ID    13
-    #define FAULT_THREAD_PRI   251
+    #define FAULT_THREAD_PRI   125
     #define FAULT_THREAD_STACK 0x2000
     
     // USB thread definitions
     #define USB_THREAD_ID    14
-    #define USB_THREAD_PRI   252
+    #define USB_THREAD_PRI   126
     #define USB_THREAD_STACK 0x2000
     
     
@@ -31,7 +31,7 @@
         
         /*==============================
             debug_initialize
-            Initializes the debug and USB library
+            Initializes the debug and USB library.
         ==============================*/
         
         extern void debug_initialize();
@@ -62,7 +62,7 @@
         
         /*==============================
             debug_assert
-            Halts the program if the expression fails
+            Halts the program if the expression fails.
             @param The expression to test
         ==============================*/
         
@@ -71,7 +71,7 @@
         
         /*==============================
             debug_pollcommands
-            Check the USB for incoming commands
+            Check the USB for incoming commands.
         ==============================*/
         
         extern void debug_pollcommands();
@@ -79,39 +79,33 @@
         
         /*==============================
             debug_addcommand
-            Adds a command for the USB to read
+            Adds a command for the USB to read.
             @param The command name
             @param The command description
             @param The function pointer to execute                                                                                  
         ==============================*/
         
-        extern void debug_addcommand(char* command, char* description, void(*execute)());
+        extern void debug_addcommand(char* command, char* description, char*(*execute)());
 
         
         /*==============================
             debug_parsecommand
-            Gets the next part of the incoming command
-            @return A pointer to the next part of the command, or NULL
+            Stores the next part of the incoming command into the provided buffer.
+            Make sure the buffer can fit the amount of data from debug_sizecommand!
+            If you pass NULL, it skips this command.
+            @param The buffer to store the data in
         ==============================*/
         
-        //extern char* debug_parsecommand();
+        extern void debug_parsecommand(void* buffer);
                 
         
         /*==============================
             debug_sizecommand
-            Returns the size of the data from this part of the command
-            @return The size of the data in bytes, or -1
+            Returns the size of the data from this part of the command.
+            @return The size of the data in bytes, or 0
         ==============================*/
         
-        //extern int debug_sizecommand();
-        
-        
-        /*==============================
-            debug_trashcommand
-            Trash the incoming data if it's not needed anymore
-        ==============================*/
-        
-        //extern void debug_trashcommand();
+        extern int debug_sizecommand();
         
         
         /*==============================
@@ -139,11 +133,15 @@
         #define debug_addcommand(a, b, c)
         #define debug_parsecommand() NULL
         #define debug_sizecommand() 0
-        #define debug_trashcommand()
         #define debug_printcommands()
+        #define usb_initialize() 0
+        #define usb_getcart() 0
         #define usb_write(a, b, c)
         #define usb_poll() 0
-        #define usb_read() 0
+        #define usb_read(a, b)
+        #define usb_skip(a)
+        #define usb_rewind(a)
+        #define usb_purge()
         
     #endif
     
