@@ -92,7 +92,7 @@ https://github.com/buu342/N64-UNFLoader
 
     // Debug globals
     static char  debug_initialized = 0;
-    static char  debug_buffer[256];
+    static char  debug_buffer[BUFFER_SIZE];
     
     // Commands hashtable related
     static debugCommand* debug_commands_hashtable[HASHTABLE_SIZE];
@@ -124,9 +124,6 @@ https://github.com/buu342/N64-UNFLoader
     static OSMesg      usbMessageBuf;
     static OSThread    usbThread;
     static u64         usbThreadStack[USB_THREAD_STACK/sizeof(u64)];
-    
-    // Shared message for thread communication
-    static volatile usbMesg msg;
 
     // List of error causes
     static regDesc causeDesc[] = {
@@ -275,6 +272,7 @@ https://github.com/buu342/N64-UNFLoader
 
     void debug_printf(const char* message, ...)
     {
+        usbMesg msg;
         va_list args;
         int i, j=0, delimcount;
         int size = strlen(message);
@@ -391,7 +389,8 @@ https://github.com/buu342/N64-UNFLoader
         
         // Get the new size
         size = strlen(debug_buffer)+1;
-            
+        debug_buffer[size-1] = '\0';
+        
         // Send the printf to the usb thread
         msg.msgtype = MSG_WRITE;
         msg.datatype = DATATYPE_TEXT;
@@ -413,6 +412,7 @@ https://github.com/buu342/N64-UNFLoader
     
     void debug_screenshot(int size, int w, int h)
     {
+        usbMesg msg;
         void* frame = osViGetCurrentFramebuffer();
         int data[4];
         
@@ -536,6 +536,8 @@ https://github.com/buu342/N64-UNFLoader
     
     void debug_pollcommands()
     {
+        usbMesg msg;
+    
         // Ensure debug mode is initialized
         if (!debug_initialized)
             return;
@@ -565,8 +567,9 @@ https://github.com/buu342/N64-UNFLoader
     
     /*==============================
         debug_parsecommand
-        Stores the next part of the incoming command into the provided buffer
+        Stores the next part of the incoming command into the provided buffer.
         Make sure the buffer can fit the amount of data from debug_sizecommand!
+        If you pass NULL, it skips this command.
         @param The buffer to store the data in
     ==============================*/
     
@@ -574,6 +577,13 @@ https://github.com/buu342/N64-UNFLoader
     {
         char curr = debug_command_current;
         
+        // Skip this command if no buffer exists
+        if (buffer == NULL)
+        {
+            debug_command_current++;
+            return;
+        }
+            
         // If we're out of commands to read, do nothing
         if (curr == debug_command_totaltokens)
             return;
@@ -592,8 +602,6 @@ https://github.com/buu342/N64-UNFLoader
         debug_parsecommand and debug_sizecommand
     ==============================*/
     
-    char testa[BUFFER_SIZE];
-    
     static void debug_commands_setup()
     {
         int i;
@@ -608,94 +616,70 @@ https://github.com/buu342/N64-UNFLoader
         // Read data from USB in blocks
         while (dataleft > 0)
         {
-            int read = BUFFER_SIZE;
-            if (read > dataleft)
-                read = dataleft;
+            int readsize = BUFFER_SIZE;
+            if (readsize > dataleft)
+                readsize = dataleft;
         
             // Read a block from USB
-            usb_read(debug_buffer, read);
-            if (dataleft < BUFFER_SIZE)
-                debug_buffer[dataleft-1] = '\0';
-                
+            memset(debug_buffer, 0, BUFFER_SIZE);
+            usb_read(debug_buffer, readsize);
+
             // Parse the block
-            for (i=0; i<read && dataleft > 0; i++)
+            for (i=0; i<readsize && dataleft > 0; i++)
             {
                 // If we're not reading a file
-                if (filestep != 2)
+                int offset = datasize-dataleft;
+                char tok = debug_command_totaltokens;
+                
+                // Decide what to do based on the current character
+                switch (debug_buffer[i])
                 {
-                    int offset = datasize-dataleft;
-                    char tok = debug_command_totaltokens;
-                    
-                    // Decide what to do based on the current character
-                    switch (debug_buffer[i])
-                    {
-                        case ' ':
-                        case '\0':
-                            if (debug_command_incoming_start[tok] != -1)
-                            {
-                                debug_command_incoming_size[tok] = offset-debug_command_incoming_start[tok];
-                                debug_command_totaltokens++;
-                            }
+                    case ' ':
+                    case '\0':
+                        if (debug_command_incoming_start[tok] != -1)
+                        {
+                            debug_command_incoming_size[tok] = offset-debug_command_incoming_start[tok];
+                            debug_command_totaltokens++;
+                        }
+                        
+                        if (debug_buffer[i] == '\0')
+                            dataleft = 0;
+                        break;
+                    case '@':
+                        filestep++;
+                        break;
+                    default:
+                        // Decide what to do based on the file handle
+                        if (filestep == 0 && debug_command_incoming_start[tok] == -1)
+                        {
+                            // Store the data offsets and sizes in the global command buffers 
+                            debug_command_incoming_start[tok] = offset;
+                        }
+                        else if (filestep == 1)
+                        {
+                            // Get the filesize
+                            filesize = filesize*10 + debug_buffer[i]-'0';
+                        }
+                        else if (filestep == 2)
+                        {
+                            // Store the file offsets and sizes in the global command buffers 
+                            debug_command_incoming_start[tok] = offset;
+                            debug_command_incoming_size[tok] = filesize;
+                            debug_command_totaltokens++;
                             
-                            if (debug_buffer[i] == '\0')
-                                dataleft = 0;
-                            break;
-                        case '@':
-                            filestep++;
-                        default:
-                            // Decide what to do based on the file handle
-                            if (filestep == 0 && debug_command_incoming_start[tok] == -1)
-                            {
-                                // Store the data offsets and sizes in the global command buffers 
-                                debug_command_incoming_start[tok] = offset;
-                            }
-                            else if (filestep == 1 && debug_buffer[i] != '@')
-                            {
-                                // Get the filesize
-                                filesize = filesize*10 + debug_buffer[i]-'0';
-                            }
-                            else if (filestep == 2)
-                            {
-                                // Store the file offsets and sizes in the global command buffers 
-                                debug_command_incoming_start[tok] = 1+offset;
-                                debug_command_incoming_size[tok] = filesize;
-                                
-                                // Skip a bunch of bytes
-                                /*
-                                if (dataleft-filesize < 0)
-                                {
-                                    usb_skip(dataleft);
-                                    usb_skip(filesize-dataleft);
-                                }
-                                dataleft -= filesize;
-                                i += filesize;
-                                filestep = 0;
-                                */
-                            }
-                            break;
-                    }
+                            // Skip a bunch of bytes
+                            if ((readsize-i)-filesize < 0)
+                                usb_skip(filesize-(readsize-i));
+                            dataleft -= filesize;
+                            i += filesize;
+                            filesize = 0;
+                            filestep = 0;
+                        }
+                        break;
                 }
                 dataleft--;
-                
-                ///*
-                // If handling a file
-                if (filestep == 2)
-                {
-                    filesize--;
-                    if (filesize == 0)
-                        filestep = 0;
-                }
-                //*/ 
             }
         }
-        
-        /*
-        debug_parsecommand(testa);
-        debug_parsecommand(testa);
-        debug_parsecommand(testa);
-        debug_parsecommand(testa);
-        usb_write(DATATYPE_TEXT, testa, BUFFER_SIZE);
-        */
         
         // Rewind the USB fully
         usb_rewind(datasize);
@@ -710,6 +694,7 @@ https://github.com/buu342/N64-UNFLoader
 
     static void debug_thread_usb(void *arg)
     {
+        char test = 0;
         char errortype = USBERROR_NONE;
         usbMesg* threadMsg;
 
@@ -813,7 +798,6 @@ https://github.com/buu342/N64-UNFLoader
     }
     
     
-    
     #if OVERWRITE_OSPRINT
     
         /*==============================
@@ -886,8 +870,7 @@ https://github.com/buu342/N64-UNFLoader
 
                     // Print the basic info
                     debug_printf("Fault in thread: %d\n\n", curr->id);
-                    debug_printf("pc\t\t0x");
-                    debug_printf("%08x\n", context->pc);
+                    debug_printf("pc\t\t0x%08x\n", context->pc);
                     if (assert_file == NULL)
                         debug_printreg(context->cause, "cause", causeDesc);
                     else

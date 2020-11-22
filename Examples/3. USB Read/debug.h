@@ -14,12 +14,12 @@
     
     // Fault thread definitions
     #define FAULT_THREAD_ID    13
-    #define FAULT_THREAD_PRI   251
+    #define FAULT_THREAD_PRI   125
     #define FAULT_THREAD_STACK 0x2000
     
     // USB thread definitions
     #define USB_THREAD_ID    14
-    #define USB_THREAD_PRI   252
+    #define USB_THREAD_PRI   126
     #define USB_THREAD_STACK 0x2000
     
     
@@ -31,7 +31,7 @@
         
         /*==============================
             debug_initialize
-            Initializes the debug and USB library
+            Initializes the debug and USB library.
         ==============================*/
         
         extern void debug_initialize();
@@ -62,7 +62,7 @@
         
         /*==============================
             debug_assert
-            Halts the program if the expression fails
+            Halts the program if the expression fails.
             @param The expression to test
         ==============================*/
         
@@ -71,7 +71,7 @@
         
         /*==============================
             debug_pollcommands
-            Check the USB for incoming commands
+            Check the USB for incoming commands.
         ==============================*/
         
         extern void debug_pollcommands();
@@ -79,7 +79,7 @@
         
         /*==============================
             debug_addcommand
-            Adds a command for the USB to read
+            Adds a command for the USB to read.
             @param The command name
             @param The command description
             @param The function pointer to execute                                                                                  
@@ -90,8 +90,9 @@
         
         /*==============================
             debug_parsecommand
-            Stores the next part of the incoming command into the provided buffer
+            Stores the next part of the incoming command into the provided buffer.
             Make sure the buffer can fit the amount of data from debug_sizecommand!
+            If you pass NULL, it skips this command.
             @param The buffer to store the data in
         ==============================*/
         
@@ -100,7 +101,7 @@
         
         /*==============================
             debug_sizecommand
-            Returns the size of the data from this part of the command
+            Returns the size of the data from this part of the command.
             @return The size of the data in bytes, or 0
         ==============================*/
         
