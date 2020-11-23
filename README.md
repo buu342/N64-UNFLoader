@@ -241,8 +241,8 @@ void debug_printcommands();
 <details><summary><b>Building UNFLoader for Windows</b></summary>
 Simply load the project file in Visual Studio 2019 or higher. 
 
-**The Include folder should already have everything you need for both Windows and Linux**.
-<details><summary>If you wish to retrieve the libraries yourself or update them</summary>
+**The Include folder should already have everything you need for both Windows.**
+<details><summary>Updating libs to latest version (if required)</summary>
 **pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
 * Extract the contents of the zip (preferrably somewhere with no spaces in the file path, like `c:\pdcurses`).
@@ -284,8 +284,8 @@ Once the dependencies are installed, simply execute the makefile:
 make -f makefile.linux
 ```
 
-**The Include folder should already have everything you need for both Windows and Linux**.
-<details><summary>If you wish to retrieve the libraries yourself or update them</summary>
+**The Include folder should already have everything you need for Linux.**
+<details><summary>Updating libs to latest version (if required)</summary>
 
 **ftd2xx + WinTypes**
 * Download the FTDI driver provided in the **Requirements** section and extract the zip.
