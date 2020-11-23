@@ -240,6 +240,7 @@ void debug_printcommands();
 ### Building UNFLoader
 <details><summary><b>Building UNFLoader for Windows</b></summary>
 Simply load the project file in Visual Studio 2019 or higher. 
+
 **The Include folder should already have everything you need for both Windows and Linux**.
 <details><summary>If you wish to retrieve the libraries yourself or update them</summary>
 **pdcurses.lib**
