@@ -59,10 +59,10 @@ endif
 #                        Linker Settings                       #
 ################################################################
 
-LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include
+LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include -I $(ROOT)/usr/include/nustd
 LCOPTS =	-G 0
 LDIRT  =	$(APP)
-LDFLAGS=	$(MKDEPOPT)  -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -L$(N64_NEWLIBDIR) -lc
+LDFLAGS=	$(MKDEPOPT)  -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -lnustd
 
 
 ################################################################
