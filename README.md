@@ -1,5 +1,5 @@
 # UNFLoader
-**This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet! Check the issues page for the TODO list.**
+**The code in this repo might be unstable! For stable versions, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
@@ -239,11 +239,8 @@ void debug_printcommands();
 
 ### Building UNFLoader
 <details><summary>Building UNFLoader for Windows</summary>
-<p>
-Simply load the project file in Visual Studio 2019 or higher.
-The Include folder should already have everything you need for both Windows and Linux, but if you wish to build/retrieve the libraries yourself:
-
-**pdcurses.lib**
+Simply load the project file in Visual Studio 2019 or higher. **The Include folder should already have everything you need for both Windows and Linux**, but if you wish to build/retrieve the libraries yourself:
+<details><summary>pdcurses.lib</summary>
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
 * Extract the contents of the zip (preferrably somewhere with no spaces in the file path, like `c:\pdcurses`).
 * Open the Visual Studio Command Prompt (Tools->Command Line->Developer Command Prompt).
@@ -253,17 +250,18 @@ The Include folder should already have everything you need for both Windows and 
 * Copy the `pdcurses.lib` that was compiled from the wincon folder to `UNFLoader/Include`, replacing the pdcurses library in there.
 * Copy the `curses.h`, `curspriv.h`, and `panel.h` from the pdcurses directory and put them in `UNFLoader/Include`.
 * Open `curses.h` and uncomment the line with `#define MOUSE_MOVED` to fix a warning due to `wincon.h`.
-
-**ftd2xx.lib**
+</details>
+<details><summary>ftd2xx.lib</summary>
 * Download the FTDI driver provided in the **Requirements** section and extract the executable from the zip.
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
-
-**lodepng**
+</details>
+<details><summary>lodepng</summary>
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
-
+</details>
+</br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
 </p>
 </details>
@@ -283,17 +281,18 @@ Once the dependencies are installed, simply execute the makefile:
 make -f makefile.linux
 ```
 
-The Include folder should already have everything you need for both Windows and Linux, but if you wish to retrieve the libraries yourself:
+**The Include folder should already have everything you need for both Windows and Linux**, but if you wish to retrieve the libraries yourself:
 
-**ftd2xx + WinTypes**
+<details><summary>ftd2xx + WinTypes</summary>
 * Download the FTDI driver provided in the **Requirements** section and extract the zip.
 * Go into the `release` folder.
 * Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
-
-**lodepng**
+</details>
+<details><summary>lodepng</summary>
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
-
+</details>
+</br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
 </p>
 </details>
@@ -323,6 +322,11 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
 
 
+### Known issues
+
+All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there.
+
+
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
 
@@ -338,6 +342,6 @@ korgeaux for implementing support for his SummerCart64.
 
 CrashOveride for ensuring the samples compile on his Linux libultra port. 
 
-This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
+This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
 
 The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried and kivan117. You guys are the reason this project was possible!
