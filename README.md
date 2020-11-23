@@ -238,7 +238,7 @@ void debug_printcommands();
 </details>
 
 ### Building UNFLoader
-<details><summary>**Building UNFLoader for Windows**</summary>
+<details><summary><b>Building UNFLoader for Windows</b></summary>
 Simply load the project file in Visual Studio 2019 or higher. **The Include folder should already have everything you need for both Windows and Linux**, but if you wish to build/retrieve the libraries yourself:
 <details><summary>pdcurses.lib</summary>
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
@@ -266,7 +266,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </p>
 </details>
 
-<details><summary>**Building UNFLoader for Linux**</summary>
+<details><summary><b>Building UNFLoader for Linux</b></summary>
 <p>
 You need to have the FTDI driver installed, as well as ncurses.
 Install ncurses by invoking:
