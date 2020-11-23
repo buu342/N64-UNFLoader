@@ -423,7 +423,7 @@ void usb_read(void* buffer, int nbytes)
         read += block;
         left -= block;
         usb_dataleft -= block;
-        blockoffset += block;
+        blockoffset += BUFFER_SIZE;
         block = BUFFER_SIZE;
         copystart = 0;
     }

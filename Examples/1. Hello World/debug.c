@@ -602,6 +602,7 @@ https://github.com/buu342/N64-UNFLoader
         debug_parsecommand and debug_sizecommand
     ==============================*/
     
+    char shitty[256];
     static void debug_commands_setup()
     {
         int i;
@@ -636,18 +637,22 @@ https://github.com/buu342/N64-UNFLoader
                 {
                     case ' ':
                     case '\0':
-                        if (debug_command_incoming_start[tok] != -1)
+                        if (filestep < 2)
                         {
-                            debug_command_incoming_size[tok] = offset-debug_command_incoming_start[tok];
-                            debug_command_totaltokens++;
+                            if (debug_command_incoming_start[tok] != -1)
+                            {
+                                debug_command_incoming_size[tok] = offset-debug_command_incoming_start[tok];
+                                debug_command_totaltokens++;
+                            }
+                            
+                            if (debug_buffer[i] == '\0')
+                                dataleft = 0;
+                            break;
                         }
-                        
-                        if (debug_buffer[i] == '\0')
-                            dataleft = 0;
-                        break;
                     case '@':
                         filestep++;
-                        break;
+                        if (filestep < 3)
+                            break;
                     default:
                         // Decide what to do based on the file handle
                         if (filestep == 0 && debug_command_incoming_start[tok] == -1)
@@ -660,7 +665,7 @@ https://github.com/buu342/N64-UNFLoader
                             // Get the filesize
                             filesize = filesize*10 + debug_buffer[i]-'0';
                         }
-                        else if (filestep == 2)
+                        else if (filestep > 1)
                         {
                             // Store the file offsets and sizes in the global command buffers 
                             debug_command_incoming_start[tok] = offset;
