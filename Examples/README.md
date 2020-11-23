@@ -42,9 +42,10 @@ A barebones ROM that demonstrates the `usb_read` and `usb_poll` functions by ech
 
 
 ### 4. Command Interpreter
-A ROM that demonstrates the command functions provided by the debug library. Allows you to modify parts of the ROM during execution, such as the square, its texture, or the background. Also shows how to use the 64Drive's button. 
+A ROM that demonstrates the command functions provided by the debug library. Allows you to modify parts of the ROM during execution, such as the square, its texture, or the background.
 
 **Usage**
 1) Upload the ROM.
 2) On boot, a bunch of commands will appear on screen. 
 3) Play around with the different commands. Try seeing what happens when you provide more/less/wrong arguments.
+4) For replacing the texture, use the three provided `tex#.bin` files. They're 32x32 32-bit RGBA textures in binary format.
