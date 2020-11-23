@@ -239,8 +239,9 @@ void debug_printcommands();
 
 ### Building UNFLoader
 <details><summary><b>Building UNFLoader for Windows</b></summary>
-Simply load the project file in Visual Studio 2019 or higher. **The Include folder should already have everything you need for both Windows and Linux**, but if you wish to build/retrieve the libraries yourself:
-<details><summary>pdcurses.lib</summary>
+Simply load the project file in Visual Studio 2019 or higher. **The Include folder should already have everything you need for both Windows and Linux**.
+<details><summary>If you wish to retrieve the libraries yourself or update them</summary>
+**pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
 * Extract the contents of the zip (preferrably somewhere with no spaces in the file path, like `c:\pdcurses`).
 * Open the Visual Studio Command Prompt (Tools->Command Line->Developer Command Prompt).
@@ -250,19 +251,19 @@ Simply load the project file in Visual Studio 2019 or higher. **The Include fold
 * Copy the `pdcurses.lib` that was compiled from the wincon folder to `UNFLoader/Include`, replacing the pdcurses library in there.
 * Copy the `curses.h`, `curspriv.h`, and `panel.h` from the pdcurses directory and put them in `UNFLoader/Include`.
 * Open `curses.h` and uncomment the line with `#define MOUSE_MOVED` to fix a warning due to `wincon.h`.
-</details>
-<details><summary>ftd2xx.lib</summary>
+
+**ftd2xx.lib**
 * Download the FTDI driver provided in the **Requirements** section and extract the executable from the zip.
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
-</details>
-<details><summary>lodepng</summary>
+
+**lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
-</details>
 </br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</details>
 </p>
 </details>
 
@@ -281,19 +282,21 @@ Once the dependencies are installed, simply execute the makefile:
 make -f makefile.linux
 ```
 
-**The Include folder should already have everything you need for both Windows and Linux**, but if you wish to retrieve the libraries yourself:
+**The Include folder should already have everything you need for both Windows and Linux**.
+<details><summary>If you wish to retrieve the libraries yourself or update them</summary>
 
-<details><summary>ftd2xx + WinTypes</summary>
+**ftd2xx + WinTypes**
 * Download the FTDI driver provided in the **Requirements** section and extract the zip.
 * Go into the `release` folder.
 * Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
-</details>
-<details><summary>lodepng</summary>
+
+**lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
-</details>
+
 </br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</details>
 </p>
 </details>
 
