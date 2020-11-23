@@ -1,0 +1,27 @@
+jobs:
+- job: Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      echo Add Linux dependencies
+      sudo apt-get install libncurses5-dev libncursesw5-dev
+      echo Build App
+      cd ./UNFLoader/
+      make -f makefile.linux
+      #copy to artifacts directory
+
+# - job: Windows
+#   pool:
+#     vmImage: 'windows-latest'
+#   - script: |
+#       echo Building
+
+
+
+# - job: macOS
+#   pool:
+#     vmImage: 'macOS-latest'
+#   steps:
+#   - script: |
+#       echo hello from macOS
