@@ -7,6 +7,8 @@ jobs:
       echo Add Linux dependencies
       sudo apt-get install libncurses5-dev libncursesw5-dev
       echo Build App
+      ls
+      echo ls
       cd ./UNFLoader/
       make -f makefile.linux
       #copy to artifacts directory
