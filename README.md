@@ -281,7 +281,7 @@ sudo apt-get install libncurses5-dev libncursesw5-dev
 Once the dependencies are installed, simply execute the makefile:
 
 ```
-make -f makefile.linux
+make -f Makefile
 ```
 
 **The Include folder should already have everything you need for Linux.**
