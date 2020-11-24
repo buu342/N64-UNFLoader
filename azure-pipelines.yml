@@ -6,6 +6,7 @@ jobs:
   - script: |
       echo Add Linux dependencies
       sudo apt-get install libncurses5-dev libncursesw5-dev
+      sudo apt-get install libftdi1-2
       echo Build App
       cd ./UNFLoader/
       ls
