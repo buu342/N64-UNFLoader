@@ -9,8 +9,7 @@ jobs:
       echo Build App
       cd ./UNFLoader/
       ls
-      make
-      #make -f makefile.linux
+      make -f makefile
       #copy to artifacts directory
 
 # - job: Windows
