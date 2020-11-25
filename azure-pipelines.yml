@@ -1,13 +1,13 @@
 jobs:
-- job: Linux
+- job: UFNLoader Linux
   pool:
     vmImage: 'ubuntu-latest'
   steps:
   - script: |
       echo Add Linux dependencies
       sudo apt-get install libncurses5-dev libncursesw5-dev
-      curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.c
-      curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
+      # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.cpp
+      # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
       
       curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-1.4.8.gz --output libftd2xx.gz
       mkdir ./libftd2xx
@@ -33,7 +33,29 @@ jobs:
     displayName: 'Build Application'
     continueOnError: false
 
-- job: Windows
+  # Archive Files
+  # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)/UFNLoader/' 
+      includeRootFolder: false
+      archiveType: 'zip' # Options: zip, 7z, tar, wim
+      #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
+      archiveFile: '$(Build.ArtifactStagingDirectory)/ufnloader-linux.zip'
+      #replaceExistingArchive: true
+
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'windows-binaries' 
+      publishLocation: 'Container' # Options: container, filePath
+      #targetPath: # Required when publishLocation == FilePath
+      parallel: true # Optional
+      #parallelCount: # Optional
+
+- job: UFNLoader Windows
   pool:
     vmImage: 'windows-latest'
   steps:
@@ -41,7 +63,7 @@ jobs:
   #    echo Downloading dependencies
       #curl -L https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip --output libftd2xx.zip
       #curl -L https://github.com/wmcbrine/PDCurses/archive/3.9.zip --output PDCurses.zip
-      #curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.c
+      #curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.cpp
       #curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
    # displayName: 'Download Dependencies'
    # continueOnError: false
@@ -62,6 +84,17 @@ jobs:
       #logProjectEvents: true # Optional
       #createLogFile: false # Optional
       #logFileVerbosity: 'normal' # Optional. Options: quiet, minimal, normal, detailed, diagnostic
+
+  # Archive Files
+  # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)/UFNLoader/Debug' 
+      includeRootFolder: false
+      archiveType: 'zip' # Options: zip, 7z, tar, wim
+      #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
+      archiveFile: '$(Build.ArtifactStagingDirectory)/ufnloader-win86.zip'
+      #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
   - task: PublishBuildArtifacts@1
