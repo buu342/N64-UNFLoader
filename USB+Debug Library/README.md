@@ -1,9 +1,12 @@
 # USB + Debug Library
 This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The libraries currently only target libultra.
+</br>
+</br>
 
 ### Table of Contents
 * [How to use the USB library](#how-to-use-the-usb-library)
 * [How to use the Debug library](#how-to-use-the-debug-library)
+</br>
 
 ### How to use the USB library
 Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
@@ -77,6 +80,7 @@ void usb_purge();
 ```
 </p>
 </details>
+</br>
 
 ### How to use the Debug library
 The debug library is a basic practical implementation of the USB library. Simply include the `debug.c` and `debug.h` in your project (along with the usb library). You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB.
