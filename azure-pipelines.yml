@@ -1,5 +1,5 @@
 jobs:
-- job: UFNLoader Linux
+- job: UFNLoader_Linux
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -55,7 +55,7 @@ jobs:
       parallel: true # Optional
       #parallelCount: # Optional
 
-- job: UFNLoader Windows
+- job: UFNLoader_Windows
   pool:
     vmImage: 'windows-latest'
   steps:
@@ -107,7 +107,7 @@ jobs:
       parallel: true # Optional
       #parallelCount: # Optional
       
-# - job: macOS
+# - job: UFNLoader_macOS
 #   pool:
 #     vmImage: 'macOS-latest'
 #   steps:
