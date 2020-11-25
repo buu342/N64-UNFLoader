@@ -14,6 +14,7 @@ Currently supported devices:
 </br>
 </br>
 ### Table of contents
+
 * Requirements
 * Known Issues
 
