@@ -1,6 +1,6 @@
 # UNFLoader Program
 
-This folder contains information on how to use, and how to build UNFLoader for both Windows and Linux operating systems.
+This folder holds the source code for the UNFLoader program itself. This readme contains information on how to use, and how to build UNFLoader for both Windows and Linux operating systems.
 </br>
 </br>
 ### Table of Contents
