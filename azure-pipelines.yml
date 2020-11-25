@@ -36,12 +36,12 @@ jobs:
   # Archive Files
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
   - task: ArchiveFiles@2
-    inputs:
+    inputs: #TODO: the build dir is not in this folder... So where is it!
       rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/' 
       includeRootFolder: false
       archiveType: 'tar' # Options: zip, 7z, tar, wim
       tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-linux.zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-linux.tar.gz'
       #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
@@ -49,7 +49,7 @@ jobs:
     displayName: Publish Build Artifacts
     inputs:
       pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'linux-binaries' 
+      artifactName: 'unfloader-binaries' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
       parallel: true # Optional
@@ -89,11 +89,11 @@ jobs:
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
   - task: ArchiveFiles@2
     inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug' 
+      rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug/' 
       includeRootFolder: false
       archiveType: 'zip' # Options: zip, 7z, tar, wim
       #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-win86.zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-win_x86.zip'
       #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
@@ -101,7 +101,7 @@ jobs:
     displayName: Publish Build Artifacts
     inputs:
       pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'windows-binaries' 
+      artifactName: 'unfloader-binaries' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
       parallel: true # Optional
