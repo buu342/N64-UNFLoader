@@ -11,8 +11,9 @@ jobs:
       
       curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-1.4.8.gz --output libftd2xx.gz
       tar xvzf libftd2xx.gz
-      cp ./libftd2xx/release/WinTypes.h ftd2xx.h ./UNFLoader/Include/
-      cp ./libftd2xx/release/ftd2xx.h ./UNFLoader/Include/
+      cd ./libftd2xx/release/
+      cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/ Include
+      cd $BUILD_SOURCESDIRECTORY
       
       echo Build App
       cd ./UNFLoader/
