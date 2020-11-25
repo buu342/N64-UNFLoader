@@ -239,7 +239,7 @@ void debug_printcommands();
 
 ### Building UNFLoader
 <details><summary><b>Building UNFLoader for Windows</b></summary>
-Simply load the project file in Visual Studio 2019 or higher. 
+Simply load the project file in Visual Studio 2019 or higher. The [Windows XP toolset](https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp?view=msvc-160) needs to be installed, as it is optional in VS 2019.
 
 **The Include folder should already have everything you need for both Windows.**
 <details><summary>Updating libs to latest version (if required)</summary>
