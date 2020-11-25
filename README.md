@@ -241,8 +241,9 @@ void debug_printcommands();
 <details><summary><b>Building UNFLoader for Windows</b></summary>
 Simply load the project file in Visual Studio 2019 or higher. The <a href="https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp?view=msvc-160">Windows XP toolset</a> needs to be installed, as it is optional in VS 2019.
 
-**The Include folder should already have everything you need for both Windows.**
+**The Include folder should already have everything you need for Windows.**
 <details><summary>Updating libs to latest version (if required)</summary>
+
 **pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
 * Extract the contents of the zip (preferrably somewhere with no spaces in the file path, like `c:\pdcurses`).
