@@ -12,9 +12,9 @@ Currently supported devices:
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 * [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection), only N64 -> PC debug supported
 </br>
-</br>
-### Table of contents
 
+
+### Table of contents
 * Requirements
 * Known Issues
 
