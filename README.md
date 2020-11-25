@@ -17,21 +17,21 @@ Currently supported devices:
 * [Requirements](#requirements)
 * [UNFLoader](UNFLoader)
     - [How to use UNFLoader](UNFLoader#how-to-use-unfloader)
-    - How to build UNFLoader for Windows
-    - How to build UNFLoader for Linux
-* USB + Debug Library
-    - How to use the USB library
-    - How to use the Debug library
-    - Example ROMs
-        - Print "Hello World"
-        - Handle thread faults
-        - Read from USB
-        - Interpret USB commands
+    - [How to build UNFLoader for Windows](UNFLoader#how-to-build-unfloader-for-windows)
+    - [How to build UNFLoader for Linux](UNFLoader#how-to-build-unfloader-for-linux)
+* [USB + Debug Library](USB%2BDebug%20Library)
+    - [How to use the USB library](USB%2BDebug%20Library#how-to-use-the-usb-library)
+    - [How to use the Debug library](USB%2BDebug%20Library#how-to-use-the-debug-library)
+    - [Example ROMs](Examples)
+        - [Print "Hello World"](Examples#1-hello-world)
+        - [Handle thread faults](Examples#2-thread-faults)
+        - [Read from USB](Examples#3-raw-usb-reading)
+        - [Interpret USB commands](Examples#4-command-interpreter)
 
-* Important implementation details
-* Extending the libraries/loader program
-* Known Issues
-* Credits
+* [Important implementation details](#important-implementation-details)
+* [Extending the libraries/loader program](#extending-the-librariesloader-program)
+* [Known Issues](#known-issues)
+* [Credits](#credits)
 </br>
 
 ### Requirements
