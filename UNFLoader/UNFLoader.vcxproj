@@ -117,8 +117,8 @@
     <ClInclude Include="include\curses.h" />
     <ClInclude Include="include\curspriv.h" />
     <ClInclude Include="include\ftd2xx.h" />
-    <ClInclude Include="Include\lodepng.h" />
-    <ClInclude Include="Include\panel.h" />
+    <ClInclude Include="include\lodepng.h" />
+    <ClInclude Include="include\panel.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <ItemGroup>
