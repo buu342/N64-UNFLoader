@@ -14,13 +14,15 @@ jobs:
       tar xvzf libftd2xx.gz -C ./libftd2xx
       cd ./libftd2xx/release/
       cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/Include/
-      #cd ..
-      #sudo cp release/build/lib* /usr/local/lib
-      #cd /usr/local/lib
-      #sudo ln -s libftd2xx.so.1.4.8 libftd2xx.so
-      #sudo chmod 0755 libftd2xx.so.1.4.8
-      cd ./build/
-      cp libftd2xx.so.1.4.8 $BUILD_SOURCESDIRECTORY/UNFLoader/Include/libftd2xx.so
+      
+      echo Install FTDI driver.
+      sudo cp build/lib* /usr/local/lib
+      cd /usr/local/lib
+      sudo ln -s libftd2xx.so.1.4.8 libftd2xx.so
+      sudo chmod 0755 libftd2xx.so.1.4.8
+      #cd ./build/
+      #cp libftd2xx.so.1.4.8 $BUILD_SOURCESDIRECTORY/UNFLoader/Include/libftd2xx.so
+      
       cd $BUILD_SOURCESDIRECTORY
       
       echo Build App
