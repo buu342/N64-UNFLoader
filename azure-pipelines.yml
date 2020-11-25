@@ -37,14 +37,14 @@ jobs:
   pool:
     vmImage: 'windows-latest'
   steps:
-  - script: |
-      echo Downloading dependencies
+  #- script: |
+  #    echo Downloading dependencies
       #curl -L https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip --output libftd2xx.zip
       #curl -L https://github.com/wmcbrine/PDCurses/archive/3.9.zip --output PDCurses.zip
       #curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.c
       #curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
-    displayName: 'Download Dependencies'
-    continueOnError: false
+   # displayName: 'Download Dependencies'
+   # continueOnError: false
        
   # Visual Studio build
   # Build with MSBuild and set the Visual Studio version property
