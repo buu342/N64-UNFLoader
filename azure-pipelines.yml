@@ -30,12 +30,22 @@ jobs:
       ls
       make -f Makefile
       #copy to artifacts directory
+    displayName: 'Build Application'
+    continueOnError: false
 
-# - job: Windows
-#   pool:
-#     vmImage: 'windows-latest'
-#   - script: |
-#       echo Building
+ - job: Windows
+   pool:
+     vmImage: 'windows-latest'
+   - script: |
+      echo Downloading dependencies
+      curl -L https://www.ftdichip.com/Drivers/CDM/CDM%20v2.12.28%20WHQL%20Certified.zip --output libftd2xx.zip
+      curl -L https://github.com/wmcbrine/PDCurses/archive/3.9.zip --output PDCurses.zip
+      curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.c
+      curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
+    displayName: 'Download Dependencies'
+    continueOnError: false
+       
+       
 
 
 
