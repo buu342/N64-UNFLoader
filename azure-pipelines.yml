@@ -1,5 +1,5 @@
 jobs:
-- job: UFNLoader_Linux
+- job: UNFLoader_Linux
   pool:
     vmImage: 'ubuntu-latest'
   steps:
@@ -37,11 +37,11 @@ jobs:
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
   - task: ArchiveFiles@2
     inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/UFNLoader/' 
+      rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/' 
       includeRootFolder: false
-      archiveType: 'zip' # Options: zip, 7z, tar, wim
-      #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-      archiveFile: '$(Build.ArtifactStagingDirectory)/ufnloader-linux.zip'
+      archiveType: 'tar' # Options: zip, 7z, tar, wim
+      tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
+      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-linux.zip'
       #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
@@ -49,13 +49,13 @@ jobs:
     displayName: Publish Build Artifacts
     inputs:
       pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'windows-binaries' 
+      artifactName: 'linux-binaries' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
       parallel: true # Optional
       #parallelCount: # Optional
 
-- job: UFNLoader_Windows
+- job: UNFLoader_Windows
   pool:
     vmImage: 'windows-latest'
   steps:
@@ -89,11 +89,11 @@ jobs:
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
   - task: ArchiveFiles@2
     inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/UFNLoader/Debug' 
+      rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug' 
       includeRootFolder: false
       archiveType: 'zip' # Options: zip, 7z, tar, wim
       #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-      archiveFile: '$(Build.ArtifactStagingDirectory)/ufnloader-win86.zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-win86.zip'
       #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
