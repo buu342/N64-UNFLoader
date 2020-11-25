@@ -28,10 +28,10 @@
     <ClCompile Include="device_sc64.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Include\lodepng.c">
-      <Filter>Include</Filter>
-    </ClCompile>
     <ClCompile Include="device_everdrive.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\lodepng.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
