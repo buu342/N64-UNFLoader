@@ -103,7 +103,7 @@
     <ClCompile Include="device_everdrive.cpp" />
     <ClCompile Include="device_sc64.cpp" />
     <ClCompile Include="helper.cpp" />
-    <ClCompile Include="Include\lodepng.c" />
+    <ClCompile Include="lodepng.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
