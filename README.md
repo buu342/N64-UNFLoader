@@ -140,7 +140,7 @@ KRIKzz, saturnu, networkfusion, lambertjamesd, and jsdf for providing sample cod
 
 fraser and networkfusion for all the help provided during the development of this project as well as their support.
 
-networkfusion for lending me his remote test rig for the ED3 and X7, as well as setting up the azure pipeline system.
+networkfusion for lending me his remote test rig for the ED3 and X7, as well as setting up the azure pipeline system and helping organize this repo.
 
 danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
 
