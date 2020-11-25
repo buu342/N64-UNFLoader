@@ -15,29 +15,29 @@ Currently supported devices:
 
 
 ### Table of contents
-* Requirements
-* Known Issues
+* Requirements  
 
   **UNFLoader**
-  * How to use UNFLoader 
-  * How to build UNFLoader for Windows
-  * How to build UNFLoader for Linux
+  * How to use UNFLoader  
+  * How to build UNFLoader for Windows  
+  * How to build UNFLoader for Linux  
 
   **USB + Debug Library**
-  * How to use the USB library
-  * How to use the Debug library
-  * How to build UNFLoader for Linux
+  * How to use the USB library  
+  * How to use the Debug library  
+  * How to build UNFLoader for Linux  
   
     **Example ROMs**
-    * Print "Hello World"
-    * Handle thread faults
-    * Read from USB
-    * Interpret USB commands
+    * Print "Hello World"  
+    * Handle thread faults  
+    * Read from USB  
+    * Interpret USB commands  
 
-* Important implementation details
-* Extending the libraries/loader program
-* Credits
-* Users
+* Important implementation details  
+* Extending the libraries/loader program  
+* Known Issues  
+* Credits  
+
 </br>
 </br>
 ### Requirements
