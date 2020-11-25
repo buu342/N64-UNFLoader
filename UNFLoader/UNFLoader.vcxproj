@@ -57,12 +57,10 @@
       <PrecompiledHeader />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_USING_V110_SDK71_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>C:\Users\Lourenço\Desktop\Game Development\Game Projects\N64 Platform64\FlashCart Uploader\Dependencies\ftd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-    <Link />
-    <Link />
     <Link>
-      <AdditionalLibraryDirectories>C:\Users\Lourenço\Desktop\Game Development\Game Projects\N64 Platform64\FlashCart Uploader\Dependencies\ftd\i386;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -70,7 +68,7 @@
     <ClCompile>
       <Optimization>Full</Optimization>
       <IntrinsicFunctions>false</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>C:\Users\Lourenço\Desktop\Game Development\Game Projects\N64 Platform64\FlashCart Uploader\Dependencies\ftd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -82,7 +80,7 @@
     </ClCompile>
     <Link>
       <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>C:\Users\Lourenço\Desktop\Game Development\Game Projects\N64 Platform64\FlashCart Uploader\Dependencies\ftd\i386;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
@@ -104,7 +102,7 @@
     <ClCompile Include="device_everdrive.cpp" />
     <ClCompile Include="device_sc64.cpp" />
     <ClCompile Include="helper.cpp" />
-    <ClCompile Include="Include\lodepng.c" />
+    <ClCompile Include="include\lodepng.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -118,8 +116,8 @@
     <ClInclude Include="include\curses.h" />
     <ClInclude Include="include\curspriv.h" />
     <ClInclude Include="include\ftd2xx.h" />
-    <ClInclude Include="Include\lodepng.h" />
-    <ClInclude Include="Include\panel.h" />
+    <ClInclude Include="include\lodepng.h" />
+    <ClInclude Include="include\panel.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <ItemGroup>

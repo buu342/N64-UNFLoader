@@ -5,7 +5,7 @@ CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
 	device_64drive.cpp \
 	device_everdrive.cpp \
 	device_sc64.cpp
-LIBFILES=Include/lodepng.c
+LIBFILES=Include/lodepng.cpp
 
 CC=g++
 
