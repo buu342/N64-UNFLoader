@@ -93,20 +93,21 @@ jobs:
 
   # Archive Files
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
-  - task: ArchiveFiles@2
-    inputs:
-      rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug/' 
-      includeRootFolder: false
-      archiveType: 'zip' # Options: zip, 7z, tar, wim
-      #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
-      archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-win_x86.zip'
-      #replaceExistingArchive: true
+  #- task: ArchiveFiles@2
+  #  inputs:
+  #    rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug/' 
+  #    includeRootFolder: false
+  #    archiveType: 'zip' # Options: zip, 7z, tar, wim
+  #    #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
+  #    archiveFile: '$(Build.ArtifactStagingDirectory)/unfloader-win_x86.zip'
+  #    #replaceExistingArchive: true
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Debug/*.exe'
+      #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'unfloader-windows' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
