@@ -14,6 +14,8 @@ jobs:
       tar xvzf libftd2xx.gz -C ./libftd2xx
       cd ./libftd2xx/release/
       cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/Include/
+      cd ./build
+      cp libftd2xx.a $BUILD_SOURCESDIRECTORY/UNFLoader/Include/
       cd $BUILD_SOURCESDIRECTORY
       
       echo Build App
