@@ -11,10 +11,8 @@ jobs:
       
       curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-1.4.8.gz --output libftd2xx.gz
       tar xvzf libftd2xx.gz
-      echo TODO: copy libftdi files
-      cd ./libftd2xx
-      ls
-      cd ..
+      cp ./libftd2xx/release/WinTypes.h ftd2xx.h ./UNFLoader/Include/
+      cp ./libftd2xx/release/ftd2xx.h ./UNFLoader/Include/
       
       echo Build App
       cd ./UNFLoader/
