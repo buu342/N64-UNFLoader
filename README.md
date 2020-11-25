@@ -1,5 +1,5 @@
 # UNFLoader
-**This project is currently in development. It's available here to facilitate collaboration and as a safety backup. Please be patient if things aren't working 100% yet! Check the issues page for the TODO list.**
+**The code in this repo might be unstable! For stable versions, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra. I have also implemented a very basic debug library (`debug.c`) that makes use of said USB library.
 Currently supported devices:
@@ -238,10 +238,11 @@ void debug_printcommands();
 </details>
 
 ### Building UNFLoader
-<details><summary>Building UNFLoader for Windows</summary>
-<p>
-Simply load the project file in Visual Studio 2019 or higher.
-The Include folder should already have everything you need for both Windows and Linux, but if you wish to build/retrieve the libraries yourself:
+<details><summary><b>Building UNFLoader for Windows</b></summary>
+Simply load the project file in Visual Studio 2019 or higher. The <a href="https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp?view=msvc-160">Windows XP toolset</a> needs to be installed, as it is optional in VS 2019.
+
+**The Include folder should already have everything you need for Windows.**
+<details><summary>Updating libs to latest version (if required)</summary>
 
 **pdcurses.lib**
 * Grab the latest version of PDCurses from [here](https://github.com/wmcbrine/PDCurses).
@@ -263,12 +264,13 @@ The Include folder should already have everything you need for both Windows and 
 **lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
-
+</br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</details>
 </p>
 </details>
 
-<details><summary>Building UNFLoader for Linux</summary>
+<details><summary><b>Building UNFLoader for Linux</b></summary>
 <p>
 You need to have the FTDI driver installed, as well as ncurses.
 Install ncurses by invoking:
@@ -280,10 +282,11 @@ sudo apt-get install libncurses5-dev libncursesw5-dev
 Once the dependencies are installed, simply execute the makefile:
 
 ```
-make -f makefile.linux
+make -f Makefile
 ```
 
-The Include folder should already have everything you need for both Windows and Linux, but if you wish to retrieve the libraries yourself:
+**The Include folder should already have everything you need for Linux.**
+<details><summary>Updating libs to latest version (if required)</summary>
 
 **ftd2xx + WinTypes**
 * Download the FTDI driver provided in the **Requirements** section and extract the zip.
@@ -294,7 +297,9 @@ The Include folder should already have everything you need for both Windows and 
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
 
+</br>
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</details>
 </p>
 </details>
 
@@ -323,6 +328,11 @@ The data type mentioned is up to the developer to implement. If you wish to add 
 There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
 
 
+### Known issues
+
+All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there.
+
+
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
 
@@ -338,6 +348,6 @@ korgeaux for implementing support for his SummerCart64.
 
 CrashOveride for ensuring the samples compile on his Linux libultra port. 
 
-This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
+This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
 
 The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried and kivan117. You guys are the reason this project was possible!
