@@ -115,15 +115,15 @@ jobs:
       parallel: true # Optional
       #parallelCount: # Optional
       
-  - job: UFNLoader_macOS
-    pool:
-     vmImage: 'macOS-latest'
-   steps:
-   - script: |
-      echo Build App
-      cd ./UNFLoader/
-      ls
-      make -f Makefile
+- job: UFNLoader_macOS
+  pool:
+   vmImage: 'macOS-latest'
+ steps:
+ - script: |
+    echo Build App
+    cd ./UNFLoader/
+    ls
+    make -f Makefile
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
   - task: PublishBuildArtifacts@1
