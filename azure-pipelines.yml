@@ -55,7 +55,7 @@ jobs:
     displayName: Publish Build Artifacts
     inputs:
       pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'unfloader-binaries' 
+      artifactName: 'unfloader-linux' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
       parallel: true # Optional
@@ -107,7 +107,7 @@ jobs:
     displayName: Publish Build Artifacts
     inputs:
       pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'unfloader-binaries' 
+      artifactName: 'unfloader-windows' 
       publishLocation: 'Container' # Options: container, filePath
       #targetPath: # Required when publishLocation == FilePath
       parallel: true # Optional
