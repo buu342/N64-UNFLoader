@@ -13,22 +13,20 @@ Currently supported devices:
 * [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection), only N64 -> PC debug supported
 </br>
 
-
 ### Table of contents
-* Requirements
-* UNFLoader
-  - How to use UNFLoader
-  - How to build UNFLoader for Windows
-  - How to build UNFLoader for Linux
+* [Requirements](#requirements)
+* [UNFLoader](UNFLoader)
+    - [How to use UNFLoader](UNFLoader#how-to-use-unfloader)
+    - How to build UNFLoader for Windows
+    - How to build UNFLoader for Linux
 * USB + Debug Library
-  - How to use the USB library
-  - How to use the Debug library
-  - How to build UNFLoader for Linux
-  - Example ROMs**
-    - Print "Hello World"
-    - Handle thread faults
-    - Read from USB
-    - Interpret USB commands
+    - How to use the USB library
+    - How to use the Debug library
+    - Example ROMs
+        - Print "Hello World"
+        - Handle thread faults
+        - Read from USB
+        - Interpret USB commands
 
 * Important implementation details
 * Extending the libraries/loader program
