@@ -10,9 +10,10 @@ jobs:
       curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
       
       curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-1.4.8.gz --output libftd2xx.gz
-      tar xvzf libftd2xx.gz
+      mkdir ./libftd2xx
+      tar xvzf libftd2xx.gz -C ./libftd2xx
       cd ./libftd2xx/release/
-      cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/ Include
+      cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/Include/
       cd $BUILD_SOURCESDIRECTORY
       
       echo Build App
