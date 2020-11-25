@@ -51,19 +51,29 @@ jobs:
   - task: VSBuild@1
     inputs:
       solution: '**\*.sln' 
-      vsVersion: 'latest' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
+      vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
       #platform: # Optional
       #configuration: # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
       #restoreNugetPackages: false # Optional
-      #msbuildArchitecture: 'x86' # Optional. Options: x86, x64
+      msbuildArchitecture: 'x86' # Optional. Options: x86, x64
       #logProjectEvents: true # Optional
       #createLogFile: false # Optional
       #logFileVerbosity: 'normal' # Optional. Options: quiet, minimal, normal, detailed, diagnostic
 
-       
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'windows-binaries' 
+      publishLocation: 'Container' # Options: container, filePath
+      #targetPath: # Required when publishLocation == FilePath
+      parallel: true # Optional
+      #parallelCount: # Optional
+      
 # - job: macOS
 #   pool:
 #     vmImage: 'macOS-latest'
