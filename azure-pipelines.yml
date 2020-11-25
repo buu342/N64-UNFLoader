@@ -19,7 +19,7 @@ jobs:
       #cd /usr/local/lib
       #sudo ln -s libftd2xx.so.1.4.8 libftd2xx.so
       #sudo chmod 0755 libftd2xx.so.1.4.8
-      cd ./build/lib/
+      cd ./build/
       cp libftd2xx.so.1.4.8 $BUILD_SOURCESDIRECTORY/UNFLoader/Include/libftd2xx.so
       cd $BUILD_SOURCESDIRECTORY
       
