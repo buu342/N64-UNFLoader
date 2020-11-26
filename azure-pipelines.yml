@@ -139,25 +139,25 @@ jobs:
     #releaseTag: # Required when compareWith == LastReleaseByTag
 
       
-- job: UFNLoader_macOS
-  pool:
-   vmImage: 'macOS-latest'
-  steps:
-  - script: |
-      echo Build App
-      cd ./UNFLoader/
-      ls
-      make -f Makefile
-    displayName: 'Build Program'
+# - job: UFNLoader_macOS
+#   pool:
+#    vmImage: 'macOS-latest'
+#   steps:
+#   - script: |
+#       echo Build App
+#       cd ./UNFLoader/
+#       ls
+#       make -f Makefile
+#     displayName: 'Build Program'
 
-  # Publish build artifacts to Azure Artifacts/TFS or a file share
-  - task: PublishBuildArtifacts@1
-    displayName: Publish Build Artifacts
-    inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader'
-      #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'unfloader-macOS' 
-      publishLocation: 'Container' # Options: container, filePath
-      #targetPath: # Required when publishLocation == FilePath
-      parallel: true # Optional
-      #parallelCount: # Optional
+#   # Publish build artifacts to Azure Artifacts/TFS or a file share
+#   - task: PublishBuildArtifacts@1
+#     displayName: Publish Build Artifacts
+#     inputs:
+#       pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader'
+#       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+#       artifactName: 'unfloader-macOS' 
+#       publishLocation: 'Container' # Options: container, filePath
+#       #targetPath: # Required when publishLocation == FilePath
+#       parallel: true # Optional
+#       #parallelCount: # Optional
