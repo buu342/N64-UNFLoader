@@ -15,8 +15,8 @@ Currently supported devices:
 </br>
 
 ### Table of contents
-* [Requirements](#requirements)
 * [UNFLoader](UNFLoader)
+    - [System Requirements](UNFLoader#system-requirements)
     - [How to use UNFLoader](UNFLoader#how-to-use-unfloader)
     - [How to build UNFLoader for Windows](UNFLoader#how-to-build-unfloader-for-windows)
     - [How to build UNFLoader for Linux](UNFLoader#how-to-build-unfloader-for-linux)
@@ -32,42 +32,6 @@ Currently supported devices:
 * [Extending the libraries/loader program](#extending-the-librariesloader-program)
 * [Known Issues](#known-issues)
 * [Credits](#credits)
-</br>
-
-### Requirements
-<details><summary>Windows</summary>
-<p>
-    
-* Windows XP or higher
-* [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm). If you are on Windows XP, be sure you download the XP driver and not the first one.
-</p>
-</details>
-    
-<details><summary>Linux</summary>
-<p>
-    
-* Ubuntu (Haven't tested with others)
-* [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
-* You must run UNFLoader with `sudo`.
-* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands every time you start a new terminal session: 
-```
-sudo rmmod usbserial
-sudo rmmod ftdi_sio
-```
-</p>
-</details>
-
-<details><summary>macOS</summary>
-<p>
-    
-![The macOS System Information window showing an FTDI device connected to a USB3 port](readme_assets/macos_system_report.png)
-* Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
-* Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
-* [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
-* Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
-* You must run UNFLoader with `sudo`.
-</p>
-</details>
 </br>
 
 ### Important implementation details
