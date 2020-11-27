@@ -126,8 +126,12 @@ https://github.com/buu342/N64-UNFLoader
 #define SC64_REG_SCR                (SC64_REGS_BASE + 0x00)
 #define SC64_REG_VERSION            (SC64_REGS_BASE + 0x08)
 #define SC64_REG_USB_SCR            (SC64_REGS_BASE + 0x10)
-#define SC64_REG_USB_BANK_ADDR      (SC64_REGS_BASE + 0x14)
-#define SC64_REG_USB_LENGTH         (SC64_REGS_BASE + 0x18)
+#define SC64_REG_USB_DMA_ADDR       (SC64_REGS_BASE + 0x14)
+#define SC64_REG_USB_DMA_LEN        (SC64_REGS_BASE + 0x18)
+
+#define SC64_MEM_BASE               (SC64_REGS_BASE + 0x1000)
+#define SC64_MEM_USB_FIFO_BASE      (SC64_MEM_BASE + 0x0000)
+#define SC64_MEM_USB_FIFO_LEN       (4 * 1024)
 
 #define SC64_SCR_SDRAM_WRITE_EN     (1 << 0)
 
@@ -136,10 +140,12 @@ https://github.com/buu342/N64-UNFLoader
 #define SC64_USB_STATUS_BUSY        (1 << 0)
 #define SC64_USB_STATUS_READY       (1 << 1)
 #define SC64_USB_CONTROL_START      (1 << 0)
+#define SC64_USB_CONTROL_FIFO_FLUSH (1 << 2)
 
 #define SC64_USB_BANK_ADDR(b, a)    ((((b) & 0xF) << 28) | ((a) & 0x3FFFFFF))
 #define SC64_USB_LENGTH(l)          (ALIGN((l), 4) / 4)
-#define SC64_USB_MAX_LENGTH         (2 * 1024 * 1024)
+#define SC64_USB_DMA_MAX_LEN        (2 * 1024 * 1024)
+#define SC64_USB_FIFO_ITEMS(s)      (((s) >> 3) & 0x7FF)
 
 
 /*********************************
@@ -1208,6 +1214,46 @@ static void usb_everdrive_read()
 
 
 /*==============================
+    usb_sc64_read_usb_scr
+    Reads SummerCart64 REG_USB_SCR register
+    @return value of REG_USB_SCR register
+==============================*/
+
+static u32 usb_sc64_read_usb_scr(void)
+{
+    u32 usb_scr;
+
+    #if USE_OSRAW
+        osPiRawReadIo(SC64_REG_USB_SCR, &usb_scr);
+    #else
+        osPiReadIo(SC64_REG_USB_SCR, &usb_scr);
+    #endif
+
+    return usb_scr;
+}
+
+
+/*==============================
+    usb_sc64_read_usb_fifo
+    Loads one element from USB FIFO
+    @return value popped from USB FIFO
+==============================*/
+
+static u32 usb_sc64_read_usb_fifo(void)
+{
+    u32 data;
+
+    #if USE_OSRAW
+        osPiRawReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+    #else
+        osPiReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+    #endif
+
+    return data;
+}
+
+
+/*==============================
     usb_sc64_waitidle
     Waits for the SummerCart64 USB interface to be idle
     @return 0 if interface is ready, -1 if USB cable is not connected
@@ -1216,24 +1262,46 @@ static void usb_everdrive_read()
 static s8 usb_sc64_waitidle(void)
 {
     u32 usb_scr;
-    u32 timeout = 0;
 
     do
     {
-        #if USE_OSRAW
-            osPiRawReadIo(SC64_REG_USB_SCR, &usb_scr);
-        #else
-            osPiReadIo(SC64_REG_USB_SCR, &usb_scr);
-        #endif
-
+        usb_scr = usb_sc64_read_usb_scr();
         if (!(usb_scr & SC64_USB_STATUS_READY)) {
             // Reset usb_cart type if USB cable is not connected
             usb_cart = CART_NONE;
             return -1;
         }
-    } while(usb_scr & SC64_USB_STATUS_BUSY);
+    } while (usb_scr & SC64_USB_STATUS_BUSY);
 
     return 0;
+}
+
+
+/*==============================
+    usb_sc64_waitdata
+    Waits for the SummerCart64 USB FIFO to contain specified amount of data or for full FIFO
+    @param length in bytes
+    @return number of available bytes in FIFO, -1 if USB cable is not connected
+==============================*/
+
+static s32 usb_sc64_waitdata(u32 length)
+{
+    u32 usb_scr;
+    u32 wait_length = ALIGN(MIN(length, SC64_MEM_USB_FIFO_LEN), 4);
+    u32 bytes = 0;
+
+    do
+    {
+        usb_scr = usb_sc64_read_usb_scr();
+        if (!(usb_scr & SC64_USB_STATUS_READY)) {
+            // Reset usb_cart type if USB cable is not connected
+            usb_cart = CART_NONE;
+            return -1;
+        }
+        bytes = SC64_USB_FIFO_ITEMS(usb_scr) * 4;
+    } while (bytes < wait_length);
+
+    return (s32) bytes;
 }
 
 
@@ -1273,7 +1341,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     u8 wrote_cmp = FALSE;
 
     size_t block_size = MIN(BUFFER_SIZE, DEBUG_ADDRESS_SIZE);
-    size_t usb_block_max_size = MIN(DEBUG_ADDRESS_SIZE, SC64_USB_MAX_LENGTH);
+    size_t usb_block_max_size = MIN(DEBUG_ADDRESS_SIZE, SC64_USB_DMA_MAX_LEN);
 
     u8* data_ptr = (u8*) data;
     u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
@@ -1305,7 +1373,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         // Calculate data copy length
         size_t data_length = MIN(MIN(left, block_size - offset), usb_block_max_size - transfer_length);
         u32 dma_length;
-        
+
         // Fill buffer
         memcpy(usb_buffer + offset, data_ptr, data_length);
 
@@ -1352,12 +1420,12 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 
         // Setup hardware registers
         #if USE_OSRAW
-            osPiRawWriteIo(SC64_REG_USB_BANK_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
-            osPiRawWriteIo(SC64_REG_USB_LENGTH, SC64_USB_LENGTH(transfer_length));
+            osPiRawWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
+            osPiRawWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
             osPiRawWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
         #else
-            osPiWriteIo(SC64_REG_USB_BANK_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
-            osPiWriteIo(SC64_REG_USB_LENGTH, SC64_USB_LENGTH(transfer_length));
+            osPiWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
+            osPiWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
             osPiWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
         #endif
 
@@ -1366,6 +1434,9 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         {
             if (usb_sc64_waitidle())
             {
+                // Disable SDRAM writes
+                usb_sc64_setwritable(FALSE);
+
                 // Stop sending data if USB cable has been disconnected
                 return;
             }
@@ -1387,7 +1458,86 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 
 static u32 usb_sc64_poll(void)
 {
-    // TODO: Implement reading
+    u32 buff;
+
+    // Load how many 32 bit words are in FIFO
+    u32 fifo_items = SC64_USB_FIFO_ITEMS(usb_sc64_read_usb_scr());
+
+    // Check data if there's at least DMA@ and header in FIFO
+    if (fifo_items >= 2)
+    {
+        // Load and check DMA@ identifier
+        buff = usb_sc64_read_usb_fifo();
+        if (memcmp(&buff, "DMA@", 4) != 0)
+        {
+            // Return if identifier is wrong
+            return 0;
+        }
+
+        // Load header
+        buff = usb_sc64_read_usb_fifo();
+
+        // Fill USB read data variables
+        usb_datatype = USBHEADER_GETTYPE(buff);
+        usb_dataleft = USBHEADER_GETSIZE(buff);
+        usb_datasize = usb_dataleft;
+        usb_readblock = -1;
+
+        // Calculate copy length, data size + CMPH identifier aligned to 4 bytes
+        int left = ALIGN(usb_datasize + 4, 4);
+
+        // Starting address in SDRAM
+        u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+
+        // Enable SDRAM writes
+        usb_sc64_setwritable(TRUE);
+
+        // Copy data until finished
+        while (left > 0)
+        {
+            // Calculate transfer length
+            s32 dma_length = MIN(left, BUFFER_SIZE);
+
+            // Wait for data in FIFO
+            dma_length = usb_sc64_waitdata(dma_length);
+            if (dma_length < 0)
+            {
+                // Disable SDRAM writes
+                usb_sc64_setwritable(FALSE);
+
+                // Stop waiting for data if USB cable has been disconnected
+                return 0;
+            }
+
+            // Load data from FIFO to buffer in RDRAM
+            #if USE_OSRAW
+                osPiRawStartDma(OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length);
+            #else
+                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length, &dmaMessageQ);
+                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            #endif
+
+            // Copy data from RDRAM to SDRAM
+            #if USE_OSRAW
+                osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
+            #else
+                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
+                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            #endif
+
+            // Update tracking variables
+            left -= dma_length;
+            sdram_address += dma_length;
+        }
+
+        // Disable SDRAM writes
+        usb_sc64_setwritable(FALSE);
+
+        // Return USB header
+        return USBHEADER_CREATE(usb_datatype, usb_dataleft);
+    }
+
+    // Return no USB header if FIFO is empty
     return 0;
 }
 
@@ -1399,6 +1549,17 @@ static u32 usb_sc64_poll(void)
 
 static void usb_sc64_read(void)
 {
-    // TODO: Implement reading
-    return;
+    // Calculate address in SDRAM
+    u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS + usb_readblock;
+
+    // Set up DMA transfer between RDRAM and the PI
+    #if USE_OSRAW
+        osPiRawStartDma(OS_READ, sdram_address, usb_buffer, BUFFER_SIZE);
+    #else
+        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, sdram_address, usb_buffer, BUFFER_SIZE, &dmaMessageQ);
+        osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+    #endif
+
+    // Invalidate cache
+    osInvalDCache(usb_buffer, BUFFER_SIZE);
 }
