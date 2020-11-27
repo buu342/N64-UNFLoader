@@ -168,6 +168,16 @@ void parse_args(int argc, char* argv[])
             else 
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
+        else if (!strcmp(command, "-s")) // Set save type command
+        {
+            i++;
+
+            // If we have an argument after this one, then set the save type, otherwise terminate
+            if (i < argc && argv[i][0] != '-')
+                global_savetype = strtol(argv[i], NULL, 0);
+            else
+                terminate("Missing parameter(s) for command '%s'.", command);
+        }
         else if (!strcmp(command, "-h")) // Set terminal height
         {
             i++;

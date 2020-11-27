@@ -1,6 +1,6 @@
 /***************************************************************
                        device_sc64.cpp
-                               
+
 Handles SummerCart64 USB communication.
 https://github.com/Polprzewodnikowy/SummerCollection
 
@@ -9,6 +9,19 @@ https://github.com/Polprzewodnikowy/SummerCollection
 #include "main.h"
 #include "helper.h"
 #include "device_sc64.h"
+
+
+/*********************************
+           Data macros
+*********************************/
+
+#ifndef ALIGN
+#define ALIGN(x, a) (((x) % (a)) ? ((x) + ((a) - ((x) % (a)))) : (x))
+#endif
+
+#ifndef MIN
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 
 /*********************************
@@ -90,7 +103,7 @@ static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buff
     cmd_params_buff[1] = (u8)'M';
     cmd_params_buff[2] = (u8)'D';
     cmd_params_buff[3] = command;
-    
+
     // Prepare parameters
     va_start(params, numparams);
     if (numparams > 2) {
@@ -226,6 +239,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     u32 offset;
     size_t bytes_left;
     time_t upload_time_start;
+    u32 gpio;
     u32 cic_tv_type;
     u32 cart_config;
 
@@ -237,6 +251,17 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     if (rom_buffer == NULL) {
         terminate("Error: Unable to allocate memory for buffer.\n");
     }
+
+    // Reset console and wait 500 ms for PRE_NMI event
+    gpio = swap_endian(DEV_GPIO_RESET);
+    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_GPIO, (u8*)(&gpio), 4);
+    pdprint("Resetting console... ", CRDEF_PROGRAM);
+    #ifndef LINUX
+        Sleep(500);
+    #else
+        usleep(500);
+    #endif
+    pdprint("done.\n", CRDEF_PROGRAM);
 
     // Set unknown CIC and TV type as default
     cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_UNKNOWN, DEV_TV_TYPE_UNKNOWN);
@@ -328,6 +353,10 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     // Free ROM buffer
     free(rom_buffer);
 
+    // Release reset
+    gpio = swap_endian(~DEV_GPIO_RESET);
+    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_GPIO, (u8*)(&gpio), 4);
+
     if (bytes_left > 0) {
         // Throw error if upload was unsuccessful
         terminate("Error: SummerCart64 timed out");
@@ -349,7 +378,41 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 
 void device_senddata_sc64(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    // TODO: Currently no support in hardware
+    // Calculate transfer length
+    u32 transfer_length = ALIGN(8 + size + 4, 4);
+
+    // Allocate data buffer
+    u8 *buff = (u8 *) malloc(transfer_length);
+
+    // Create header
+    u32 header = swap_endian((size & 0x00FFFFFF) | datatype << 24);
+
+    // Copy data to buffer
+    memcpy(buff, "DMA@", 4);
+    memcpy(buff + 4, &header, 4);
+    memcpy(buff + 8, data, size);
+    memcpy(buff + 8 + size, "CMPH", 4);
+
+    // Calculate number of transfers
+    int num_transfers = (transfer_length / DEV_MAX_RW_BYTES) + 1;
+
+    // Set buffer pointer
+    u8 *buff_ptr = buff;
+
+    for (int i = 0; i < num_transfers; i++) {
+        // Calculate block length
+        u32 block_length = MIN(transfer_length, DEV_MAX_RW_BYTES);
+        
+        // Send block
+        device_sendcmd_sc64(cart, DEV_CMD_DEBUG_WRITE, buff_ptr, block_length, NULL, 0, false, 1, DEV_DEBUG_WRITE_PARAM_1(block_length));
+        
+        // Update tracking variables
+        transfer_length -= block_length;
+        buff_ptr += block_length;
+    }
+
+    // Free data buffer
+    free(buff);
 }
 
 

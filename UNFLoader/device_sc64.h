@@ -10,6 +10,7 @@
 
     #define    DEV_CMD_IDENTIFY             'I'
     #define    DEV_CMD_WRITE                'W'
+    #define    DEV_CMD_DEBUG_WRITE          'D'
 
     #define    DEV_BANK_ROM                 1
     #define    DEV_BANK_CART                2
@@ -23,12 +24,16 @@
     #define    DEV_RW_PARAM_1(offset)       ((offset) & 0x3FFFFFF)
     #define    DEV_RW_PARAM_2(bank, len)    (((bank & 0xF) << 24) | (DEV_BYTES_TO_LENGTH(len) & 0xFFFFF))
     #define    DEV_RW_PARAMS(o, b, l)       2, DEV_RW_PARAM_1(o), DEV_RW_PARAM_2(b, l)
+    #define    DEV_DEBUG_WRITE_PARAM_1(len) (DEV_BYTES_TO_LENGTH(len) & 0xFFFFF)
 
     #define    DEV_OFFSET_SCR               0
     #define    DEV_OFFSET_CIC_TV_TYPE       4
+    #define    DEV_OFFSET_GPIO              12
 
     #define    DEV_SAVE_TYPE_EEPROM_4K      (1 << 3)
     #define    DEV_SAVE_TYPE_EEPROM_16K     ((1 << 4) | DEV_SAVE_TYPE_EEPROM_4K)
+
+    #define    DEV_GPIO_RESET               (1 << 0)
 
     #define    DEV_CIC_UNKNOWN              0
     #define    DEV_CIC_5101                 1
