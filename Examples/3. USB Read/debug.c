@@ -602,7 +602,6 @@ https://github.com/buu342/N64-UNFLoader
         debug_parsecommand and debug_sizecommand
     ==============================*/
     
-    char shitty[256];
     static void debug_commands_setup()
     {
         int i;
