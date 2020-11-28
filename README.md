@@ -29,8 +29,8 @@ Currently supported devices:
     - [Read from USB](Examples#3-raw-usb-reading)
     - [Interpret USB commands](Examples#4-command-interpreter)
 * [Important implementation details](#important-implementation-details)
-* [Extending the libraries/loader program](#extending-the-librariesloader-program)
-* [Known Issues](#known-issues)
+* [Extending UNFLoader](#extending-unfloader)
+* [Known Issues and Suggestions](#known-issues-and-suggestions)
 * [Credits](#credits)
 </br>
 
@@ -67,34 +67,14 @@ Currently supported devices:
 </details>
 </br>
 
-### Extending the libraries/loader program
-All data gets sent in the following manner:
-* 4 Bytes with `'D' 'M' 'A' '@'` to signalize data start.
-* 4 Bytes with 1 byte for the data type and 3 for the size of the data.
-* N bytes with the data.
-* 4 bytes with `'C' 'M' 'P' 'H'` to signalize data end.
+### Extending UNFLoader
 
-The data type mentioned is up to the developer to implement. If you wish to add more data types so that the data is handled differently on the PC side, you must make changes to UNFLoader's `debug.c` file to add support for said command (check the `debug_main()` function's switch statement). Make sure you also add your new data types to the USB library's `usb.h`! Here's a list of default data types:
-```c
-// Incoming data is text for printf
-#define DATATYPE_TEXT       0x01
-
-// Incoming data is raw binary
-#define DATATYPE_RAWBINARY  0x02
-
-// Incoming data describes contents of next incoming data
-// Use to help you process the data that comes after it (see screenshot implmentation)
-#define DATATYPE_HEADER     0x03
-
-// Incoming data is a framebuffer
-#define DATATYPE_SCREENSHOT 0x04
-```
-There is no checksum in place to detect the authenticity of the data. This might be implemented at a later date...
+This repository has a [wiki](https://github.com/buu342/N64-UNFLoader/wiki) where the tool and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with the tool and its library.
 </br>
 </br>
-### Known issues
+### Known issues and suggestions
 
-All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there.
+All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there for the sake of keeping everything in one place.
 </br>
 </br>
 ### Credits
