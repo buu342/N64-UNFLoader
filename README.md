@@ -69,7 +69,7 @@ Currently supported devices:
 
 ### Extending UNFLoader
 
-This repository has a [wiki](https://github.com/buu342/N64-UNFLoader/wiki) where the tool and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with the tool and its library.
+This repository has a [wiki](https://github.com/buu342/N64-UNFLoader/wiki) where the tool, it's libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
 </br>
 </br>
 ### Known issues and suggestions
