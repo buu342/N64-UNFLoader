@@ -23,6 +23,7 @@ Currently supported devices:
 * [USB + Debug Library](USB%2BDebug%20Library)
     - [How to use the USB library](USB%2BDebug%20Library#how-to-use-the-usb-library)
     - [How to use the Debug library](USB%2BDebug%20Library#how-to-use-the-debug-library)
+    - [How these libraries work](USB%2BDebug%20Library#how-these-libraries-work)
 * [Example ROMs](Examples)
     - [Print "Hello World"](Examples#1-hello-world)
     - [Handle thread faults](Examples#2-thread-faults)
@@ -32,39 +33,6 @@ Currently supported devices:
 * [Extending UNFLoader](#extending-unfloader)
 * [Known Issues and Suggestions](#known-issues-and-suggestions)
 * [Credits](#credits)
-</br>
-
-### Important implementation details
-<details><summary>USB Library</summary>
-<p>
-
-**General**
-
-* Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
-* By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB. More space can be allocated by changing `usb.h`.
-* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users and will potentially overwrite the USB buffers on the EverDrive. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
-
-
-**64Drive**
-
-* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB, which will be padded with zeroes.
-
-
-**EverDrive**
-
-\<Nothing>
-
-
-</p>
-</details>
-
-<details><summary>Debug Library</summary>
-<p>
-
-* The debug library runs on a dedicated thread, which will only execute if invoked by debug commands. All threads will be blocked until the USB thread is finished.
-* Incoming USB data must be serviced first before you are able to write to USB. Every time a debug function is used, the library will first ensure there is no data to service before continuing. This means that incoming USB data **will only be read if a debug function is called**. Therefore, it is recommended to call `debug_pollcommands` as often as possible to ensure that data doesn't stay stuck waiting to be serviced. See Example 3 or 4 for examples on how to read incoming data.
-</p>
-</details>
 </br>
 
 ### Extending UNFLoader
