@@ -6,6 +6,7 @@ This folder contains both the USB and debug library that works in tandem with UN
 ### Table of Contents
 * [How to use the USB library](#how-to-use-the-usb-library)
 * [How to use the Debug library](#how-to-use-the-debug-library)
+* [How these libraries work](#how-these-libraries-work)
 </br>
 
 ### How to use the USB library
@@ -159,3 +160,42 @@ void debug_printcommands();
 ```
 </p>
 </details>
+</br>
+
+### How these libraries work
+I recommend developers check out the [wiki](../../../wiki) chapters 1 and 2 to get a full understanding of the communication protocol. The debug library abstracts this information away as much as possible, so if you didn't fully understand what was in those pages it's not a big concern. A summary of the most important tidbits is provided here:
+<details><summary>USB Library</summary>
+<p>
+
+**General**
+
+* Due to the data header, a maximum of 8MB can be sent through USB in a single `usb_write` call.
+* By default, the USB Buffers are located on the 63MB area in SDRAM, which means that it will overwrite ROM if your game is larger than 63MB. More space can be allocated by changing `usb.h`.
+* Avoid using `usb_write` while there is data that needs to be read from the USB first, as this will cause lockups for 64Drive users and will potentially overwrite the USB buffers on the EverDrive. Use `usb_poll` to check if there is data left to service. If you are using the debug library, this is handled for you.
+
+
+**64Drive**
+
+* All data through USB is 4 byte aligned. This might result in up to 3 extra bytes being sent/received through USB, which will be padded with zeroes.
+
+
+**EverDrive**
+
+\<Nothing>
+
+
+**SummerCart 64**
+
+\<Nothing>
+
+</p>
+</details>
+
+<details><summary>Debug Library</summary>
+<p>
+
+* The debug library runs on a dedicated thread, which will only execute if invoked by debug commands. All threads will be blocked until the USB thread is finished.
+* Incoming USB data must be serviced first before you are able to write to USB. Every time a debug function is used, the library will first ensure there is no data to service before continuing. This means that incoming USB data **will only be read if a debug function is called**. Therefore, it is recommended to call `debug_pollcommands` as often as possible to ensure that data doesn't stay stuck waiting to be serviced. See Example 3 or 4 for examples on how to read incoming data.
+</p>
+</details>
+</br>
