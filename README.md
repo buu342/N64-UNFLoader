@@ -29,7 +29,6 @@ Currently supported devices:
     - [Handle thread faults](Examples#2-thread-faults)
     - [Read from USB](Examples#3-raw-usb-reading)
     - [Interpret USB commands](Examples#4-command-interpreter)
-* [Important implementation details](#important-implementation-details)
 * [Extending UNFLoader](#extending-unfloader)
 * [Known Issues and Suggestions](#known-issues-and-suggestions)
 * [Credits](#credits)
