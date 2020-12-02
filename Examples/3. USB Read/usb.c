@@ -676,11 +676,11 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     
     // Send the data through USB
     #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS >> 1));
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, DEBUG_ADDRESS >> 1);
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS >> 1));
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #endif
@@ -709,12 +709,12 @@ static void usb_64drive_arm(u32 offset, u32 size)
         // Arm the 64Drive, using the ROM space as a buffer
         #if USE_OSRAW
             osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, offset >> 1);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, size & 0xFFFFFF);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
         #else
             osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, offset >> 1);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, size & 0xFFFFFF);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
         #endif
     }
 }
@@ -756,9 +756,8 @@ static u32 usb_64drive_poll()
     // If there's data to service
     if (usb_64drive_armstatus() == D64_USB_DATA)
     {
-        int i=0;
         char buff[8];
-        u32 copyread, copyleft;
+        u32 copyleft;
 
         // Read ROM to get the data header
         osWritebackDCacheAll();
@@ -1126,7 +1125,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 
 static u32 usb_everdrive_poll()
 {
-    char buff[16], firstread = 1;
+    char buff[16];
     int len;
     int offset = 0;
     
@@ -1458,8 +1457,9 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 
 static u32 usb_sc64_poll(void)
 {
-    u32 buff;
-
+    u32 buff, sdram_address;
+    int left;
+    
     // Load how many 32 bit words are in FIFO
     u32 fifo_items = SC64_USB_FIFO_ITEMS(usb_sc64_read_usb_scr());
 
@@ -1484,10 +1484,10 @@ static u32 usb_sc64_poll(void)
         usb_readblock = -1;
 
         // Calculate copy length, data size + CMPH identifier aligned to 4 bytes
-        int left = ALIGN(usb_datasize + 4, 4);
+        left = ALIGN(usb_datasize + 4, 4);
 
         // Starting address in SDRAM
-        u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+        sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
 
         // Enable SDRAM writes
         usb_sc64_setwritable(TRUE);

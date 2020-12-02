@@ -575,7 +575,7 @@ https://github.com/buu342/N64-UNFLoader
     
     void debug_parsecommand(void* buffer)
     {
-        char curr = debug_command_current;
+        u8 curr = debug_command_current;
         
         // Skip this command if no buffer exists
         if (buffer == NULL)
@@ -629,7 +629,7 @@ https://github.com/buu342/N64-UNFLoader
             {
                 // If we're not reading a file
                 int offset = datasize-dataleft;
-                char tok = debug_command_totaltokens;
+                u8 tok = debug_command_totaltokens;
                 
                 // Decide what to do based on the current character
                 switch (debug_buffer[i])
@@ -698,7 +698,6 @@ https://github.com/buu342/N64-UNFLoader
 
     static void debug_thread_usb(void *arg)
     {
-        char test = 0;
         char errortype = USBERROR_NONE;
         usbMesg* threadMsg;
 
@@ -813,6 +812,7 @@ https://github.com/buu342/N64-UNFLoader
         static void* debug_osSyncPrintf_implementation(void *str, const char *buf, size_t n)
         {
             debug_printf(buf);
+            return NULL;
         }
         
     #endif 

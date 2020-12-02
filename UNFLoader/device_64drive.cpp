@@ -261,7 +261,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
 	}
 
-    // I'm supposed to read a reply from the 64Drive, but because it's unreliable in listen mode I'm just gonna purge instead
+    // Read the CMP signal at the end to ensure everything's fine
     FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
     if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
         terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
