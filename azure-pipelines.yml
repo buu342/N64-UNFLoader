@@ -4,6 +4,9 @@ trigger:
   paths:
     exclude: [ "doc", "*.md", ".gitignore" ]
 
+variables:
+  BuildConfiguration: 'Release'
+
 jobs:
 - job: UNFLoader_Linux
   pool:
@@ -64,7 +67,7 @@ jobs:
 
 - job: UNFLoader_Windows
   pool:
-    vmImage: 'windows-latest'
+    vmImage: 'windows-2019'
   steps:
   #- script: |
   #    echo Downloading dependencies
@@ -83,7 +86,7 @@ jobs:
       vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
       platform: 'Win32' # Optional
-      configuration: 'Release' # Optional
+      configuration: $(BuildConfiguration) # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
       #restoreNugetPackages: false # Optional
@@ -96,7 +99,7 @@ jobs:
   # Archive files using compression formats such as .7z, .rar, .tar.gz, and .zip.
   #- task: ArchiveFiles@2
   #  inputs:
-  #    rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/Debug/' 
+  #    rootFolderOrFile: '$(Build.SourcesDirectory)/UNFLoader/$(BuildConfiguration)/' 
   #    includeRootFolder: false
   #    archiveType: 'zip' # Options: zip, 7z, tar, wim
   #    #tarCompression: 'gz' # Optional. Options: gz, bz2, xz, none
@@ -107,7 +110,7 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Debug/UNFLoader.exe'
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/$(BuildConfiguration)/UNFLoader.exe'
       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'unfloader-windows' 
       publishLocation: 'Container' # Options: container, filePath
@@ -160,7 +163,7 @@ jobs:
       vsVersion: '15.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
       platform: 'Win32' # Optional
-      configuration: 'Release' # Optional
+      configuration: $(BuildConfiguration) # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
       #restoreNugetPackages: false # Optional
@@ -184,7 +187,7 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Release/UNFLoader.exe'
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/$(BuildConfiguration)/UNFLoader.exe'
       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'unfloader-windows-xp' 
       publishLocation: 'Container' # Options: container, filePath
