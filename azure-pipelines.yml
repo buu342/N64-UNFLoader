@@ -139,7 +139,7 @@ jobs:
     #releaseTag: # Required when compareWith == LastReleaseByTag
 
 
-job: UNFLoader_Windows_XP
+- job: UNFLoader_Windows_XP
   pool:
     vmImage: 'VS2017-Win2016'
   steps:
