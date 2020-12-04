@@ -82,8 +82,8 @@ jobs:
       solution: '**\*.sln' 
       vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
-      #platform: # Optional
-      #configuration: # Optional
+      platform: 'Win32' # Optional
+      configuration: 'Release' # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
       #restoreNugetPackages: false # Optional
@@ -141,7 +141,7 @@ jobs:
 
 - job: UNFLoader_Windows_XP
   pool:
-    vmImage: 'windows-2019'
+    vmImage: 'VS2017-Win2016'
   steps:
   #- script: |
   #    echo Downloading dependencies
@@ -157,7 +157,7 @@ jobs:
   - task: VSBuild@1
     inputs:
       solution: '**\*.sln' 
-      vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
+      vsVersion: '15.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
       platform: 'Win32' # Optional
       configuration: 'Release' # Optional
