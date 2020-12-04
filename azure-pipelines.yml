@@ -6,6 +6,7 @@ trigger:
 
 variables:
   BuildConfiguration: 'Release'
+  BuildPlatform: 'Win32'
 
 jobs:
 - job: UNFLoader_Linux
@@ -85,7 +86,7 @@ jobs:
       solution: '**\*.sln' 
       vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
-      platform: 'Win32' # Optional
+      platform: $(BuildPlatform) # Optional
       configuration: $(BuildConfiguration) # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
@@ -162,7 +163,7 @@ jobs:
       solution: '**\*.sln' 
       vsVersion: '15.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       #msbuildArgs: # Optional
-      platform: 'Win32' # Optional
+      platform: $(BuildPlatform) # Optional
       configuration: $(BuildConfiguration) # Optional
       #clean: false # Optional
       #maximumCpuCount: false # Optional
