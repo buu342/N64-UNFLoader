@@ -184,7 +184,7 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Debug/UNFLoader.exe'
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Release/UNFLoader.exe'
       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'unfloader-windows-xp' 
       publishLocation: 'Container' # Options: container, filePath
