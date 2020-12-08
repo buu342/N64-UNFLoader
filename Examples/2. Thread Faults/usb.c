@@ -573,27 +573,6 @@ static u32 usb_64drive_armstatus()
 
 
 /*==============================
-    usb_64drive_waitdata
-    Waits for the 64Drive's USB be able to receive data
-==============================*/
-
-static void usb_64drive_waitdata()
-{
-    u32 status;
-    do
-    {
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
-        #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
-        #endif
-        status &= 0x0F;
-    }
-    while (status == D64_USB_IDLEUNARMED || status == D64_USB_ARMED);
-}
-
-
-/*==============================
     usb_64drive_waitdisarmed
     Waits for the 64Drive's USB to be disarmed
 ==============================*/
@@ -676,11 +655,11 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     
     // Send the data through USB
     #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS >> 1));
+        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS >> 1));
+        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
         osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #endif
