@@ -146,6 +146,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     int	   chunk = 0;
     u8*    rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
     time_t upload_time = clock();
+    DWORD  cmps;
     
     // Check we managed to malloc
     if (rom_buffer == NULL)
@@ -183,7 +184,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     if (global_savetype != 0)
     {
         device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, 1, global_savetype, 0);
-        pdprint("Changed save type to %d.\n", CRDEF_PROGRAM, global_cictype);
+        pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
     }
 
     // Decide a better, more optimized chunk size
@@ -261,10 +262,30 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
 	}
 
-    // Read the CMP signal at the end to ensure everything's fine
-    FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-    if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
-        terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+    // Wait for the CMP signal
+    #ifndef LINUX
+        Sleep(50);
+    #else
+        usleep(50);
+    #endif
+
+    // Read the incoming CMP signals to ensure everything's fine
+    FT_GetQueueStatus(cart->handle, &cmps);
+    while (cmps > 0)
+    {
+        // Read the CMP signal and ensure it's correct
+        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
+            terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+
+        // Wait a little bit before reading the next CMP signal
+        #ifndef LINUX
+            Sleep(50);
+        #else
+            usleep(50);
+        #endif
+        FT_GetQueueStatus(cart->handle, &cmps);
+    }
 
     // Print that we've finished
     pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
