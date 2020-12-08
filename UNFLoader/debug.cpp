@@ -143,7 +143,7 @@ void debug_main(ftdi_context_t *cart)
         FT_GetQueueStatus(cart->handle, &pending);
         if (pending == 0)
         {
-            #ifndef LINUX // Delay is needed or it won't boot properly
+            #ifndef LINUX
                 Sleep(10);
             #else
                 usleep(10);
