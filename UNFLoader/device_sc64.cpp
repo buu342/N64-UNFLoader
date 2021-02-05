@@ -267,17 +267,27 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_UNKNOWN, DEV_TV_TYPE_UNKNOWN);
 
     // Set CIC and TV type if provided
-    if (global_cictype != 0 && cart->cictype == 0) {
+    if (global_cictype != -1 && cart->cictype == 0) {
         switch (global_cictype) {
+            case 7:
             case 5101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_5101, DEV_TV_TYPE_NTSC); break;
+            case 0:
             case 6101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_NTSC); break;
             case 7102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_PAL); break;
+            case 1:
             case 6102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_NTSC); break;
+            case 2:
             case 7101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_PAL); break;
+            case 4:
+            case 103:
             case 6103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_NTSC); break;
             case 7103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_PAL); break;
+            case 5:
+            case 105:
             case 6105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_NTSC); break;
             case 7105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_PAL); break;
+            case 6:
+            case 106:
             case 6106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_NTSC); break;
             case 7106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_PAL); break;
             case 8303: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_8303, DEV_TV_TYPE_NTSC); break;
