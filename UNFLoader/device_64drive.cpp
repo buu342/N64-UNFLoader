@@ -153,23 +153,34 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         terminate("Unable to allocate memory for buffer.");
 
     // If the CIC argument was provided
-    if (global_cictype != 0 && cart->cictype == 0)
+    if (global_cictype != -1 && cart->cictype == 0)
     {
         int cic = -1;
 
         // Get the CIC key
         switch(global_cictype)
         {
+            case 0:
             case 6101: cic = 0; break;
+            case 1:
             case 6102: cic = 1; break;
+            case 2:
             case 7101: cic = 2; break;
+            case 3:
             case 7102: cic = 3; break;
+            case 4:
+            case 103:
             case 6103:
             case 7103: cic = 4; break;
+            case 5:
+            case 105:
             case 6105:
             case 7105: cic = 5; break;
+            case 6:
+            case 106:
             case 6106:
             case 7106: cic = 6; break;
+            case 7:
             case 5101: cic = 7; break;
             default: terminate("Unknown CIC type '%d'.", global_cictype);
         }

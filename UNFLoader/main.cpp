@@ -35,7 +35,7 @@ void show_help();
 
 // Program globals
 bool  global_usecolors   = true;
-int   global_cictype     = 0;
+int   global_cictype     = -1;
 int   global_savetype    = 0;
 bool  global_listenmode  = false;
 bool  global_debugmode   = false;
@@ -295,7 +295,7 @@ void list_args()
     pdprint("  -c <int>\t\t   Set CIC emulation type (64Drive HW2 only).\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
-    pdprint("  \t 4 - %s\t\t 5 - %s\n", CRDEF_PROGRAM, "x101 (All)", "x102 (All)");
+    pdprint("  \t 4 - %s\t\t 5 - %s\n", CRDEF_PROGRAM, "x103 (All)", "x105 (All)");
     pdprint("  \t 6 - %s\t\t 7 - %s\n", CRDEF_PROGRAM, "x106 (All)", "5101 (NTSC)");
     pdprint("  -s <int>\t\t   Set save emulation type (64Drive only).\n", CRDEF_PROGRAM);    
     pdprint("  \t 1 - %s\t 2 - %s\n", CRDEF_PROGRAM, "EEPROM 4Kbit", "EEPROM 16Kbit");
