@@ -1,0 +1,65 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  release:
+    types:
+      - created
+
+env:
+  SOLUTION_FILE_PATH: ./UNFLoader/UNFLoader.sln
+  BUILD_CONFIGURATION: Release
+  BUILD_DIRECTORY: ./UNFLoader/Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1
+
+    - name: Build
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
+  
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: UNFLoader
+        path: ${{ env.BUILD_DIRECTORY }}/UNFLoader.exe
+
+  release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'created'
+    needs: [build]
+
+    steps:
+    - name: Download artifact
+      id: download
+      uses: actions/download-artifact@v2
+      with:
+        name: UNFLoader
+
+    - name: Get release
+      id: get_release
+      uses: bruceadams/get-release@v1.2.2
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Upload release artifact
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: ${{ steps.download.outputs.download-path }}/UNFLoader.exe
+        asset_name: UNFLoader.exe
+        asset_content_type: application/octet-stream
