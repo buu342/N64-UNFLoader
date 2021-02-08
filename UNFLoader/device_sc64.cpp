@@ -28,7 +28,7 @@ https://github.com/Polprzewodnikowy/SummerCollection
         Function Prototypes
 *********************************/
 
-static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, char* manufacturer);
+static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, int index, char* manufacturer);
 static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u8 numparams, ...);
 static void device_write_bank_sc64(ftdi_context_t* cart, u8 bank, u32 offset, u8* write_buffer, u32 write_length);
 
@@ -41,13 +41,13 @@ static void device_write_bank_sc64(ftdi_context_t* cart, u8 bank, u32 offset, u8
     @returns Last status from D2XX function call
 ==============================*/
 
-static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, char* manufacturer)
+static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, int index, char* manufacturer)
 {
     FT_STATUS status;
     FT_PROGRAM_DATA ft_program_data;
 
     // Open device
-    status = FT_Open(cart->device_index, &cart->handle);
+    status = FT_Open(index, &cart->handle);
     if (status != FT_OK) {
         return status;
     }
@@ -183,7 +183,7 @@ bool device_test_sc64(ftdi_context_t* cart, int index)
     );
 
     if (candidate) {
-        cart->status = device_read_manufacturer_sc64(cart, manufacturer);
+        cart->status = device_read_manufacturer_sc64(cart, index, manufacturer);
 
         return (cart->status == FT_OK && strcmp(manufacturer, "Polprzewodnikowy") == 0);
     }
@@ -205,9 +205,10 @@ void device_open_sc64(ftdi_context_t* cart)
     if (cart->status != FT_OK || !cart->handle)
         terminate("Error: Unable to open flashcart.\n");
 
-    // Reset the cart and set its timeouts
+    // Reset the cart and set its timeouts and latency timer
     testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
     testcommand(FT_SetTimeouts(cart->handle, 5000, 5000), "Error: Unable to set flashcart timeouts.\n");
+    testcommand(FT_SetLatencyTimer(cart->handle, 0), "Error: Unable to set flashcart latency timer.\n");
 
     // Reset bit mode for fast serial interface
     testcommand(FT_SetBitMode(cart->handle, 0xFF, FT_BITMODE_RESET), "Error: Unable to set bitmode %d.\n", FT_BITMODE_RESET);
@@ -240,8 +241,9 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     size_t bytes_left;
     time_t upload_time_start;
     u32 gpio;
-    u32 cic_tv_type;
+    u32 boot_config;
     u32 cart_config;
+    u32 sram_address;
 
     // Calculate suitable chunk size
     chunk_size = DEV_MAX_RW_BYTES / 4;
@@ -264,42 +266,43 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     pdprint("done.\n", CRDEF_PROGRAM);
 
     // Set unknown CIC and TV type as default
-    cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_UNKNOWN, DEV_TV_TYPE_UNKNOWN);
+    boot_config = DEV_BOOT_SKIP_MENU;
 
     // Set CIC and TV type if provided
     if (global_cictype != -1 && cart->cictype == 0) {
         switch (global_cictype) {
-            case 7:
-            case 5101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_5101, DEV_TV_TYPE_NTSC); break;
             case 0:
-            case 6101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_NTSC); break;
-            case 7102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6101_7102, DEV_TV_TYPE_PAL); break;
+            case 6101: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x13F); break;
             case 1:
-            case 6102: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_NTSC); break;
+            case 6102: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x3F); break;
             case 2:
-            case 7101: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_6102_7101, DEV_TV_TYPE_PAL); break;
+            case 7101: boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x3F); break;
+            case 3:
+            case 7102: boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x13F); break;
             case 4:
             case 103:
-            case 6103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_NTSC); break;
-            case 7103: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X103, DEV_TV_TYPE_PAL); break;
+            case 6103: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x78); break;
+            case 7103: boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x78); break;
             case 5:
             case 105:
-            case 6105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_NTSC); break;
-            case 7105: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X105, DEV_TV_TYPE_PAL); break;
+            case 6105: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x91); break;
+            case 7105: boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x91); break;
             case 6:
             case 106:
-            case 6106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_NTSC); break;
-            case 7106: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_X106, DEV_TV_TYPE_PAL); break;
-            case 8303: cic_tv_type = DEV_CIC_TV_TYPE(DEV_CIC_8303, DEV_TV_TYPE_NTSC); break;
+            case 6106: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x85); break;
+            case 7106: boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x85); break;
+            case 7:
+            case 5101: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0xAC); break;
+            case 8303: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0xDD); break;
             default: terminate("Unknown or unsupported CIC type '%d'.", global_cictype);
         }
         cart->cictype = global_cictype;
         pdprint("CIC set to %d.\n", CRDEF_PROGRAM, global_cictype);
     }
 
-    // Write CIC and TV type
-    cic_tv_type = swap_endian(cic_tv_type);
-    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_CIC_TV_TYPE, (u8 *)(&cic_tv_type), 4);
+    // Write boot override register
+    boot_config = swap_endian(boot_config);
+    device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_BOOT, (u8 *)(&boot_config), 4);
 
     // Set no save type as default
     cart_config = 0;
@@ -307,8 +310,12 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     // Set savetype if provided
     if (global_savetype != 0) {
         switch (global_savetype) {
-            case 1: cart_config = DEV_SAVE_TYPE_EEPROM_4K; break;
-            case 2: cart_config = DEV_SAVE_TYPE_EEPROM_16K; break;
+            case 1: cart_config = DEV_SCR_EEPROM_ENABLE; break;
+            case 2: cart_config = DEV_SCR_EEPROM_16K_MODE | DEV_SCR_EEPROM_ENABLE; break;
+            case 3: cart_config = DEV_SCR_SRAM_ENABLE; break;
+            case 5: cart_config = DEV_SCR_SRAM_768K_MODE | DEV_SCR_SRAM_ENABLE; break;
+            case 4:
+            case 6: cart_config = DEV_SCR_FLASHRAM_ENABLE; break;
             default: terminate("Unknown or unsupported save type '%d'.", global_savetype);
         }
         pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
@@ -317,6 +324,14 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     // Write save type
     cart_config = swap_endian(cart_config);
     device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_SCR, (u8 *)(&cart_config), 4);
+
+    // Set starting SRAM location in SDRAM
+    if (global_savetype == 3 || global_savetype == 5) {
+        // Locate at the end of SDRAM
+        sram_address = DEV_SDRAM_SIZE - (32 * 1024 * ((global_savetype == 5) ? 3 : 1));
+        sram_address = swap_endian(sram_address);
+        device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_SRAM_ADDR, (u8 *)(&sram_address), 4);
+    }
 
     // Init progressbar
     pdprint("\n", CRDEF_PROGRAM);
@@ -345,7 +360,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
         }
 
         // Send data to SummerCart64
-        device_write_bank_sc64(cart, DEV_BANK_ROM, offset, rom_buffer, chunk_size);
+        device_write_bank_sc64(cart, DEV_BANK_SDRAM, offset, rom_buffer, chunk_size);
 
         // Break from loop if not all bytes has been sent
         if (cart->bytes_written != chunk_size) {
@@ -370,11 +385,11 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     if (bytes_left > 0) {
         // Throw error if upload was unsuccessful
         terminate("Error: SummerCart64 timed out");
-    } else {
-        // Print that we've finished
-        double upload_time = (double)(clock() - upload_time_start) / CLOCKS_PER_SEC;
-        pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, upload_time);
     }
+
+    // Print that we've finished
+    double upload_time = (double)(clock() - upload_time_start) / CLOCKS_PER_SEC;
+    pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, upload_time);
 }
 
 
