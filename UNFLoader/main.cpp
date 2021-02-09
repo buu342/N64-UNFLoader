@@ -61,6 +61,7 @@ static char* local_rom = NULL;
 int main(int argc, char* argv[])
 {
     int i;
+    time_t timeout;
 
     // Initialize PDCurses
     initscr();
@@ -84,6 +85,9 @@ int main(int argc, char* argv[])
     // Start the program
     show_title();
     parse_args(argc, argv);
+    timeout  = clock() + global_timeout*CLOCKS_PER_SEC;
+
+    // Upload the ROM and start debug mode if necessary
     device_find(local_flashcart);
     device_open();
     device_sendrom(local_rom);
@@ -93,6 +97,11 @@ int main(int argc, char* argv[])
     if (global_timeout == 0)
     {
         pdprint("\nPress any key to continue.\n", CRDEF_INPUT);
+        getchar();
+    }
+    else if (timeout > clock())
+    {
+        pdprint("\nPress any key to continue, or wait for timeout.\n", CRDEF_INPUT, global_timeout);
         getchar();
     }
     for (i=0; i<TOTAL_COLORS; i++)
