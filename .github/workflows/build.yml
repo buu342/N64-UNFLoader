@@ -12,13 +12,16 @@ on:
       - created
 
 env:
-  SOLUTION_FILE_PATH: ./UNFLoader/UNFLoader.sln
-  BUILD_CONFIGURATION: Release
-  BUILD_DIRECTORY: ./UNFLoader/Release
+  WINDOWS_ARTIFACT_NAME: UNFLoader-Windows
+  LINUX_ARTIFACT_NAME: UNFLoader-Linux
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
+    env:
+      SOLUTION_FILE_PATH: ./UNFLoader/UNFLoader.sln
+      BUILD_CONFIGURATION: Release
+      BUILD_DIRECTORY: ./UNFLoader/Release
 
     steps:
     - uses: actions/checkout@v2
@@ -29,24 +32,70 @@ jobs:
     - name: Build
       working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
-  
+
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
-        name: UNFLoader
+        name: ${{ env.WINDOWS_ARTIFACT_NAME }}
         path: ${{ env.BUILD_DIRECTORY }}/UNFLoader.exe
+
+  build-linux:
+    runs-on: ubuntu-latest
+    env:
+      LIBFTD2XX_VERSION: '1.4.8'
+      SOURCES_DIRECTORY: ./UNFLoader
+      BUILD_DIRECTORY: ./UNFLoader
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: sudo apt-get install libncurses5-dev libncursesw5-dev
+
+      - name: Download and unzip libftd2xx
+        run: |
+          curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-${{ env.LIBFTD2XX_VERSION }}.gz --output libftd2xx.gz
+          mkdir ./libftd2xx
+          tar xvzf libftd2xx.gz -C libftd2xx
+          
+      - name: Copy header files from libftd2xx
+        run: cp ./libftd2xx/release/WinTypes.h ./libftd2xx/release/ftd2xx.h ${{ env.SOURCES_DIRECTORY }}/Include
+
+      - name: Install FTDI driver
+        run: |
+          sudo cp ./libftd2xx/release/build/libftd2xx.so.${{ env.LIBFTD2XX_VERSION }} /usr/local/lib
+          cd /usr/local/lib
+          sudo ln -s libftd2xx.so.${{ env.LIBFTD2XX_VERSION }} libftd2xx.so
+          sudo chmod 0755 libftd2xx.so.${{ env.LIBFTD2XX_VERSION }}
+
+      - name: Build
+        run: |
+          cd ${{ env.SOURCES_DIRECTORY }}
+          make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.LINUX_ARTIFACT_NAME }}
+          path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
 
   release:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
-    needs: [build]
+    needs: [build-windows, build-linux]
 
     steps:
-    - name: Download artifact
-      id: download
+    - name: Download Windows artifact
+      id: download-windows
       uses: actions/download-artifact@v2
       with:
-        name: UNFLoader
+        name: ${{ env.WINDOWS_ARTIFACT_NAME }}
+
+    - name: Download Linux artifact
+      id: download-linux
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ env.LINUX_ARTIFACT_NAME }}
 
     - name: Get release
       id: get_release
@@ -54,12 +103,22 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
 
-    - name: Upload release artifact
+    - name: Upload Windows release asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ${{ steps.download.outputs.download-path }}/UNFLoader.exe
+        asset_path: ${{ steps.download-windows.outputs.download-path }}/UNFLoader.exe
         asset_name: UNFLoader.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: ${{ steps.download-linux.outputs.download-path }}/UNFLoader
+        asset_name: UNFLoader
         asset_content_type: application/octet-stream
