@@ -53,7 +53,7 @@ void device_find(int automode)
         terminate("No devices found.");
 
     // Allocate storage and get device info list
-    cart->dev_info = (FT_DEVICE_LIST_INFO_NODE*) malloc( sizeof(FT_DEVICE_LIST_INFO_NODE) *cart->devices);
+    cart->dev_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*cart->devices);
     FT_GetDeviceInfoList(cart->dev_info, &cart->devices);
 
     // Search the devices
@@ -69,7 +69,7 @@ void device_find(int automode)
         }
 
         // Look for 64drive HW2 (FT232H Synchronous FIFO mode)
-        if ((automode == CART_NONE || automode == CART_64DRIVE2) &&device_test_64drive2(cart, i))
+        if ((automode == CART_NONE || automode == CART_64DRIVE2) && device_test_64drive2(cart, i))
         {
             device_set_64drive2(cart, i);
             if (automode == CART_NONE) 
@@ -212,9 +212,10 @@ void device_sendrom(char* rompath)
 {
     bool escignore = false;
     bool resend = false;
-    time_t  lastmod = 0;
-    struct  stat finfo;
-    FILE    *file;
+    FILE *file;
+    int  filesize = 0; // I could use finfo, but it doesn't work in WinXP (more info below)
+    time_t lastmod = 0;
+    struct stat finfo;
 
     for ( ; ; )
     {
@@ -233,6 +234,11 @@ void device_sendrom(char* rompath)
         fread(rom_header, 4, 1, file);
         if (!(rom_header[0] == 0x80 && rom_header[1] == 0x37 && rom_header[2] == 0x12 && rom_header[3] == 0x40))
             global_z64 = true;
+
+        // Get the filesize and reset the position
+        // Workaround for https://stackoverflow.com/questions/32452777/visual-c-2015-express-stat-not-working-on-windows-xp
+        fseek(file, 0, SEEK_END);
+        filesize = ftell(file);
         fseek(file, 0, SEEK_SET);
 
         // If the file was not modified
@@ -289,11 +295,11 @@ void device_sendrom(char* rompath)
             lastmod = finfo.st_mtime;
 
         // Complain if the ROM is too small
-        if (finfo.st_size < 1052672)
-            pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM); 
+        if (filesize < 1052672)
+            pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM);
 
         // Send the ROM
-        funcPointer_sendrom(&local_usb, file, finfo.st_size);
+        funcPointer_sendrom(&local_usb, file, filesize);
 
         // Close the file pipe
         fclose(file);
