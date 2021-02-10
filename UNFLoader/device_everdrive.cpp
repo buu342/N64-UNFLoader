@@ -135,12 +135,34 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     int	   bytes_left;
 	int	   bytes_do;
     char*  rom_buffer = (char*) malloc(sizeof(int) * 32*1024);
+    char*  rom_copy = (char*) malloc(size);
     int    crc_area = 0x100000 + 4096;
     time_t upload_time = clock();
+    char*  copy_ptr = rom_copy;
 
     // Check we managed to malloc
     if (rom_buffer == NULL)
         terminate("Unable to allocate memory for buffer.");
+
+    // Create a temporary copy of the ROM because we will need to modify it for save type setting
+    fread(rom_copy, 1, size, file);
+    fseek(file, 0, SEEK_SET);
+
+    // Set Savetype
+    if (global_savetype != 0)
+    {
+        rom_copy[0x3C] = 'E';
+        rom_copy[0x3D] = 'D';
+        switch (global_savetype)
+        {
+            case 1: rom_copy[0x3F] = 1; break;
+            case 2: rom_copy[0x3F] = 2; break;
+            case 3: rom_copy[0x3F] = 3; break;
+            case 4: rom_copy[0x3F] = 5; break;
+            case 5: rom_copy[0x3F] = 4; break;
+            case 6: rom_copy[0x3F] = 6; break;
+        }
+    }
 
     // Fill memory if the file is too small
     if ((int)size < crc_area)
@@ -193,7 +215,8 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
 			// Send the chunk to RAM. If we reached EOF it doesn't matter what we send
             // TODO: Send 0's when EOF is reached
-			fread(rom_buffer, bytes_do, 1, file);
+            memcpy(rom_buffer, copy_ptr, bytes_do);
+            copy_ptr += bytes_do;
             if (global_z64)
                 for (j=0; j<bytes_do; j+=2)
                     SWAP(rom_buffer[j], rom_buffer[j+1]);
@@ -224,10 +247,17 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     #endif
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive(cart, 's', 0, 0, 0);
+
+    // Write the filename of the save file if necessary
+    if (global_savetype != 0)
+    {
+
+    }
     
     // Print that we've finished
     pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
     free(rom_buffer);
+    free(rom_copy);
 }
 
 
