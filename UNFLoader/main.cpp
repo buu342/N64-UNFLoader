@@ -159,12 +159,14 @@ void parse_args(int argc, char* argv[])
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
-        else if (!strcmp(command, "-r")) // Upload ROM command
+        else if (!strcmp(command, "-r") || command[0] != '-') // Upload ROM command (or assume filepath for ROM)
         {
-            i++;
+            // Increment i only if '-' was found
+            if (command[0] == '-')
+                i++;
 
             // If we have an argument after this one, then set the ROM path, otherwise terminate
-            if (i<argc && argv[i][0] != '-') 
+            if ((i<argc && argv[i][0] != '-') || command[0] != '-') 
                 local_rom = argv[i];
             else 
                 terminate("Missing parameter(s) for command '%s'.", command);
