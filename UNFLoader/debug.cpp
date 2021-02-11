@@ -290,6 +290,21 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
             blinker = BLINKRATE;
         }
     }
+    else if (ch == KEY_DC && (*cursorpos) != size) // DEL key
+    {
+        int i;
+
+        // Shift any characters in front of the cursor backwards
+        for (i=(*cursorpos); i<size; i++)
+            buffer[i] = buffer[i+1];
+
+        // Remove a character from our input buffer
+        buffer[size] = 0;
+        size--;
+        buffer[size] = 0;
+        curcmd = 0;
+        blinker = BLINKRATE;
+    }
     else if (ch != ERR && isascii(ch) && ch > 0x1F && size < BUFFER_SIZE)
     {
         int i;
