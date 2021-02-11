@@ -200,8 +200,8 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
             // Set Savetype if first time sending data
             if (global_savetype != 0 && bytes_done == 0)
             {
-                rom_buffer[0x3C] = 'E';
-                rom_buffer[0x3D] = 'D';
+                rom_buffer[0x3C] = 0xED;
+                rom_buffer[0x3D] = 0x64;
                 switch (global_savetype)
                 {
                     case 1: rom_buffer[0x3F] = 1; break;
@@ -243,7 +243,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     pdprint_replace("Sending pifboot\n", CRDEF_PROGRAM);
     device_sendcmd_everdrive(cart, 's', 0, 0, 0);
 
-    // Write the filename of the save file if necessary
+    // TODO: Write the filename of the save file if necessary
     if (global_savetype != 0)
     {
 
