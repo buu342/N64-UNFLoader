@@ -277,6 +277,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
 
     // Display what we've written
     pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
+    werase(inputwin);
 
     // Draw the blinker
     blinker = (blinker++) % (1+BLINKRATE * 2);
@@ -287,7 +288,6 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         mvwaddch(inputwin, y, (*cursorpos), 219);
         wmove(inputwin, y, x);
     }
-    werase(inputwin);
 }
 
 
