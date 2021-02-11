@@ -212,6 +212,16 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
             curcmd = cmd_count;
         cmd_changed = 1;
     }
+    else if (ch == KEY_LEFT && (*cursorpos) > 0)
+    {
+        (*cursorpos)--;
+        blinker = BLINKRATE;
+    }
+    else if (ch == KEY_RIGHT && (*cursorpos) < size)
+    {
+        (*cursorpos)++;
+        blinker = BLINKRATE;
+    }
 
     // If the up or down arrow was pressed
     if (cmd_changed)
@@ -229,9 +239,10 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
             (*cursorpos) = slen;
             size = slen;
         }
+        blinker = BLINKRATE;
     }
 
-    // Decide what to do on key presses
+    // Decide what to do on other key presses
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
         if (size >= BUFFER_SIZE)
@@ -258,27 +269,47 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
+        blinker = BLINKRATE;
     }
-    else if (ch == CH_BACKSPACE || ch == 127 || ch == '\b')
+    else if (ch == CH_BACKSPACE)
     {
         if ((*cursorpos) > 0)
         {
-            buffer[--(*cursorpos)] = 0;
+            int i;
+
+            // Shift any characters in front of the cursor backwards
+            for (i=(*cursorpos); i<size; i++)
+                buffer[i-1] = buffer[i];
+
+            // Remove a character from our input buffer
+            buffer[size] = 0;
             size--;
+            buffer[size] = 0;
+            (*cursorpos)--;
+            curcmd = 0;
+            blinker = BLINKRATE;
         }
-        curcmd = 0;
     }
-    else if (ch != ERR && isascii(ch) && ch > 0x1F)
+    else if (ch != ERR && isascii(ch) && ch > 0x1F && size < BUFFER_SIZE)
     {
+        int i;
+
+        // Shift any characters in front of the cursor forwards
+        if ((*cursorpos) != size)
+            for (i=size; i>=(*cursorpos); i--)
+                buffer[i+1] = buffer[i];
+
+        // Add the character to the input buffer
         buffer[(*cursorpos)++] = ch;
         size++;
         curcmd = 0;
+        blinker = BLINKRATE;
     }
 
     // Display what we've written
-    pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
     werase(inputwin);
-
+    pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
+    
     // Draw the blinker
     blinker = (blinker++) % (1+BLINKRATE * 2);
     if (blinker >= BLINKRATE)
@@ -288,6 +319,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         mvwaddch(inputwin, y, (*cursorpos), 219);
         wmove(inputwin, y, x);
     }
+    wrefresh(inputwin);
 }
 
 

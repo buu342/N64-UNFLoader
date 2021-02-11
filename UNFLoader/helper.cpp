@@ -75,8 +75,11 @@ void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
 
     // Print the string
     vw_printw(win, str, args);
-    refresh();
-    wrefresh(win);
+    if (log)
+    {
+        refresh();
+        wrefresh(win);
+    }
 
     // Print to the output debug file if it exists
     if (log && global_debugoutptr != NULL)
