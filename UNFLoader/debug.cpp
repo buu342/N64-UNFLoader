@@ -20,6 +20,7 @@ Handles USB I/O.
 #define HEADER_SIZE 16
 #define BLINKRATE   40
 #define PATH_SIZE   256
+#define HISTORY_SIZE 100
 
 
 /*********************************
@@ -41,6 +42,8 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
 *********************************/
 
 static int debug_headerdata[HEADER_SIZE];
+static char** cmd_history;
+static int cmd_count = 0;
 
 
 /*==============================
@@ -51,6 +54,7 @@ static int debug_headerdata[HEADER_SIZE];
 
 void debug_main(ftdi_context_t *cart)
 {
+    int i;
     char *outbuff, *inbuff;
     u16 cursorpos = 0;
     DWORD pending = 0;
@@ -64,10 +68,14 @@ void debug_main(ftdi_context_t *cart)
     pdprint("\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
+    keypad(stdscr, TRUE);
 
     // Initialize our buffers
     outbuff = (char*) malloc(BUFFER_SIZE);
     inbuff = (char*) malloc(BUFFER_SIZE);
+    cmd_history = (char**) malloc(HISTORY_SIZE*sizeof(char*));
+    for (i=0; i<HISTORY_SIZE; i++)
+        cmd_history[i] = (char*) malloc(BUFFER_SIZE);
     memset(inbuff, 0, BUFFER_SIZE);
 
     // Open file for debug output
@@ -92,7 +100,7 @@ void debug_main(ftdi_context_t *cart)
     // Start the debug server loop
     for ( ; ; ) 
 	{
-        char ch = getch();
+        int ch = getch();
 
         // If ESC is pressed, stop the loop
 		if (ch == 27 || (global_timeout != 0 && debugtimeout < clock()))
@@ -161,6 +169,10 @@ void debug_main(ftdi_context_t *cart)
     // Clean up everything
     free(outbuff);
     free(inbuff);
+    for (i=0; i<HISTORY_SIZE; i++)
+        free(cmd_history[i]);
+    free(cmd_history);
+
     wclear(inputwin);
     wrefresh(inputwin);
     delwin(inputwin);
@@ -180,17 +192,69 @@ void debug_main(ftdi_context_t *cart)
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
+    char cmd_changed = 0;
     static int blinker = 0;
     static int size = 0;
+    static int curcmd = 0;
+
+    // If an arrow key was pressed
+    if (ch == KEY_DOWN)
+    {
+        curcmd++;
+        if (curcmd > cmd_count)
+            curcmd = 0;
+        cmd_changed = 1;
+    }
+    else if (ch == KEY_UP)
+    {
+        curcmd--;
+        if (curcmd < 0)
+            curcmd = cmd_count;
+        cmd_changed = 1;
+    }
+
+    // If the up or down arrow was pressed
+    if (cmd_changed)
+    {
+        if (curcmd == 0)
+        {
+            memset(buffer, 0, BUFFER_SIZE);
+            (*cursorpos) = 0;
+            size = 0;
+        }
+        else
+        {
+            int slen = strlen(cmd_history[curcmd-1]);
+            strcpy(buffer, cmd_history[curcmd-1]);
+            (*cursorpos) = slen;
+            size = slen;
+        }
+    }
 
     // Decide what to do on key presses
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
+        if (size >= BUFFER_SIZE)
+            size = BUFFER_SIZE-1;
+        buffer[size] = '\0';
+
         // Check if we're only sending a file or text (and potentially a file appended)
         if (buffer[0] == '@' && buffer[size-1] == '@')
             debug_filesend(buffer);
         else
             debug_appendfilesend(buffer, size+1);
+
+        // Add the command to the command history
+        if (curcmd == 0)
+        {
+            cmd_count++;
+            if (cmd_count >= HISTORY_SIZE)
+                cmd_count = HISTORY_SIZE;
+            strcpy(cmd_history[cmd_count-1], buffer);
+        }
+        curcmd = 0;
+
+        // Clear the input bar and reset the cursor position
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
@@ -202,11 +266,13 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
             buffer[--(*cursorpos)] = 0;
             size--;
         }
+        curcmd = 0;
     }
     else if (ch != ERR && isascii(ch) && ch > 0x1F)
     {
         buffer[(*cursorpos)++] = ch;
         size++;
+        curcmd = 0;
     }
 
     // Display what we've written
