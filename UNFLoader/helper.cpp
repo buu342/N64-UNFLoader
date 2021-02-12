@@ -508,6 +508,15 @@ char* md5(u8 *buff, int len)
     return hash;
 }
 
+/*==============================
+    cic_from_hash
+    Returns a CIC value from the hash string
+    Please note that, since my MD5 function is wrong, these
+    hashes are too.
+    @param The string with the hash
+    @returns The global_cictype value
+==============================*/
+
 s8 cic_from_hash(char* hash)
 {
     if (!strcmp(hash, "0D21AD663C036767A0169918FF66DFE6"))
