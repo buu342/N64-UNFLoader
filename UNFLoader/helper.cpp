@@ -445,7 +445,7 @@ char* md5(u8 *buff, int len)
     int nbits = 8*len;
     int offset;
 
-    msg = calloc(finallen + 64, 1);
+    msg = (u8*) calloc(finallen + 64, 1);
     if (msg == NULL)
         terminate("Unable to allocate memory for MD5 calculation.");
     memcpy(msg, buff, len);
