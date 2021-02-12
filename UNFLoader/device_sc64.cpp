@@ -269,7 +269,50 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     boot_config = DEV_BOOT_SKIP_MENU;
 
     // Set CIC and TV type if provided
-    if (global_cictype != -1 && cart->cictype == 0) {
+    if (global_cictype == -1)
+    {
+        int cic = -1;
+        int j;
+        u8* bootcode = (u8*)malloc(4032);
+        if (bootcode == NULL)
+            terminate("Unable to allocate memory for bootcode buffer.");
+
+        // Read the bootcode and store it
+        fseek(file, 0x40, SEEK_SET);
+        fread(bootcode, 1, 4032, file);
+        fseek(file, 0, SEEK_SET);
+
+        // Byteswap if needed
+        if (global_z64)
+            for (j=0; j<4032; j+=2)
+                SWAP(bootcode[j], bootcode[j+1]);
+
+        // Pick the CIC from the bootcode
+        cic = cic_from_hash(md5(bootcode, 4032));
+        if (cic != -1)
+        {
+            // Set the CIC and print it
+            cart->cictype = global_cictype;
+            pdprint("CIC set to ", CRDEF_PROGRAM);
+            switch (cic)
+            {
+                case 0: pdprint("6101", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x13F); break;
+                case 1: pdprint("6102", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x3F); break;
+                case 2: pdprint("7101", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x3F); break;
+                case 3: pdprint("7102", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_PAL, 0x13F); break;
+                case 4: pdprint("x103", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x78); break; // Assume NTSC
+                case 5: pdprint("x105", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x91); break; // Assume NTSC
+                case 6: pdprint("x106", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x85); break; // Assume NTSC
+                case 7: pdprint("5101", CRDEF_PROGRAM); boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0xAC); break;
+            }
+            pdprint(" automatically.\n", CRDEF_PROGRAM);
+        }
+        else
+            pdprint("Unknown CIC! Game might not boot properly!\n", CRDEF_PROGRAM);
+
+        // Free used memory
+        free(bootcode);
+    } else if (cart->cictype == 0) {
         switch (global_cictype) {
             case 0:
             case 6101: boot_config |= DEV_BOOT(DEV_TV_TYPE_NTSC, 0x13F); break;
