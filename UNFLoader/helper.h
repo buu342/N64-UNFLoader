@@ -44,5 +44,7 @@
     u32   calc_padsize(u32 size);
     char* gen_filename();
     #define SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
+    char* md5(u8 *buff, int len);
+    s8 cic_from_hash(char* hash);
 
 #endif
