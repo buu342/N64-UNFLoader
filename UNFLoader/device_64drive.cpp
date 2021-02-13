@@ -15,7 +15,7 @@ http://64drive.retroactive.be/support.php
         Function Prototypes
 *********************************/
 
-void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u8 numparams, ...);
+void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 numparams, ...);
 
 
 /*==============================
@@ -85,7 +85,7 @@ void device_open_64drive(ftdi_context_t* cart)
     @param The extra variadic commands to send
 ==============================*/
 
-void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u8 numparams, ...)
+void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 numparams, ...)
 {
     u8  send_buff[32];
     u32 recv_buff[32];
