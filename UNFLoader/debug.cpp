@@ -29,7 +29,7 @@ Handles USB I/O.
 
 void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
 void debug_appendfilesend(char* data, u32 size);
-void debug_filesend(char* filename);
+void debug_filesend(const char* filename);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
 void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
@@ -73,9 +73,12 @@ void debug_main(ftdi_context_t *cart)
     // Initialize our buffers
     outbuff = (char*) malloc(BUFFER_SIZE);
     inbuff = (char*) malloc(BUFFER_SIZE);
-    cmd_history = (char**) malloc(HISTORY_SIZE*sizeof(char*));
-    for (i=0; i<HISTORY_SIZE; i++)
-        cmd_history[i] = (char*) malloc(BUFFER_SIZE);
+    if (cmd_history == NULL)
+    {
+        cmd_history = (char**) malloc(HISTORY_SIZE*sizeof(char*));
+        for (i=0; i<HISTORY_SIZE; i++)
+            cmd_history[i] = (char*) malloc(BUFFER_SIZE);
+    }
     memset(inbuff, 0, BUFFER_SIZE);
 
     // Open file for debug output
@@ -169,9 +172,6 @@ void debug_main(ftdi_context_t *cart)
     // Clean up everything
     free(outbuff);
     free(inbuff);
-    for (i=0; i<HISTORY_SIZE; i++)
-        free(cmd_history[i]);
-    free(cmd_history);
 
     wclear(inputwin);
     wrefresh(inputwin);
@@ -245,7 +245,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     // Decide what to do on other key presses
     if ((ch == CH_ENTER || ch == '\r') && size != 0)
     {
-        if (size >= BUFFER_SIZE)
+        if (size >= BUFFER_SIZE-1)
             size = BUFFER_SIZE-1;
         buffer[size] = '\0';
 
@@ -447,12 +447,19 @@ void debug_appendfilesend(char* data, u32 size)
     @param The filename of the file to send wrapped around @ symbols
 ==============================*/
 
-void debug_filesend(char* filename)
+void debug_filesend(const char* filename)
 {
     int size;
     FILE *fp;
     char* buffer;
-    char* fixed = strtok(filename, "@");
+    char* copy = (char*)malloc(strlen(filename));
+    char* fixed;
+    
+    // Make a copy of the filename string because strtok modifies it
+    if (copy == NULL)
+        terminate("Unable to allocate memory for filename");
+    strcpy(copy, filename);
+    fixed = strtok(copy, "@");
 
     // Attempt to open the file
     fp = fopen(fixed, "rb+");
@@ -491,6 +498,7 @@ void debug_filesend(char* filename)
     device_senddata(DATATYPE_RAWBINARY, buffer, size);
     pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
     free(buffer);
+    free(copy);
 }
 
 
