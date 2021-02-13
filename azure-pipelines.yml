@@ -171,6 +171,7 @@ jobs:
        echo Detatch drivers disk image
        diskutil eject /Volumes/release
      displayName: 'Build Program'
+     continueOnError: false
    # Publish build artifacts to Azure Artifacts/TFS or a file share
    - task: PublishBuildArtifacts@1
      displayName: Publish Build Artifacts
