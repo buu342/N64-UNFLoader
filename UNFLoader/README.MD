@@ -42,6 +42,7 @@ sudo rmmod ftdi_sio
 * [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
 * Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
 * You must run UNFLoader with `sudo`.
+* If you grabbed a pre-built UNFLoader binary (AKA you didn't compile it yourself from the source code), you'll have to deal with the fact that macOS prevents running unsigned binaries by default. To fix this, go to the Security & Privacy panel in the System Preferences menu and explicitly allow UNFLoader to be run.
 </p>
 </details>
 </br>
