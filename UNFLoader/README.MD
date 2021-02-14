@@ -7,6 +7,7 @@ This folder holds the source code for the UNFLoader program itself. This readme 
 * [System Requirements](#system-requirements)
 * [How to use UNFLoader](#how-to-use-unfloader)
 * [How to Build UNFLoader for Windows](#how-to-build-unfloader-for-windows)
+* [How to Build UNFLoader for macOS](#how-to-build-unfloader-for-macos)
 * [How to Build UNFLoader for Linux](#how-to-build-unfloader-for-linux)
 </br>
 
@@ -78,6 +79,36 @@ Simply load the project file in Visual Studio 2019 or higher. The <a href="https
 * This is a self extracting executable, meaning you can open the .exe with with a zip program. 
 * Grab `ftd2xx.h` and put it in `UNFLoader/Include`.
 * Grab `ftd2xx.lib` from `i386` or `amd64` (depending on your CPU architecture) and put it in `UNFLoader/Include`.
+
+**lodepng**
+* Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
+* Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
+
+Once you have all of these files built and put in the `Include` folder, you're set to compile!
+</details>
+</br>
+
+### How to Build UNFLoader for macOS
+You need to have the FTDI driver installed (This is in the [requirements](https://github.com/buu342/N64-UNFLoader#requirements) section so you should've already done this step), as well as ncurses. ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
+Install ncurses by invoking:
+
+```
+brew install ncurses
+```
+
+Once the dependencies are installed, simply execute the makefile:
+
+```
+make -f Makefile
+```
+
+**The Include folder should already have everything you need for macOS.**
+<details><summary>Updating libs to latest version (if required)</summary>
+
+**ftd2xx + WinTypes**
+* Download the FTDI driver provided in the **Requirements** section and extract the zip.
+* Go into the `release` folder.
+* Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
 
 **lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
