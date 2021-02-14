@@ -40,7 +40,6 @@ static ftdi_context_t local_usb = {0, };
 void device_find(int automode)
 {
     int i;
-    int found = -1;
     ftdi_context_t *cart = &local_usb;
 
     // Initialize FTD

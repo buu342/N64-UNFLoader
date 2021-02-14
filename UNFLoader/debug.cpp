@@ -3,8 +3,9 @@
 
 Handles USB I/O.
 ***************************************************************/
-
-#include "Include/lodepng.h"
+#pragma warning(push, 0)
+    #include "Include/lodepng.h"
+#pragma warning(pop)
 #include "main.h"
 #include "helper.h"
 #include "device.h"
@@ -27,7 +28,7 @@ Handles USB I/O.
        Function Prototypes
 *********************************/
 
-void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
+void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch);
 void debug_appendfilesend(char* data, u32 size);
 void debug_filesend(const char* filename);
 void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read);
@@ -108,7 +109,7 @@ void debug_main(ftdi_context_t *cart)
         // If ESC is pressed, stop the loop
 		if (ch == 27 || (global_timeout != 0 && debugtimeout < clock()))
 			break;
-        debug_textinput(cart, inputwin, inbuff, &cursorpos, ch);
+        debug_textinput(inputwin, inbuff, &cursorpos, ch);
 
         // Check if we have pending data
         FT_GetQueueStatus(cart->handle, &pending);
@@ -183,14 +184,13 @@ void debug_main(ftdi_context_t *cart)
 /*==============================
     debug_textinput
     Handles text input in the console
-    @param A pointer to the cart context
     @param A pointer to the input window
     @param A pointer to the input buffer
     @param A pointer to the cursor position value
     @param The inputted character
 ==============================*/
 
-void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
+void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
     char cmd_changed = 0;
     static int blinker = 0;
@@ -236,7 +236,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
         {
             int slen = strlen(cmd_history[curcmd-1]);
             strcpy(buffer, cmd_history[curcmd-1]);
-            (*cursorpos) = slen;
+            (*cursorpos) = (u16)slen;
             size = slen;
         }
         blinker = BLINKRATE;
@@ -315,7 +315,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
                 buffer[i+1] = buffer[i];
 
         // Add the character to the input buffer
-        buffer[(*cursorpos)++] = ch;
+        buffer[(*cursorpos)++] = (char)ch;
         size++;
         curcmd = 0;
         blinker = BLINKRATE;
@@ -326,8 +326,7 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
     
     // Draw the blinker
-    blinker++;
-    blinker = blinker % (1+BLINKRATE * 2);
+    blinker = (blinker+1) % (1+BLINKRATE * 2);
     if (blinker >= BLINKRATE)
     {
         int x, y;
@@ -736,8 +735,8 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
             int texel = swap_endian((buffer[i+3]<<24)&0xFF000000 | (buffer[i+2]<<16)&0xFF0000 | (buffer[i+1]<<8)&0xFF00 | buffer[i]&0xFF);
             if (debug_headerdata[1] == 2) 
             {
-                short pixel1 = texel >> 16;
-                short pixel2 = texel;
+                short pixel1 = (texel&0xFFFF0000)>>16;
+                short pixel2 = (texel&0x0000FFFF);
                 image[j++] = 0x08*((pixel1>>11) & 0x001F); // R1
                 image[j++] = 0x08*((pixel1>>6) & 0x001F);  // G1
                 image[j++] = 0x08*((pixel1>>1) & 0x001F);  // B1

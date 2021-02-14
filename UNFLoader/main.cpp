@@ -36,14 +36,14 @@ void show_help();
 // Program globals
 bool  global_usecolors   = true;
 int   global_cictype     = -1;
-int   global_savetype    = 0;
+u32   global_savetype    = 0;
 bool  global_listenmode  = false;
 bool  global_debugmode   = false;
 bool  global_z64         = false;
 char* global_debugout    = NULL;
 FILE* global_debugoutptr = NULL;
 char* global_exportpath  = NULL;
-int   global_timeout     = 0;
+u32   global_timeout     = 0;
 bool  global_closefail   = false;
 
 // Local globals
@@ -210,7 +210,7 @@ void parse_args(int argc, char* argv[])
             // If we have an argument after this one, then set the export path
             if (i<argc && argv[i][0] != '-')
             {
-                int len = strlen(argv[i]);
+                u32 len = strlen(argv[i]);
                 if (argv[i][len-1] == '/')
                     global_exportpath = argv[i];
                 else
@@ -332,7 +332,7 @@ void list_args()
 
 void show_help()
 {
-    char category = 0;
+    int category = 0;
 
     // Print the introductory message
     pdprint("Welcome to the %s!\n", CRDEF_PROGRAM, PROGRAM_NAME_LONG);

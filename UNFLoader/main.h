@@ -1,24 +1,26 @@
 #ifndef __MAIN_HEADER
 #define __MAIN_HEADER
 
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <string.h>
-    #include <time.h>
-    #ifndef LINUX
-        #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
-    #else
-        #include <unistd.h>
-    #endif
+    #pragma warning(push, 0)
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <time.h>
+        #ifndef LINUX
+            #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
+        #else
+            #include <unistd.h>
+        #endif
 
-    #ifndef LINUX
-        #include "Include/curses.h"
-        #include "Include/curspriv.h"
-        #include "Include/panel.h"
-    #else
-        #include <curses.h>
-    #endif
-    #include "Include/ftd2xx.h"
+        #ifndef LINUX
+            #include "Include/curses.h"
+            #include "Include/curspriv.h"
+            #include "Include/panel.h"
+        #else
+            #include <curses.h>
+        #endif
+        #include "Include/ftd2xx.h"
+    #pragma warning(pop)
 
 
     /*********************************
@@ -51,14 +53,14 @@
 
     extern bool  global_usecolors;
     extern int   global_cictype;
-    extern int   global_savetype;
+    extern u32   global_savetype;
     extern bool  global_listenmode;
     extern bool  global_debugmode;
     extern bool  global_z64;
     extern char* global_debugout;
     extern FILE* global_debugoutptr;
     extern char* global_exportpath;
-    extern int   global_timeout;
+    extern u32   global_timeout;
     extern bool  global_closefail;
 
 #endif

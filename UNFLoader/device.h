@@ -19,7 +19,7 @@
 
     typedef struct {
         DWORD        devices;
-        DWORD        device_index;
+        int          device_index;
         FT_STATUS    status;
         FT_DEVICE_LIST_INFO_NODE *dev_info;
         FT_HANDLE    handle;

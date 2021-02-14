@@ -302,7 +302,6 @@ void progressbar_draw(const char* text, short color, float percent)
     int i;
     int prog_size = 16;
 	int blocks_done = (int)(percent*prog_size);
-	int blocks_left = prog_size-blocks_done;
 
     // Print the head of the progress bar
     pdprint_replace("%s [", color, text);
@@ -395,7 +394,7 @@ char* gen_filename()
 ==============================*/
 
 // Final hash to print
-static char hash[32+1];
+static char cichash[32+1];
 
 // 's' specifies the per-round shift amounts
 static u32 s[64] = {
@@ -426,12 +425,12 @@ static u32 K[64] = {
 };
 
 // Helper function for hash calculation
-static int leftrotate(int x, int c)
+static u32 leftrotate(u32 x, u32 c)
 {
     return (x << c) | (x >> (32-c));
 }
 
-char* md5(u8 *buff, int len) 
+char* md5(u8 *buff, u32 len) 
 {
     u32 i;
     u8 *msg = NULL;
@@ -441,9 +440,9 @@ char* md5(u8 *buff, int len)
     u32 c0 = 0x98badcfe;
     u32 d0 = 0x10325476;
 
-    int finallen = ((((len + 8) / 64) + 1) * 64) - 8;
-    int nbits = 8*len;
-    int offset;
+    u32 finallen = ((((len + 8) / 64) + 1) * 64) - 8;
+    u32 nbits = 8*len;
+    u32 offset;
 
     msg = (u8*) calloc(finallen + 64, 1);
     if (msg == NULL)
@@ -504,8 +503,8 @@ char* md5(u8 *buff, int len)
 
     // Cleanup and return the hash
     free(msg);
-    sprintf(hash, "%08X%08X%08X%08X", a0, b0, c0, d0);
-    return hash;
+    sprintf(cichash, "%08X%08X%08X%08X", a0, b0, c0, d0);
+    return cichash;
 }
 
 /*==============================

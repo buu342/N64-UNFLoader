@@ -379,7 +379,7 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     free(rom_buffer);
 
     // Release reset
-    gpio = swap_endian(~DEV_GPIO_RESET);
+    gpio = swap_endian((u32)(~DEV_GPIO_RESET));
     device_write_bank_sc64(cart, DEV_BANK_CART, DEV_OFFSET_GPIO, (u8*)(&gpio), 4);
 
     if (bytes_left > 0) {
