@@ -279,7 +279,9 @@ void show_title()
     // Print the title
     for (i=0; i<titlesize-1; i++)
     {
-        char str[2] = {title[i], '\0'};
+        char str[2];
+        str[0] = title[i];
+        str[1] = '\0';
         pdprint(str, 1+(i)%TOTAL_COLORS);
     }
 
