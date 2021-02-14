@@ -29,7 +29,7 @@ https://github.com/Polprzewodnikowy/SummerCollection
 *********************************/
 
 static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, int index, char* manufacturer);
-static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u8 numparams, ...);
+static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u32 numparams, ...);
 static void device_write_bank_sc64(ftdi_context_t* cart, u8 bank, u32 offset, u8* write_buffer, u32 write_length);
 
 
@@ -86,7 +86,7 @@ static FT_STATUS device_read_manufacturer_sc64(ftdi_context_t* cart, int index, 
     @param The extra variadic commands to send
 ==============================*/
 
-static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u8 numparams, ...)
+static void device_sendcmd_sc64(ftdi_context_t* cart, u8 command, u8* write_buffer, u32 write_length, u8* read_buffer, u32 read_length, bool reply, u32 numparams, ...)
 {
     va_list params;
     u8 cmd_params_buff[12];
