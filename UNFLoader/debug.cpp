@@ -326,7 +326,8 @@ void debug_textinput(ftdi_context_t* cart, WINDOW* inputwin, char* buffer, u16* 
     pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
     
     // Draw the blinker
-    blinker = (blinker++) % (1+BLINKRATE * 2);
+    blinker++;
+    blinker = blinker % (1+BLINKRATE * 2);
     if (blinker >= BLINKRATE)
     {
         int x, y;
