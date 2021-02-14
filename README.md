@@ -19,6 +19,7 @@ Currently supported devices:
     - [System Requirements](UNFLoader#system-requirements)
     - [How to use UNFLoader](UNFLoader#how-to-use-unfloader)
     - [How to build UNFLoader for Windows](UNFLoader#how-to-build-unfloader-for-windows)
+    - [How to build UNFLoader for macOS](UNFLoader#how-to-build-unfloader-for-macOS)
     - [How to build UNFLoader for Linux](UNFLoader#how-to-build-unfloader-for-linux)
 * [USB + Debug Library](USB%2BDebug%20Library)
     - [How to use the USB library](USB%2BDebug%20Library#how-to-use-the-usb-library)
