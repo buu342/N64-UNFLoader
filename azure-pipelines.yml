@@ -139,25 +139,47 @@ jobs:
     #releaseTag: # Required when compareWith == LastReleaseByTag
 
       
-# - job: UFNLoader_macOS
-#   pool:
-#    vmImage: 'macOS-latest'
-#   steps:
-#   - script: |
-#       echo Build App
-#       cd ./UNFLoader/
-#       ls
-#       make -f Makefile
-#     displayName: 'Build Program'
+- job: UFNLoader_macOS
+  pool:
+    vmImage: 'macOS-latest'
+  steps:
+  - script: |
+      echo Install helper package
+      curl -L https://www.ftdichip.com/old2020/Drivers/D2XX/MacOSX/D2xxHelper_v2.0.0.pkg --output helper.pkg
+      sudo installer -pkg ./helper.pkg -target /
 
-#   # Publish build artifacts to Azure Artifacts/TFS or a file share
-#   - task: PublishBuildArtifacts@1
-#     displayName: Publish Build Artifacts
-#     inputs:
-#       pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader'
-#       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
-#       artifactName: 'unfloader-macOS' 
-#       publishLocation: 'Container' # Options: container, filePath
-#       #targetPath: # Required when publishLocation == FilePath
-#       parallel: true # Optional
-#       #parallelCount: # Optional
+      echo Install D2XX drivers
+      curl -L https://ftdichip.com/wp-content/uploads/2021/01/D2XX1.4.22.zip --output macos_drivers.zip
+      unzip ./macos_drivers.zip
+
+      echo Attach drivers disk image
+      hdiutil attach ./D2XX1.4.22.dmg
+
+      echo Install drivers to installation location
+      sudo mkdir -p /usr/local/lib
+      sudo mkdir -p /usr/local/include
+      sudo cp /Volumes/release/D2XX/libftd2xx.1.4.22.dylib /usr/local/lib/libftd2xx.1.4.22.dylib
+      sudo ln -sf /usr/local/lib/libftd2xx.1.4.22.dylib /usr/local/lib/libftd2xx.dylib
+      sudo cp /Volumes/release/D2XX/ftd2xx.h /usr/local/include/ftd2xx.h
+      sudo cp /Volumes/release/D2XX/WinTypes.h /usr/local/include/WinTypes.h
+
+      echo Build macOS App
+      cd ./UNFLoader/
+      make
+      cd ..
+
+      echo Detatch drivers disk image
+      diskutil eject /Volumes/release
+    displayName: 'Build Program'
+    continueOnError: false
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader'
+      #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'unfloader-macOS' 
+      publishLocation: 'Container' # Options: container, filePath
+      #targetPath: # Required when publishLocation == FilePath
+      parallel: true # Optional
+      #parallelCount: # Optional
