@@ -77,7 +77,7 @@ https://github.com/buu342/N64-UNFLoader
 
     // Other
     #if OVERWRITE_OSPRINT
-        static void* debug_osSyncPrintf_implementation(void *str, const char *buf, size_t n);
+        static void* debug_osSyncPrintf_implementation(void *unused, const char *str, size_t len);
     #endif
     
     
@@ -86,6 +86,7 @@ https://github.com/buu342/N64-UNFLoader
     *********************************/
 
     // Function pointers
+    extern int _Printf(void *(*copyfunc)(void *, const char *, size_t), void*, const char*, va_list);
     #if OVERWRITE_OSPRINT
         extern void* __printfunc;
     #endif
@@ -263,139 +264,48 @@ https://github.com/buu342/N64-UNFLoader
     
     
     /*==============================
+        printf_handler
+        Handles printf memory copying
+        @param The buffer to copy the partial string to
+        @param The string to copy
+        @param The length of the string
+        @returns The end of the buffer that was written to
+    ==============================*/
+    
+    static void* printf_handler(void *buf, const char *str, size_t len)
+    {
+        return ((char *) memcpy(buf, str, len) + len);
+    }
+    
+    
+    /*==============================
         debug_printf
         Prints a formatted message to the developer's command prompt.
         Supports up to 256 characters.
         @param A string to print
         @param variadic arguments to print as well
     ==============================*/
-
+    
     void debug_printf(const char* message, ...)
     {
+        int len = 0;
         usbMesg msg;
         va_list args;
-        int i, j=0, delimcount;
-        int size = strlen(message);
-        char isdelim = FALSE;
-        char delim[8] = {0};
-        memset(debug_buffer, 0, 256);
         
-        // Ensure debug mode is initialized
-        if (!debug_initialized)
-            return;
-        
-        // Get the variadic arguments
+        // use the internal libultra printf function to format the string
         va_start(args, message);
-
-        // Build the string
-        for (i=0; i<size; i++)
-        {      
-            // Decide if we're dealing with %% or something else
-            if (message[i] == '%')
-            {
-                // Handle printing %%
-                if ((i != 0 && message[i-1] == '%') || (i+1 != size && message[i+1] == '%'))
-                {
-                    debug_buffer[j++] = message[i];
-                    isdelim = FALSE;
-                    continue;
-                }
-                
-                // Handle delimiter start
-                if (!isdelim)
-                {
-                    memset(delim, 0, sizeof(delim)/sizeof(delim[0]));
-                    isdelim = TRUE;
-                    delim[0] = '%';
-                    delimcount = 1;
-                    continue;
-                }
-            }
-          
-            // If we're dealing with something else
-            if (isdelim)
-            {
-                char numbuf[25] = {0};
-                char* vastr = NULL;
-
-                // Pick what to attach based on the character after the percentage symbol
-                delim[delimcount++] = message[i];
-                switch(message[i])
-                {
-                    case 'c':
-                        debug_buffer[j++] = (char)va_arg(args, int);
-                        isdelim = FALSE;
-                        break;
-                    case 's':
-                        vastr = (char*)va_arg(args, char*);
-                        break;
-                    case 'u':
-                    case 'X':
-                        sprintf(numbuf, delim, (unsigned int)va_arg(args, unsigned int));
-                        break;
-                    case 'f':
-                    case 'e':
-                    case 'E':
-                        sprintf(numbuf, delim, (double)va_arg(args, double));
-                        break;
-                    case 'x':
-                    case 'i':
-                    case 'd':
-                    case 'o':
-                        sprintf(numbuf, delim, (int)va_arg(args, int));
-                        break;
-                    case 'p':
-                        sprintf(numbuf, delim, (void*)va_arg(args, void*));
-                        break;
-                    case 'l':
-                    case '.':
-                    case '0':
-                    case '1':
-                    case '2':
-                    case '3':
-                    case '4':
-                    case '5':
-                    case '6':
-                    case '7':
-                    case '8':
-                    case '9':
-                        continue;
-                    default:
-                        debug_buffer[j++] = '?';
-                        isdelim = FALSE;
-                        continue;
-                }
-                            
-                // Append the data to the end of our string
-                if (vastr != NULL)
-                {
-                    int vastrlen = strlen(vastr);
-                    strcat (debug_buffer, vastr);
-                    j += vastrlen;
-                    isdelim = FALSE;
-                }
-                else if (numbuf[0] != '\0')
-                {
-                    int vastrlen = strlen(numbuf);
-                    strcat (debug_buffer, numbuf);
-                    j += vastrlen;
-                    isdelim = FALSE;
-                }
-            }
-            else
-                debug_buffer[j++] = message[i];
-        }
-        va_end(args); 
+        len = _Printf(&printf_handler, debug_buffer, message, args);
+        va_end(args);
         
-        // Get the new size
-        size = strlen(debug_buffer)+1;
-        debug_buffer[size-1] = '\0';
+        // Attach the '\0' if necessary
+        if (0 <= len)
+            debug_buffer[len] = '\0';
         
         // Send the printf to the usb thread
         msg.msgtype = MSG_WRITE;
         msg.datatype = DATATYPE_TEXT;
         msg.buff = debug_buffer;
-        msg.size = size;
+        msg.size = len+1;
         osSendMesg(&usbMessageQ, (OSMesg)&msg, OS_MESG_BLOCK);
     }
     
@@ -806,13 +716,30 @@ https://github.com/buu342/N64-UNFLoader
         /*==============================
             debug_osSyncPrintf_implementation
             Overwrites osSyncPrintf calls with this one
-            Doesn't support variadic arguments
+            @param Unused
+            @param The buffer with the string
+            @param The amount of characters to write
+            @returns The end of the buffer that was written to
         ==============================*/
     
-        static void* debug_osSyncPrintf_implementation(void *str, const char *buf, size_t n)
+        static void* debug_osSyncPrintf_implementation(void *unused, const char *str, size_t len)
         {
-            debug_printf(buf);
-            return NULL;
+            void* ret;
+            usbMesg msg;
+            
+            // Clear the debug buffer and copy the formatted string to it
+            memset(debug_buffer, 0, len+1);
+            ret =  ((char *) memcpy(debug_buffer, str, len) + len);
+            
+            // Send the printf to the usb thread
+            msg.msgtype = MSG_WRITE;
+            msg.datatype = DATATYPE_TEXT;
+            msg.buff = debug_buffer;
+            msg.size = len+1;
+            osSendMesg(&usbMessageQ, (OSMesg)&msg, OS_MESG_BLOCK);
+            
+            // Return the end of the buffer
+            return ret;
         }
         
     #endif 
