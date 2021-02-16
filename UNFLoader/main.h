@@ -62,5 +62,6 @@
     extern char* global_exportpath;
     extern u32   global_timeout;
     extern bool  global_closefail;
+    extern char* global_filename;
 
 #endif

@@ -228,6 +228,7 @@ void device_sendrom(char* rompath)
             terminate("Unable to open file '%s'.\n", rompath);
         }
 	    stat(rompath, &finfo);
+        global_filename = rompath;
 
         // Read the ROM header to check if its byteswapped
         fread(rom_header, 4, 1, file);

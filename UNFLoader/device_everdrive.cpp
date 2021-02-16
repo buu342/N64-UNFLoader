@@ -246,8 +246,24 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     // Write the filename of the save file if necessary
     if (global_savetype != 0)
     {
+        u32 i;
+        u32 len = strlen(global_filename);
+        int extension = -1;
         char filename[256];
-        sprintf(filename, "savetest.sav");
+        memset(filename, 0, 256);
+        for (i=len; i>0; i--)
+        {
+            if (global_filename[i] == '.' && extension == -1)
+                extension = i;
+            if (global_filename[i] == '\\' || global_filename[i] == '/')
+            {
+                i++;
+                break;
+            }
+        }
+        if (extension == -1)
+            extension = len;
+        memcpy(filename, global_filename+i, (extension-i)); 
         FT_Write(cart->handle, filename, 256, &cart->bytes_written);
     }
     
