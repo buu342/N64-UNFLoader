@@ -384,155 +384,40 @@ char* gen_filename()
 
 
 /*==============================
-    md5
-    Returns a string with an MD5 hash of the inputted data
-    Code from https://en.wikipedia.org/wiki/MD5#Pseudocode
-    The hash calculation is wrong but it works for this purpose
+    romhash
+    Returns an int with a simple hash of the inputted data
     @param The data to hash
     @param The size of the data
-    @returns A string with the hash
+    @returns The hash number
 ==============================*/
 
-// Final hash to print
-static char cichash[32+1];
-
-// 's' specifies the per-round shift amounts
-static u32 s[64] = {
-    7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
-    5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20, 5,  9, 14, 20,
-    4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
-    6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
-};
-
-// Use binary integer part of the sines of integers (Radians) as constants:
-static u32 K[64] = {
-    0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
-    0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
-    0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
-    0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
-    0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
-    0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-    0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
-    0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
-    0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
-    0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
-    0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
-    0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-    0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
-    0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
-    0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
-    0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
-};
-
-// Helper function for hash calculation
-static u32 leftrotate(u32 x, u32 c)
-{
-    return (x << c) | (x >> (32-c));
-}
-
-char* md5(u8 *buff, u32 len) 
+u32 romhash(u8 *buff, u32 len) 
 {
     u32 i;
-    u8 *msg = NULL;
-
-    u32 a0 = 0x67452301;
-    u32 b0 = 0xefcdab89;
-    u32 c0 = 0x98badcfe;
-    u32 d0 = 0x10325476;
-
-    u32 finallen = ((((len + 8) / 64) + 1) * 64) - 8;
-    u32 nbits = 8*len;
-    u32 offset;
-
-    msg = (u8*) calloc(finallen + 64, 1);
-    if (msg == NULL)
-        terminate("Unable to allocate memory for MD5 calculation.");
-    memcpy(msg, buff, len);
-    msg[len] = 128;
-    memcpy(msg + finallen, &nbits, 4);
-
-    for (offset=0; offset<finallen; offset += 64) 
-    {
-        u32* w = (u32*) (msg + offset);
-
-        // Initialize hash value for this chunk:
-        u32 A = a0;
-        u32 B = b0;
-        u32 C = c0;
-        u32 D = d0;
-
-        for (i=0; i<64; i++) 
-        {
-            u32 F, g;
-
-            if (i < 16) 
-            {
-                F = (B & C) | ((~B) & D);
-                g = i;
-            }
-            else if (i < 32)
-            {
-                F = (D & B) | ((~D) & C);
-                g = (5*i + 1) % 16;
-            }
-            else if (i < 48)
-            {
-                F = B ^ C ^ D;
-                g = (3*i + 5) % 16;          
-            }
-            else
-            {
-                F = C ^ (B | (~D));
-                g = (7*i) % 16;
-            }
-            
-            // Be wary of the below definitions of a,b,c,d
-            F = F + A + K[i] + w[g];
-            A = D;
-            D = C;
-            C = B;
-            B = B + leftrotate(F, s[i]);
-        }
-
-        // Add this chunk's hash to result so far:
-        a0 += A;
-        b0 += B;
-        c0 += C;
-        d0 += D;
-    }
-
-    // Cleanup and return the hash
-    free(msg);
-    sprintf(cichash, "%08X%08X%08X%08X", a0, b0, c0, d0);
-    return cichash;
+    u32 hash=0;
+    for (i=0; i<len; i++)
+        hash += buff[i];
+    return hash;
 }
 
 /*==============================
     cic_from_hash
-    Returns a CIC value from the hash string
-    Please note that, since my MD5 function is wrong, these
-    hashes are too.
-    @param The string with the hash
+    Returns a CIC value from the hash number
+    @param The hash number
     @returns The global_cictype value
 ==============================*/
 
-s8 cic_from_hash(char* hash)
+s8 cic_from_hash(u32 hash)
 {
-    if (!strcmp(hash, "0D21AD663C036767A0169918FF66DFE6"))
-        return 0;
-    if (!strcmp(hash, "FCEA1DADA68056B7A5540BC333865792"))
-        return 1;
-    if (!strcmp(hash, "0D21AD663C036767A0169918FF66DFE6"))
-        return 2;
-    if (!strcmp(hash, "405C84158EE479B5E9F381F853697686"))
-        return 3;
-    if (!strcmp(hash, "D0F36A72A1724A25389CAF95CD94BA98"))
-        return 4;
-    if (!strcmp(hash, "6501ED9FBDA950C672130BF14035AC57"))
-        return 5;
-    if (!strcmp(hash, "920275BB13E7566DF6F834651BB4A0F9"))
-        return 6;
-    if (!strcmp(hash, "FC75BA10B1F3708EE5439FDDC68806C0"))
-        return 7;
+    switch (hash)
+    {
+        case 0x033a27: return 0;
+        case 0x034044: return 1;
+        case 0x03421e: return 3;
+        case 0x0357d0: return 4;
+        case 0x047a81: return 5;
+        case 0x0371cc: return 6;
+        case 0x02abb7: return 7;
+    }
     return -1;
 }

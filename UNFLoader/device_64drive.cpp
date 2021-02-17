@@ -172,7 +172,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
                 SWAP(bootcode[j], bootcode[j+1]);
 
         // Pick the CIC from the bootcode
-        cic = cic_from_hash(md5(bootcode, 4032));
+        cic = cic_from_hash(romhash(bootcode, 4032));
         if (cic != -1)
         {
             // Set the CIC and print it
