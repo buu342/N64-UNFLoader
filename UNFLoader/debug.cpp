@@ -331,7 +331,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     {
         int x, y;
         getyx(inputwin, y, x);
-        mvwaddch(inputwin, y, (*cursorpos), 219);
+        mvwaddch(inputwin, y, (*cursorpos), ACS_BLOCK);
         wmove(inputwin, y, x);
     }
     wrefresh(inputwin);

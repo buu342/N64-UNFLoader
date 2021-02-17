@@ -307,17 +307,10 @@ void progressbar_draw(const char* text, short color, float percent)
     pdprint_replace("%s [", color, text);
 
     // Draw the progress bar itself
-    #ifndef LINUX
-        for(i=0; i<blocks_done; i++) 
-            pdprint("%c", color, 219);
-        for(; i<prog_size; i++) 
-            pdprint("%c", color, 176);
-    #else
-        for(i=0; i<blocks_done; i++) 
-            pdprint("%c", color, '#');
-        for(; i<prog_size; i++) 
-            pdprint("%c", color, '.');
-    #endif
+    for(i=0; i<blocks_done; i++) 
+        addch(ACS_BLOCK);
+    for(; i<prog_size; i++) 
+        addch(ACS_BOARD);
 
     // Print the butt of the progress bar
     pdprint("] %d%%\n", color, (int)(percent*100.0f));
