@@ -313,7 +313,7 @@ void list_args()
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
     pdprint("  \t 4 - %s\t\t 5 - %s\n", CRDEF_PROGRAM, "x103 (All)", "x105 (All)");
     pdprint("  \t 6 - %s\t\t 7 - %s\n", CRDEF_PROGRAM, "x106 (All)", "5101 (NTSC)");
-    pdprint("  -s <int>\t\t   Set save emulation (64Drive/SummerCart64 only).\n", CRDEF_PROGRAM);    
+    pdprint("  -s <int>\t\t   Set save emulation.\n", CRDEF_PROGRAM);    
     pdprint("  \t 1 - %s\t 2 - %s\n", CRDEF_PROGRAM, "EEPROM 4Kbit", "EEPROM 16Kbit");
     pdprint("  \t 3 - %s\t 4 - %s\n", CRDEF_PROGRAM, "SRAM 256Kbit", "FlashRAM 1Mbit");
     pdprint("  \t 5 - %s\t 6 - %s\n", CRDEF_PROGRAM, "SRAM 768Kbit", "FlashRAM 1Mbit (PokeStdm2)");
