@@ -126,7 +126,7 @@
         
         // Overwrite library functions with useless macros if debug mode is disabled
         #define debug_initialize() 
-        #define debug_printf(a, __VA_ARGS__) 
+        #define debug_printf(__VA_ARGS__) 
         #define debug_screenshot(a, b, c)
         #define debug_assert(a)
         #define debug_pollcommands()
