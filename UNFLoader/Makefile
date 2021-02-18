@@ -10,9 +10,9 @@ LIBFILES=Include/lodepng.cpp
 CC=g++
 
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncursesw -lftd2xx -lpthread
+	DEPENDENCIES := -lncurses -lftd2xx -lpthread
 else
-	DEPENDENCIES := -lncursesw -lftd2xx -lpthread -lrt 
+	DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt 
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
