@@ -34,22 +34,24 @@ void show_help();
 *********************************/
 
 // Program globals
-bool  global_usecolors   = true;
-int   global_cictype     = -1;
-u32   global_savetype    = 0;
-bool  global_listenmode  = false;
-bool  global_debugmode   = false;
-bool  global_z64         = false;
-char* global_debugout    = NULL;
-FILE* global_debugoutptr = NULL;
-char* global_exportpath  = NULL;
-u32   global_timeout     = 0;
-bool  global_closefail   = false;
-char* global_filename    = NULL;
+bool    global_usecolors   = true;
+int     global_cictype     = -1;
+u32     global_savetype    = 0;
+bool    global_listenmode  = false;
+bool    global_debugmode   = false;
+bool    global_z64         = false;
+char*   global_debugout    = NULL;
+FILE*   global_debugoutptr = NULL;
+char*   global_exportpath  = NULL;
+time_t  global_timeout     = 0;
+bool    global_closefail   = false;
+char*   global_filename    = NULL;
+WINDOW* global_window      = NULL;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
 static char* local_rom = NULL;
+
 
 
 /*==============================
@@ -62,7 +64,7 @@ static char* local_rom = NULL;
 int main(int argc, char* argv[])
 {
     int i;
-    time_t time;
+    time_t endtime;
 
     // Initialize PDCurses
     initscr();
@@ -76,6 +78,7 @@ int main(int argc, char* argv[])
     #ifndef LINUX
         resize_term(40, 80);
     #endif
+    global_window = newpad(1000, 80);
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);
@@ -86,7 +89,7 @@ int main(int argc, char* argv[])
     // Start the program
     show_title();
     parse_args(argc, argv);
-    time  = clock() + global_timeout*CLOCKS_PER_SEC;
+    endtime = time(NULL) + global_timeout*CLOCKS_PER_SEC;
 
     // Upload the ROM and start debug mode if necessary
     device_find(local_flashcart);
@@ -100,11 +103,11 @@ int main(int argc, char* argv[])
         pdprint("\nPress any key to continue.\n", CRDEF_INPUT);
         getchar();
     }
-    else if (time > clock())
+    else if (endtime > time(NULL))
     {
         timeout(0);
         pdprint("\nPress any key to continue, or wait for timeout.\n", CRDEF_INPUT);
-        while (getch() < 2 && time > clock())
+        while (getch() < 2 && endtime > time(NULL))
             ;
     }
     for (i=0; i<TOTAL_COLORS; i++)

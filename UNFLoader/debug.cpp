@@ -60,7 +60,7 @@ void debug_main(ftdi_context_t *cart)
     u16 cursorpos = 0;
     DWORD pending = 0;
     WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
-    time_t debugtimeout = clock() + global_timeout*CLOCKS_PER_SEC;
+    time_t debugtimeout = time(NULL) + global_timeout;
     int alignment;
 
     pdprint("Debug mode started. Press ESC to stop.", CRDEF_INPUT);
@@ -107,7 +107,7 @@ void debug_main(ftdi_context_t *cart)
         int ch = getch();
 
         // If ESC is pressed, stop the loop
-		if (ch == 27 || (global_timeout != 0 && debugtimeout < clock()))
+		if (ch == 27 || (global_timeout != 0 && debugtimeout < time(NULL)))
 			break;
         debug_textinput(inputwin, inbuff, &cursorpos, ch);
 
