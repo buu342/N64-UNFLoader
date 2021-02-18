@@ -89,7 +89,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for macOS
-You need to have the FTDI driver installed (This is in the [requirements](https://github.com/buu342/N64-UNFLoader#requirements) section so you should've already done this step), as well as ncurses. ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
+You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses. ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
 Install ncurses by invoking:
 
 ```
@@ -119,7 +119,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for Linux
-You need to have the FTDI driver installed (This is in the [requirements](https://github.com/buu342/N64-UNFLoader#requirements) section so you should've already done this step), as well as ncurses.
+You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses.
 Install ncurses by invoking:
 
 ```
