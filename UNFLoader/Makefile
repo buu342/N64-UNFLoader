@@ -10,13 +10,13 @@ LIBFILES=Include/lodepng.cpp
 CC=g++
 
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncurses -lftd2xx -lpthread
+	DEPENDENCIES := -lncursesw -lftd2xx -lpthread
 else
-	DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt 
+	DEPENDENCIES := -lncursesw -lftd2xx -lpthread -lrt 
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS=-D LINUX
+CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED
 
 default:
 	$(CC) $(CFLAGS) -o $(APP) $(CODEFILES) $(LIBFILES) $(DEPENDENCIES) $(LINKER_OPTIONS) -L/usr/local/lib

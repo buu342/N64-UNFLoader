@@ -17,6 +17,7 @@
             #include "Include/curspriv.h"
             #include "Include/panel.h"
         #else
+            #include <locale.h>
             #include <curses.h>
         #endif
         #include "Include/ftd2xx.h"

@@ -197,7 +197,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     static int size = 0;
     static int curcmd = 0;
 
-    // If an arrow key was pressed
+    // Handle arrow key presses
     if (ch == KEY_DOWN)
     {
         curcmd++;
@@ -271,7 +271,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         size = 0;
         blinker = BLINKRATE;
     }
-    else if (ch == CH_BACKSPACE)
+    else if (ch == CH_BACKSPACE || ch == 263)
     {
         if ((*cursorpos) > 0)
         {

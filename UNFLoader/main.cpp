@@ -67,6 +67,9 @@ int main(int argc, char* argv[])
     time_t endtime;
 
     // Initialize PDCurses
+    #ifdef LINUX
+        setlocale(LC_ALL, "");
+    #endif
     initscr();
     start_color();
     use_default_colors();
@@ -75,9 +78,7 @@ int main(int argc, char* argv[])
     // Setup our console
     scrollok(stdscr, 1);
     idlok(stdscr, 1);
-    #ifndef LINUX
-        resize_term(40, 80);
-    #endif
+    resize_term(40, 80);
     global_window = newpad(1000, 80);
 
     // Initialize the colors
