@@ -152,6 +152,10 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
         FT_Read(cart->handle, recv_buff, 16, &cart->bytes_read);
     }
 
+    // Savetype message
+    if (global_savetype != 0)
+        pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
+
     // Get the correctly padded ROM size
     size = calc_padsize(size);
     bytes_left = size;
