@@ -148,7 +148,7 @@ void debug_main(ftdi_context_t *cart)
             }
 
             // Reset the timeout clock
-            debugtimeout = clock() + global_timeout*CLOCKS_PER_SEC;
+            debugtimeout = time(NULL) + global_timeout;
         }
 
         // If we got no more data, sleep a bit to be kind to the CPU

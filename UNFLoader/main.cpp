@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
     // Start the program
     show_title();
     parse_args(argc, argv);
-    endtime = time(NULL) + global_timeout*CLOCKS_PER_SEC;
+    endtime = time(NULL) + global_timeout;
 
     // Upload the ROM and start debug mode if necessary
     device_find(local_flashcart);
