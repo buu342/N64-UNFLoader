@@ -1,5 +1,5 @@
 # USB + Debug Library
-This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The USB library is available for both libultra and libdragon (WIP), while the debug library is only available for libultra.
+This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The USB library is available for both libultra and libdragon, while the debug library is only available for libultra.
 </br>
 </br>
 
@@ -10,7 +10,7 @@ This folder contains both the USB and debug library that works in tandem with UN
 </br>
 
 ### How to use the USB library
-Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
+Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library. If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`.
 <details><summary>Included functions list</summary>
 <p>
     
