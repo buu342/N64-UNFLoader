@@ -4,7 +4,7 @@
 
 **The code in this repo might be unstable! For stable versions, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
-UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra and libdragon (WIP). A very basic debug library (`debug.c`) that makes use of said USB library is also provided for libultra only.
+UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting both libultra and libdragon. A very basic debug library (`debug.c`) that makes use of said USB library is also provided, however it is for libultra only.
 
 Currently supported devices:
 * 64Drive Hardware 1.0 (No longer comercially sold), using firmware 2.05+
