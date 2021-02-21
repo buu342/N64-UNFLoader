@@ -1,5 +1,5 @@
 # USB + Debug Library
-This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The libraries currently only target libultra.
+This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The USB library is available for both libultra and libdragon (WIP), while the debug library is only available for libultra.
 </br>
 </br>
 
