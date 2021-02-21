@@ -6,7 +6,8 @@
     *********************************/
 
     // Settings
-    #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager
+    //#define LIBDRAGON                    // UNCOMMENT IF USING LIBDRAGON
+    #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager (libultra only)
     #define DEBUG_ADDRESS_SIZE 1*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
     
     // Cart definitions
@@ -26,7 +27,6 @@
     extern int usb_dataleft;
     extern int usb_readblock;
 
-    
     
     /*********************************
             Convenience macros
@@ -78,7 +78,7 @@
         @return The data header, or 0
     ==============================*/
     
-    extern u32 usb_poll();
+    extern unsigned long usb_poll();
     
     
     /*==============================

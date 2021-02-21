@@ -6,9 +6,13 @@ using UNFLoader.
 https://github.com/buu342/N64-UNFLoader
 ***************************************************************/
 
-#include <ultra64.h>
-#include <string.h>
 #include "usb.h"
+#ifndef LIBDRAGON
+    #include <ultra64.h>
+#else
+    #include <libdragon.h>
+#endif
+#include <string.h>
 
 
 /*********************************
@@ -23,6 +27,51 @@ https://github.com/buu342/N64-UNFLoader
 
 // Data header related
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
+
+
+/*********************************
+   Libultra macros for libdragon
+*********************************/
+
+#ifdef LIBDRAGON
+    // Useful
+    #define	ALIGN(s, align)	(((u32)(s) + ((align)-1)) & ~((align)-1))
+    #define MIN(a, b) ((a) < (b) ? (a) : (b))
+    #ifndef TRUE
+        #define TRUE 1
+    #endif
+    #ifndef FALSE
+        #define FALSE 0
+    #endif
+    #ifndef NULL
+        #define NULL 0
+    #endif
+
+    // MIPS addresses
+    #define KSEG0 0x80000000
+    #define KSEG1 0xA0000000
+
+    // Memory translation stuff
+    #define	PHYS_TO_K1(x)       ((u32)(x)|KSEG1)
+    #define	IO_WRITE(addr,data) (*(vu32 *)PHYS_TO_K1(addr)=(u32)(data))
+    #define	IO_READ(addr)       (*(vu32 *)PHYS_TO_K1(addr))
+
+    // PI registers
+    #define PI_BASE_REG   0x04600000
+    #define PI_STATUS_REG (PI_BASE_REG+0x10)
+    #define	PI_STATUS_ERROR		0x04
+    #define	PI_STATUS_IO_BUSY	0x02
+    #define	PI_STATUS_DMA_BUSY	0x01
+
+    #define PI_BSD_DOM1_LAT_REG	(PI_BASE_REG+0x14)
+    #define PI_BSD_DOM1_PWD_REG	(PI_BASE_REG+0x18)
+    #define PI_BSD_DOM1_PGS_REG	(PI_BASE_REG+0x1C)
+    #define PI_BSD_DOM1_RLS_REG	(PI_BASE_REG+0x20)
+    #define PI_BSD_DOM2_LAT_REG	(PI_BASE_REG+0x24)
+    #define PI_BSD_DOM2_PWD_REG	(PI_BASE_REG+0x28)
+    #define PI_BSD_DOM2_PGS_REG	(PI_BASE_REG+0x2C)
+    #define PI_BSD_DOM2_RLS_REG	(PI_BASE_REG+0x30)
+#endif
 
 
 /*********************************
@@ -149,6 +198,36 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
+  Libultra types (for libdragon)
+*********************************/
+
+#ifdef LIBDRAGON
+    typedef unsigned char      u8;	
+    typedef unsigned short     u16;
+    typedef unsigned long      u32;
+    typedef unsigned long long u64;
+
+    typedef signed char s8;	
+    typedef short       s16;
+    typedef long        s32;
+    typedef long long   s64;
+
+    typedef volatile unsigned char      vu8;
+    typedef volatile unsigned short     vu16;
+    typedef volatile unsigned long      vu32;
+    typedef volatile unsigned long long vu64;
+
+    typedef volatile signed char vs8;
+    typedef volatile short       vs16;
+    typedef volatile long        vs32;
+    typedef volatile long long   vs64;
+
+    typedef float  f32;
+    typedef double f64;
+#endif
+
+
+/*********************************
         Function Prototypes
 *********************************/
 
@@ -183,24 +262,25 @@ int usb_datasize = 0;
 int usb_dataleft = 0;
 int usb_readblock = -1;
 
+#ifndef LIBDRAGON
 // Message globals
-#if !USE_OSRAW
-    OSMesg      dmaMessageBuf;
-    OSIoMesg    dmaIOMessageBuf;
-    OSMesgQueue dmaMessageQ;
-#endif
+    #if !USE_OSRAW
+        OSMesg      dmaMessageBuf;
+        OSIoMesg    dmaIOMessageBuf;
+        OSMesgQueue dmaMessageQ;
+    #endif
 
-// osPiRaw
-#if USE_OSRAW
-    extern s32 __osPiRawWriteIo(u32, u32);
-    extern s32 __osPiRawReadIo(u32, u32 *);
-    extern s32 __osPiRawStartDma(s32, u32, void *, u32);
-    
-    #define osPiRawWriteIo(a, b) __osPiRawWriteIo(a, b)
-    #define osPiRawReadIo(a, b) __osPiRawReadIo(a, b)
-    #define osPiRawStartDma(a, b, c, d) __osPiRawStartDma(a, b, c, d)
+    // osPiRaw
+    #if USE_OSRAW
+        extern s32 __osPiRawWriteIo(u32, u32);
+        extern s32 __osPiRawReadIo(u32, u32 *);
+        extern s32 __osPiRawStartDma(s32, u32, void *, u32);
+        
+        #define osPiRawWriteIo(a, b) __osPiRawWriteIo(a, b)
+        #define osPiRawReadIo(a, b) __osPiRawReadIo(a, b)
+        #define osPiRawStartDma(a, b, c, d) __osPiRawStartDma(a, b, c, d)
+    #endif
 #endif
-
 
 /*********************************
            USB functions
@@ -217,9 +297,11 @@ char usb_initialize()
     // Initialize the debug related globals
     memset(usb_buffer, 0, BUFFER_SIZE);
         
-    // Create the message queue
-    #if !USE_OSRAW
-        osCreateMesgQueue(&dmaMessageQ, &dmaMessageBuf, 1);
+    #ifndef LIBDRAGON
+        // Create the message queue
+        #if !USE_OSRAW
+            osCreateMesgQueue(&dmaMessageQ, &dmaMessageBuf, 1);
+        #endif
     #endif
     
     // Find the flashcart
@@ -260,10 +342,14 @@ static void usb_findcart()
     u32 buff __attribute__((aligned(8)));
     
     // Read the cartridge and check if we have a 64Drive.
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+    #ifdef LIBDRAGON
+        buff = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC);
     #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC, &buff);
+        #endif
     #endif
     if (buff == D64_MAGIC)
     {
@@ -272,10 +358,14 @@ static void usb_findcart()
     }
 
     // Read the cartridge and check if we have a SummerCart64.
-    #if USE_OSRAW
-        osPiRawReadIo(SC64_REG_VERSION, &buff);
+    #ifdef LIBDRAGON
+        buff = io_read(SC64_REG_VERSION);
     #else
-        osPiReadIo(SC64_REG_VERSION, &buff);
+        #if USE_OSRAW
+            osPiRawReadIo(SC64_REG_VERSION, &buff);
+        #else
+            osPiReadIo(SC64_REG_VERSION, &buff);
+        #endif
     #endif
     if (buff == SC64_VERSION_A)
     {
@@ -498,10 +588,14 @@ static s8 usb_64drive_wait()
     // Wait until the cartridge interface is ready
     do
     {
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+        #ifdef LIBDRAGON
+            ret = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS);
         #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+            #if USE_OSRAW
+                osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+            #else
+                osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_STATUS, &ret);
+            #endif
         #endif
         
         // Took too long, abort
@@ -509,6 +603,7 @@ static s8 usb_64drive_wait()
             return -1;
     }
     while((ret >> 8) & D64_CI_BUSY);
+    (void) timeout; // Needed to stop unused variable warning
     
     // Success
     return 0;
@@ -524,10 +619,14 @@ static s8 usb_64drive_wait()
 static void usb_64drive_setwritable(u8 enable)
 {
     usb_64drive_wait();
-    #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+    #ifdef LIBDRAGON
+        io_write(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+        #if USE_OSRAW
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+        #else
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_COMMAND, enable ? D64_ENABLE_ROMWR : D64_DISABLE_ROMWR);
+        #endif
     #endif
     usb_64drive_wait();
 }
@@ -543,10 +642,14 @@ static void usb_64drive_waitidle()
     u32 status __attribute__((aligned(8)));
     do 
     {
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #ifdef LIBDRAGON
+            status = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT);
         #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #if USE_OSRAW
+                osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #else
+                osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #endif
         #endif
         status = (status >> 4) & D64_USB_BUSY;
     }
@@ -563,10 +666,14 @@ static void usb_64drive_waitidle()
 static u32 usb_64drive_armstatus()
 {
     u32 status __attribute__((aligned(8)));
-    #if USE_OSRAW
-        osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+    #ifdef LIBDRAGON
+        status = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT);
     #else
-        osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #if USE_OSRAW
+            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #else
+            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #endif
     #endif
     return status & 0xf;
 }
@@ -582,10 +689,14 @@ static void usb_64drive_waitdisarmed()
     u32 status __attribute__((aligned(8)));
     do
     {
-        #if USE_OSRAW
-            osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+        #ifdef LIBDRAGON
+            status = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT);
         #else
-            osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #if USE_OSRAW
+                osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #else
+                osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, &status);
+            #endif
         #endif
         status &= 0x0F;
     }
@@ -636,32 +747,42 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         usb_64drive_waitidle();
         
         // Set up DMA transfer between RDRAM and the PI
-        osWritebackDCache(usb_buffer, block);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_WRITE, 
-                         D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
-                         usb_buffer, block);
+        #ifdef LIBDRAGON
+            data_cache_hit_writeback(usb_buffer, block);
+            dma_write(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS + read, block);
         #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                         D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
-                         usb_buffer, block, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            osWritebackDCache(usb_buffer, block);
+            #if USE_OSRAW
+                osPiRawStartDma(OS_WRITE, 
+                             D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
+                             usb_buffer, block);
+            #else
+                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                             D64_BASE_ADDRESS + DEBUG_ADDRESS + read, 
+                             usb_buffer, block, &dmaMessageQ);
+                (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            #endif
         #endif
-        
         // Keep track of what we've read so far
         left -= block;
         read += block;
     }
     
     // Send the data through USB
-    #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+    #ifdef LIBDRAGON
+        io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
+        io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+        io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+        #if USE_OSRAW
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+        #else
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (DEBUG_ADDRESS) >> 1);
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF) | (datatype << 24));
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_COMMAND_WRITE);
+        #endif
     #endif
         
     // Spin until the write buffer is free and then disable write mode
@@ -687,14 +808,20 @@ static void usb_64drive_arm(u32 offset, u32 size)
         usb_64drive_waitidle();
         
         // Arm the 64Drive, using the ROM space as a buffer
-        #if USE_OSRAW
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
-            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
+        #ifdef LIBDRAGON
+            io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+            io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
+            io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
         #else
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
-            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
+            #if USE_OSRAW
+                osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+                osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
+                osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
+            #else
+                osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_ARM);
+                osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, (offset >> 1));
+                osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP1R1, (size & 0xFFFFFF));
+            #endif
         #endif
     }
 }
@@ -708,10 +835,14 @@ static void usb_64drive_arm(u32 offset, u32 size)
 static void usb_64drive_disarm()
 {
     // Disarm the USB
-    #if USE_OSRAW
-        osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+    #ifdef LIBDRAGON
+        io_write(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM);
     #else
-        osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+        #if USE_OSRAW
+            osPiRawWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+        #else
+            osPiWriteIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBCOMSTAT, D64_USB_DISARM); 
+        #endif
     #endif
     usb_64drive_waitdisarmed();
 }
@@ -740,16 +871,21 @@ static u32 usb_64drive_poll()
         u32 copyleft;
 
         // Read ROM to get the data header
-        osWritebackDCacheAll();
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, 
-                         D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
-                         8);
+        #ifdef LIBDRAGON
+            data_cache_hit_writeback_invalidate(buff, 8);
+            dma_read(buff, D64_BASE_ADDRESS + DEBUG_ADDRESS, 8);
         #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                         D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
-                         8, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            osWritebackDCacheAll();
+            #if USE_OSRAW
+                osPiRawStartDma(OS_READ, 
+                             D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
+                             8);
+            #else
+                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                             D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
+                             8, &dmaMessageQ);
+                (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            #endif
         #endif
 
         // Ensure we got a USB request and this isn't something else
@@ -779,27 +915,34 @@ static u32 usb_64drive_poll()
                 ;
                 
             // Put the data in the correct ROM offset
-            osWritebackDCacheAll();
-            #if USE_OSRAW
-                osPiRawStartDma(OS_READ, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
-                             BUFFER_SIZE);
+            #ifdef LIBDRAGON
+                data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
+                dma_read(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS, BUFFER_SIZE);
+                data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
+                dma_read(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), BUFFER_SIZE);
             #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
-                             BUFFER_SIZE, &dmaMessageQ);
-                (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-            #endif
-            osWritebackDCacheAll();
-            #if USE_OSRAW
-                osPiRawStartDma(OS_WRITE, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
-                             BUFFER_SIZE);
-            #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
-                             BUFFER_SIZE, &dmaMessageQ);
-                (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                osWritebackDCacheAll();
+                #if USE_OSRAW
+                    osPiRawStartDma(OS_READ, 
+                                 D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
+                                 BUFFER_SIZE);
+                #else
+                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                                 D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
+                                 BUFFER_SIZE, &dmaMessageQ);
+                    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                #endif
+                osWritebackDCacheAll();
+                #if USE_OSRAW
+                    osPiRawStartDma(OS_WRITE, 
+                                 D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
+                                 BUFFER_SIZE);
+                #else
+                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                                 D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
+                                 BUFFER_SIZE, &dmaMessageQ);
+                    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                #endif
             #endif
             
             copyleft -= block;
@@ -827,16 +970,21 @@ static u32 usb_64drive_poll()
 static void usb_64drive_read()
 {
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCacheAll();
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                     BUFFER_SIZE);
+    #ifdef LIBDRAGON
+        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
+        dma_read(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
     #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     D64_BASE_ADDRESS + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                     BUFFER_SIZE, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        osWritebackDCacheAll();
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
+                         BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                         D64_BASE_ADDRESS + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
+                         BUFFER_SIZE, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
     #endif
 }
 
@@ -876,16 +1024,21 @@ static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len)
     pi_address &= 0x1FFFFFFF;
 
     // Set up DMA transfer between RDRAM and the PI
-    osInvalDCache(buff, len);
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, 
-                     pi_address, buff, 
-                     len);
+    #ifdef LIBDRAGON
+        data_cache_hit_writeback_invalidate(buff, len);
+        dma_read(buff, pi_address, len);
     #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     pi_address, buff, 
-                     len, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        osInvalDCache(buff, len);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                        pi_address, buff, 
+                        len);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                        pi_address, buff, 
+                        len, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
     #endif
 
     // Write the data to the PI
@@ -925,16 +1078,21 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
     pi_address &= 0x1FFFFFFF;
     
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCache(buff, len);
-    #if USE_OSRAW
-        osPiRawStartDma(OS_WRITE, 
-                     pi_address, buff, 
-                     len);
+    #ifdef LIBDRAGON
+        data_cache_hit_writeback(buff, len);
+        dma_write(buff, pi_address, len);
     #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                     pi_address, buff, 
-                     len, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        osWritebackDCache(buff, len);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_WRITE, 
+                         pi_address, buff, 
+                         len);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
+                         pi_address, buff, 
+                         len, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
     #endif
     
     // Write the data to the PI
@@ -1174,16 +1332,21 @@ static u32 usb_everdrive_poll()
 static void usb_everdrive_read()
 {
     // Set up DMA transfer between RDRAM and the PI
-    osWritebackDCacheAll();
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, 
-                     ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                     BUFFER_SIZE);
+    #ifdef LIBDRAGON
+        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
+        dma_write(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
     #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                     ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                     BUFFER_SIZE, &dmaMessageQ);
-        (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        osWritebackDCacheAll();
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, 
+                         ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
+                         BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
+                         ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
+                         BUFFER_SIZE, &dmaMessageQ);
+            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
     #endif
 }
 
@@ -1203,12 +1366,15 @@ static u32 usb_sc64_read_usb_scr(void)
 {
     u32 usb_scr __attribute__((aligned(8)));
 
-    #if USE_OSRAW
-        osPiRawReadIo(SC64_REG_USB_SCR, &usb_scr);
+    #ifdef LIBDRAGON
+        usb_scr = io_read(SC64_REG_USB_SCR);
     #else
-        osPiReadIo(SC64_REG_USB_SCR, &usb_scr);
+        #if USE_OSRAW
+            osPiRawReadIo(SC64_REG_USB_SCR, &usb_scr);
+        #else
+            osPiReadIo(SC64_REG_USB_SCR, &usb_scr);
+        #endif
     #endif
-
     return usb_scr;
 }
 
@@ -1223,12 +1389,16 @@ static u32 usb_sc64_read_usb_fifo(void)
 {
     u32 data __attribute__((aligned(8)));
 
-    #if USE_OSRAW
-        osPiRawReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+    #ifdef LIBDRAGON
+        data = io_read(SC64_MEM_USB_FIFO_BASE);
     #else
-        osPiReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+        #if USE_OSRAW
+            osPiRawReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+        #else
+            osPiReadIo(SC64_MEM_USB_FIFO_BASE, &data);
+        #endif
     #endif
-
+    
     return data;
 }
 
@@ -1295,12 +1465,17 @@ static void usb_sc64_setwritable(u8 enable)
 {
     u32 scr __attribute__((aligned(8)));
 
-    #if USE_OSRAW
-        osPiRawReadIo(SC64_REG_SCR, &scr);
-        osPiRawWriteIo(SC64_REG_SCR, enable ? (scr | SC64_SCR_SDRAM_WRITE_EN) : (scr & (~SC64_SCR_SDRAM_WRITE_EN)));
+    #ifdef LIBDRAGON
+        scr = io_read(SC64_REG_SCR);
+        io_write(SC64_REG_SCR, enable ? (scr | SC64_SCR_SDRAM_WRITE_EN) : (scr & (~SC64_SCR_SDRAM_WRITE_EN)));
     #else
-        osPiReadIo(SC64_REG_SCR, &scr);
-        osPiWriteIo(SC64_REG_SCR, enable ? (scr | SC64_SCR_SDRAM_WRITE_EN) : (scr & (~SC64_SCR_SDRAM_WRITE_EN)));
+        #if USE_OSRAW
+            osPiRawReadIo(SC64_REG_SCR, &scr);
+            osPiRawWriteIo(SC64_REG_SCR, enable ? (scr | SC64_SCR_SDRAM_WRITE_EN) : (scr & (~SC64_SCR_SDRAM_WRITE_EN)));
+        #else
+            osPiReadIo(SC64_REG_SCR, &scr);
+            osPiWriteIo(SC64_REG_SCR, enable ? (scr | SC64_SCR_SDRAM_WRITE_EN) : (scr & (~SC64_SCR_SDRAM_WRITE_EN)));
+        #endif
     #endif
 }
 
@@ -1371,12 +1546,17 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         dma_length = ALIGN(offset + data_length, 4);
 
         // Write data to buffer in SDRAM
-        osWritebackDCache(usb_buffer, dma_length);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
+        #ifdef LIBDRAGON
+            data_cache_hit_writeback(usb_buffer, dma_length);
+            dma_write(usb_buffer, sdram_address, dma_length);
         #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
-            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            osWritebackDCache(usb_buffer, dma_length);
+            #if USE_OSRAW
+                osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
+            #else
+                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
+                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            #endif
         #endif
 
         // Update pointers and remaining data tracking
@@ -1399,14 +1579,20 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         }
 
         // Setup hardware registers
-        #if USE_OSRAW
-            osPiRawWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
-            osPiRawWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
-            osPiRawWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
+        #ifdef LIBDRAGON
+            io_write(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
+            io_write(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
+            io_write(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
         #else
-            osPiWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
-            osPiWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
-            osPiWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
+            #if USE_OSRAW
+                osPiRawWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
+                osPiRawWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
+                osPiRawWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
+            #else
+                osPiWriteIo(SC64_REG_USB_DMA_ADDR, SC64_USB_BANK_ADDR(SC64_BANK_ROM, DEBUG_ADDRESS));
+                osPiWriteIo(SC64_REG_USB_DMA_LEN, SC64_USB_LENGTH(transfer_length));
+                osPiWriteIo(SC64_REG_USB_SCR, SC64_USB_CONTROL_START);
+            #endif
         #endif
 
         // Wait for transfer to complete if there's more data to send
@@ -1492,19 +1678,24 @@ static u32 usb_sc64_poll(void)
             }
 
             // Load data from FIFO to buffer in RDRAM
-            #if USE_OSRAW
-                osPiRawStartDma(OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length);
+            #ifdef LIBDRAGON
+                dma_read(usb_buffer, SC64_MEM_USB_FIFO_BASE, dma_length);
+                dma_write(usb_buffer, sdram_address, dma_length);
             #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length, &dmaMessageQ);
-                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-            #endif
+                #if USE_OSRAW
+                    osPiRawStartDma(OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length);
+                #else
+                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, SC64_MEM_USB_FIFO_BASE, usb_buffer, dma_length, &dmaMessageQ);
+                    osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                #endif
 
-            // Copy data from RDRAM to SDRAM
-            #if USE_OSRAW
-                osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
-            #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
-                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                // Copy data from RDRAM to SDRAM
+                #if USE_OSRAW
+                    osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
+                #else
+                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
+                    osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                #endif
             #endif
 
             // Update tracking variables
@@ -1535,13 +1726,18 @@ static void usb_sc64_read(void)
     u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS + usb_readblock;
 
     // Set up DMA transfer between RDRAM and the PI
-    #if USE_OSRAW
-        osPiRawStartDma(OS_READ, sdram_address, usb_buffer, BUFFER_SIZE);
+    #ifdef LIBDRAGON
+        dma_read(usb_buffer, sdram_address, BUFFER_SIZE);
+        data_cache_hit_invalidate(usb_buffer, BUFFER_SIZE);
     #else
-        osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, sdram_address, usb_buffer, BUFFER_SIZE, &dmaMessageQ);
-        osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-    #endif
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, sdram_address, usb_buffer, BUFFER_SIZE);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, sdram_address, usb_buffer, BUFFER_SIZE, &dmaMessageQ);
+            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
 
-    // Invalidate cache
-    osInvalDCache(usb_buffer, BUFFER_SIZE);
+        // Invalidate cache
+        osInvalDCache(usb_buffer, BUFFER_SIZE);
+    #endif
 }
