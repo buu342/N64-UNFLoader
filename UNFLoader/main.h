@@ -6,6 +6,7 @@
         #include <stdlib.h>
         #include <string.h>
         #include <time.h>
+        #include <ctype.h>
         #ifndef LINUX
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
