@@ -400,17 +400,18 @@ u32 romhash(u8 *buff, u32 len)
     @returns The global_cictype value
 ==============================*/
 
-s8 cic_from_hash(u32 hash)
+s16 cic_from_hash(u32 hash)
 {
     switch (hash)
     {
-        case 0x033a27: return 0;
+        case 0x033A27: return 0;
         case 0x034044: return 1;
-        case 0x03421e: return 3;
-        case 0x0357d0: return 4;
-        case 0x047a81: return 5;
-        case 0x0371cc: return 6;
-        case 0x02abb7: return 7;
+        case 0x03421E: return 3;
+        case 0x0357D0: return 4;
+        case 0x047A81: return 5;
+        case 0x0371CC: return 6;
+        case 0x02ABB7: return 7;
+        case 0x04F90E: return 303;
     }
     return -1;
 }

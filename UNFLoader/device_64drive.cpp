@@ -178,6 +178,8 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             // Set the CIC and print it
             cart->cictype = global_cictype;
             device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, 1, (1 << 31) | cic, 0);
+            if (cic == 303)
+                terminate("The 8303 CIC is not supported through USB");
             pdprint("CIC set to ", CRDEF_PROGRAM);
             switch (cic)
             {
@@ -227,6 +229,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             case 7106: cic = 6; break;
             case 7:
             case 5101: cic = 7; break;
+            case 303: terminate("This CIC is not supported through USB");
             default: terminate("Unknown CIC type '%d'.", global_cictype);
         }
 
