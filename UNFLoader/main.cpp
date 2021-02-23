@@ -182,7 +182,12 @@ void parse_args(int argc, char* argv[])
 
             // If we have an argument after this one, then set the ROM path, otherwise terminate
             if (i<argc && argv[i][0] != '-') 
-                global_cictype = strtol(argv[i], NULL, 0);
+            {
+                if (isdigit(argv[i][0]))
+                    global_cictype = strtol(argv[i], NULL, 0);
+                else
+                    global_cictype = strtol(argv[i]+1, NULL, 0);
+            }
             else 
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
