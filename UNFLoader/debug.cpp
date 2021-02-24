@@ -56,17 +56,17 @@ static int cmd_count = 0;
 void debug_main(ftdi_context_t *cart)
 {
     int i;
+    int alignment;
     char *outbuff, *inbuff;
     u16 cursorpos = 0;
     DWORD pending = 0;
     WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
-    time_t debugtimeout = time(NULL) + global_timeout;
-    int alignment;
 
-    pdprint("Debug mode started. Press ESC to stop.", CRDEF_INPUT);
+    // Initialize debug mode keyboard input
     if (global_timeout != 0)
-        pdprint(" Timeout after %d seconds.", CRDEF_INPUT, global_timeout);
-    pdprint("\n\n", CRDEF_INPUT);
+        pdprint("Debug mode started. Press ESC to stop or wait for timeout.\n\n", CRDEF_INPUT, global_timeout);
+    else
+        pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
     keypad(stdscr, TRUE);
@@ -107,7 +107,7 @@ void debug_main(ftdi_context_t *cart)
         int ch = getch();
 
         // If ESC is pressed, stop the loop
-		if (ch == 27 || (global_timeout != 0 && debugtimeout < time(NULL)))
+		if (ch == 27 || (global_timeout != 0 && global_timeouttime < time(NULL)))
 			break;
         debug_textinput(inputwin, inbuff, &cursorpos, ch);
 
@@ -146,9 +146,6 @@ void debug_main(ftdi_context_t *cart)
                 int left = alignment - (read % alignment);
                 FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
             }
-
-            // Reset the timeout clock
-            debugtimeout = time(NULL) + global_timeout;
         }
 
         // If we got no more data, sleep a bit to be kind to the CPU

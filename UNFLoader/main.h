@@ -63,6 +63,7 @@
     extern FILE*   global_debugoutptr;
     extern char*   global_exportpath;
     extern time_t  global_timeout;
+    extern time_t  global_timeouttime;
     extern bool    global_closefail;
     extern char*   global_filename;
     extern WINDOW* global_window;

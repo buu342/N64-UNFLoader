@@ -197,6 +197,8 @@ void terminate(const char* reason, ...)
         pdprint("Press any key to continue...", CRDEF_INPUT);
         getchar();
     }
+    else
+        handle_timeout();
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)
@@ -245,6 +247,8 @@ static void terminate_v(const char* reason, va_list args)
         pdprint("Press any key to continue...", CRDEF_INPUT);
         getchar();
     }
+    else
+        handle_timeout();
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)
@@ -414,4 +418,20 @@ s16 cic_from_hash(u32 hash)
         case 0x04F90E: return 303;
     }
     return -1;
+}
+
+/*==============================
+handle_timeout
+Draws a fancy progress bar
+@param The text to print before the progress bar
+@param The percentage of completion
+==============================*/
+void handle_timeout()
+{
+    timeout(0);
+    if (global_timeouttime == 0)
+        global_timeouttime = time(NULL) + global_timeout;
+    pdprint("\nPress any key to continue, or wait for timeout.\n", CRDEF_INPUT);
+    while (getch() < 2 && global_timeouttime > time(NULL))
+        ;
 }

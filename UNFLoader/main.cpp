@@ -44,6 +44,7 @@ char*   global_debugout    = NULL;
 FILE*   global_debugoutptr = NULL;
 char*   global_exportpath  = NULL;
 time_t  global_timeout     = 0;
+time_t  global_timeouttime = 0;
 bool    global_closefail   = false;
 char*   global_filename    = NULL;
 WINDOW* global_window      = NULL;
@@ -64,7 +65,6 @@ static char* local_rom = NULL;
 int main(int argc, char* argv[])
 {
     int i;
-    time_t endtime;
 
     // Initialize PDCurses
     #ifdef LINUX
@@ -90,7 +90,6 @@ int main(int argc, char* argv[])
     // Start the program
     show_title();
     parse_args(argc, argv);
-    endtime = time(NULL) + global_timeout;
 
     // Upload the ROM and start debug mode if necessary
     device_find(local_flashcart);
@@ -104,13 +103,8 @@ int main(int argc, char* argv[])
         pdprint("\nPress any key to continue.\n", CRDEF_INPUT);
         getchar();
     }
-    else if (endtime > time(NULL))
-    {
-        timeout(0);
-        pdprint("\nPress any key to continue, or wait for timeout.\n", CRDEF_INPUT);
-        while (getch() < 2 && endtime > time(NULL))
-            ;
-    }
+    else
+        handle_timeout();
     for (i=0; i<TOTAL_COLORS; i++)
         attroff(COLOR_PAIR(i+1));
     endwin();
