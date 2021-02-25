@@ -241,7 +241,7 @@ static u32  usb_everdrive_poll();
 static void usb_everdrive_read();
 static void usb_everdrive_writereg(u64 reg, u32 value);
 static void usb_sc64_write(int datatype, const void* data, int size);
-static u32 usb_sc64_poll();
+static u32  usb_sc64_poll();
 static void usb_sc64_read();
 
 
