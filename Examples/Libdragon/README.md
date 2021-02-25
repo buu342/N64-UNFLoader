@@ -5,7 +5,7 @@ To build the ROMs, simply call make.
 
 
 ### 1. Hello World
-A barebones ROM that prints `Hello World!` to the debug console upon booting and doesn't do anything else. Shows you how to print using either `debug_printf`, or `usb_write`. Also allowed you to see how `DEBUG_MODE` affects the final ROM.
+A barebones ROM that prints `Hello World!` to the debug console upon booting and doesn't do anything else. Shows you how to print using either `debug_printf`, or `usb_write`. Also allows you to see how `DEBUG_MODE` affects the final ROM.
 
 **Usage**
 1) Upload the ROM.
