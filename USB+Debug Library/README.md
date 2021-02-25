@@ -107,14 +107,20 @@ void debug_initialize();
 void debug_printf(const char* message, ...);
 
 /*==============================
+    debug_dumpbinary
+    Dumps a binary file through USB
+    @param The file to dump
+    @param The size of the file
+==============================*/
+void debug_dumpbinary(void* file, int size);
+
+/*==============================
     debug_screenshot
     Sends the currently displayed framebuffer through USB.
-    @param The size of each pixel of the framebuffer in bytes
-           Typically 4 if 32-bit or 2 if 16-bit
-    @param The width of the framebuffer
-    @param The height of the framebuffer
+    DOES NOT PAUSE DRAWING THREAD! Using outside the drawing
+    thread may lead to a screenshot with visible tearing
 ==============================*/
-void debug_screenshot(int size, int w, int h);
+void debug_screenshot();
 
 /*==============================
     debug_assert
