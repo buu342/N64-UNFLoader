@@ -305,6 +305,7 @@ https://github.com/buu342/N64-UNFLoader
         #endif
     }
     
+    
     #ifndef LIBDRAGON
         /*==============================
             printf_handler
@@ -320,7 +321,8 @@ https://github.com/buu342/N64-UNFLoader
             return ((char *) memcpy(buf, str, len) + len);
         }
     #endif
-        
+     
+     
     /*==============================
         debug_printf
         Prints a formatted message to the developer's command prompt.
@@ -360,37 +362,33 @@ https://github.com/buu342/N64-UNFLoader
         #endif
     }
     
+    
     /*==============================
         debug_screenshot
         Sends the currently displayed framebuffer through USB.
-        Does not pause the drawing thread!
-        @param The size of each pixel of the framebuffer in bytes
-               Typically 4 if 32-bit or 2 if 16-bit
-        @param The width of the framebuffer
-        @param The height of the framebuffer
+        DOES NOT PAUSE DRAWING THREAD! Using outside the drawing
+        thread may lead to a screenshot with visible tearing
     ==============================*/
     
-    void debug_screenshot(int size, int w, int h)
+    void debug_screenshot()
     {
         usbMesg msg;
         int data[4];
-        #ifndef LIBDRAGON
-            void* frame = osViGetCurrentFramebuffer();
-        #else
-            u32* frame = (u32*)(0x80000000|(*(u32*)0xA4400004));
-        #endif
+        
+        // These addresses were obtained from http://en64.shoutwiki.com/wiki/VI_Registers_Detailed
+        void* frame = (void*)(0x80000000|(*(u32*)0xA4400004)); // Same as calling osViGetCurrentFramebuffer() in libultra
+        u32 yscale = (*(u32*)0xA4400034);
+        u32 w = (*(u32*)0xA4400008);
+        u32 h = ((((*(u32*)0xA4400028)&0x3FF)-(((*(u32*)0xA4400028)>>16)&0x3FF))*yscale)/2048;
+        u8 depth = (((*(u32*)0xA4400000)&0x03) == 0x03) ? 4 : 2;
         
         // Ensure debug mode is initialized
         if (!debug_initialized)
             return;
 
-        // If the size is larger than 4, assume the user wrote 16/32 by mistake and correct that
-        if (size > 4)
-            size = 2*(size/16);
-
         // Create the data header to send
         data[0] = DATATYPE_SCREENSHOT;
-        data[1] = size;
+        data[1] = depth;
         data[2] = w;
         data[3] = h;
         
@@ -409,7 +407,7 @@ https://github.com/buu342/N64-UNFLoader
         msg.msgtype = MSG_WRITE;
         msg.datatype = DATATYPE_SCREENSHOT;
         msg.buff = frame;
-        msg.size = size*w*h;
+        msg.size = depth*w*h;
         #ifndef LIBDRAGON
             osSendMesg(&usbMessageQ, (OSMesg)&msg, OS_MESG_BLOCK);
         #else
