@@ -2,7 +2,7 @@
 #                    Code files and ROM name                   #
 ################################################################
 
-ROM_NAME = unflexa1.n64
+ROM_NAME = unflexa2.n64
 
 CODECFILES = main.c
 CODEHFILES = 
@@ -10,7 +10,7 @@ CODEHFILES =
 DEBUG_MODE = 1 # Remember to change debug.h as well to match!
 DEBUGFILES = debug.c usb.c
 
-REGISTRATION = "UNFLEXAM1" B U1 I
+REGISTRATION = "UNFLEXAM2" B U2 I
 
 
 ################################################################

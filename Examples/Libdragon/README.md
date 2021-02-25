@@ -25,7 +25,7 @@ A barebones ROM that demonstrates the `usb_read` and `usb_poll` functions by ech
 
 
 ### 3. Command Interpreter
-A ROM that demonstrates the command functions provided by the debug library. Allows you to modify parts of the ROM during execution, such as the square's rotation, its texture, or the background color.
+A ROM that demonstrates the command functions provided by the debug library. Allows you to modify parts of the ROM during execution, such as the square's movement, its texture, or the background color.
 
 **Usage**
 1) Upload the ROM.
