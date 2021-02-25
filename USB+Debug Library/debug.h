@@ -49,6 +49,16 @@
         
         
         /*==============================
+            debug_dumpbinary
+            Dumps a binary file through USB
+            @param The file to dump
+            @param The size of the file
+        ==============================*/
+        
+        extern void debug_dumpbinary(void* file, int size);
+        
+        
+        /*==============================
             debug_screenshot
             Sends the currently displayed framebuffer through USB.
             DOES NOT PAUSE DRAWING THREAD! Using outside the drawing

@@ -364,6 +364,30 @@ https://github.com/buu342/N64-UNFLoader
     
     
     /*==============================
+        debug_dumpbinary
+        Dumps a binary file through USB
+        @param The file to dump
+        @param The size of the file
+    ==============================*/
+    
+    void debug_dumpbinary(void* file, int size)
+    {
+        usbMesg msg;
+        
+        // Send the binary file to the usb thread
+        msg.msgtype = MSG_WRITE;
+        msg.datatype = DATATYPE_RAWBINARY;
+        msg.buff = file;
+        msg.size = size;
+        #ifndef LIBDRAGON
+            osSendMesg(&usbMessageQ, (OSMesg)&msg, OS_MESG_BLOCK);
+        #else
+            debug_thread_usb(&msg);
+        #endif
+    }
+    
+    
+    /*==============================
         debug_screenshot
         Sends the currently displayed framebuffer through USB.
         DOES NOT PAUSE DRAWING THREAD! Using outside the drawing
