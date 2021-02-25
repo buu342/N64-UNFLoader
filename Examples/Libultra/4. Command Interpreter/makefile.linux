@@ -1,0 +1,90 @@
+################################################################
+#	THIS MAKEFILE IS MEANT FOR THE N64 SDK FOR LINUX       #
+#	BY CRASHOVERIDE. IF USING Partner-N64 SDK PLEASE       #
+#	USE THE OTHER makefile!!!!!!!!!!!!!!!!!!!!!!!!!!       #
+################################################################
+
+################################################################
+#                    Code files and ROM name                   #
+################################################################
+
+CODECFILES  = main.c graphic.c helper.c stage00.c texture.c
+CODEHFILES  =
+
+DEBUGFILES = debug.c usb.c
+
+TARGETS = unflexa4.n64
+
+REGISTRATION = "UNFLEXAM4" B U2 I
+
+
+################################################################
+#                         Nusys Config                         #
+################################################################
+
+NUSYSINC  = /usr/include/n64/nusys
+NUSYSLIB  = /usr/lib/n64/nusys
+NUOBJ		= $(NUSYSLIB)/nusys.o
+
+################################################################
+#                         Make Commands                        #
+################################################################
+
+default: $(TARGETS)
+
+
+################################################################
+#     Don't touch below unless you know what you're doing!     #
+################################################################
+
+include $(ROOT)/usr/include/make/PRdefs
+
+CODESEGMENT = codesegment.o
+OBJECTS		= $(CODESEGMENT)
+APP         = $(TARGETS:.n64=.out)
+
+
+################################################################
+#                     ROM debug mode check                     #
+################################################################
+
+ifeq ($(DEBUG_MODE), 0)
+    CODEOBJECTS     = $(CODECFILES:.c=.o) $(NUOBJ)
+    OPTIMIZER       = -O2 -std=gnu90
+    LCDEFS          = -D_FINALROM -DNDEBUG -DF3DEX_GBI_2
+    N64LIB          = -lnusys -lultra_rom
+    MAKEROMFLAGS    = 
+else
+    CODEOBJECTS     = $(CODECFILES:.c=.o) $(NUOBJ) $(DEBUGFILES:.c=.o)
+    OPTIMIZER       = -g -std=gnu90
+    LCDEFS          = -DDEBUG  -DF3DEX_GBI_2
+    N64LIB          = -lnusys_d -lultra_d 
+    MAKEROMFLAGS    = -d
+endif
+
+
+################################################################
+#                        Linker Settings                       #
+################################################################
+
+LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include -I$(NUSYSINC) -I $(ROOT)/usr/include/nustd
+LCOPTS =	-G 0
+LDIRT  =	$(APP)
+LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR -L$(NUSYSLIB) $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -lnustd
+
+
+################################################################
+#                          Compilation                         #
+################################################################
+
+include $(COMMONRULES)
+
+$(CODESEGMENT): $(CODEOBJECTS)
+	$(LD) -o $(CODESEGMENT) -r $(CODEOBJECTS) $(LDFLAGS)
+
+$(TARGETS): $(OBJECTS)
+	$(MAKEROM) spec -s 9 $(MAKEROMFLAGS) -I$(NUSYSINC) -r $(TARGETS) -e $(APP) 
+	makemask $(TARGETS)
+ifeq ($(ALLOWREGISTER), 1)
+	@nrdc $(TARGETS) $(REGISTRATION)
+endif
