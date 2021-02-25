@@ -133,7 +133,7 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-       EverDrive macros
+         EverDrive macros
 *********************************/
 
 #define ED_BASE           0x10000000
@@ -228,7 +228,7 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-        Function Prototypes
+       Function Prototypes
 *********************************/
 
 static void usb_findcart();
@@ -282,8 +282,9 @@ int usb_readblock = -1;
     #endif
 #endif
 
+
 /*********************************
-           USB functions
+          USB functions
 *********************************/
 
 /*==============================

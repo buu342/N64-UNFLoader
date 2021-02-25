@@ -54,7 +54,7 @@ networkfusion for lending me his remote test rig for the ED3 and X7, as well as 
 
 danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
 
-korgeaux for implementing support for his SummerCart64.
+Polprzewodnikowy for implementing support for his SummerCart64, as well as setting up GitHub actions.
 
 CrashOveride for ensuring the samples compile on his Linux libultra port. 
 
