@@ -40,7 +40,7 @@ https://github.com/buu342/N64-UNFLoader
     #define BUFFER_SIZE    256
     
     /*********************************
-      Libultra types (for libdragon)
+    Libultra types (for libdragon)
     *********************************/
 
     #ifdef LIBDRAGON

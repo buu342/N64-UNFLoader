@@ -91,6 +91,10 @@ https://github.com/buu342/N64-UNFLoader
           64Drive macros
 *********************************/
 
+// How many cycles for the 64Drive to wait for data. 
+// Lowering this might improve performance slightly faster at the expense of USB reading accuracy
+#define D64_POLLTIME       2000
+
 // Cartridge Interface definitions. Obtained from 64Drive's Spec Sheet
 #define D64_BASE_ADDRESS   0xB0000000
 #define D64_CIREG_ADDRESS  0x08000000
@@ -858,6 +862,7 @@ static void usb_64drive_disarm()
 
 static u32 usb_64drive_poll()
 {
+    int i;
     u32 ret __attribute__((aligned(8)));
     
     // Arm the USB buffer
@@ -865,89 +870,29 @@ static u32 usb_64drive_poll()
     usb_64drive_setwritable(TRUE);
     usb_64drive_arm(DEBUG_ADDRESS, DEBUG_ADDRESS_SIZE);
     
+    // Burn some time to see if any USB data comes in
+    for (i=0; i<D64_POLLTIME; i++)
+        ;
+    
     // If there's data to service
     if (usb_64drive_armstatus() == D64_USB_DATA)
     {
-        char buff[8];
-        u32 copyleft;
-
-        // Read ROM to get the data header
+        // Read the data header from the Param0 register
         #ifdef LIBDRAGON
-            data_cache_hit_writeback_invalidate(buff, 8);
-            dma_read(buff, D64_BASE_ADDRESS + DEBUG_ADDRESS, 8);
+            ret = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0);
         #else
-            osWritebackDCacheAll();
             #if USE_OSRAW
-                osPiRawStartDma(OS_READ, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
-                             8);
+                osPiRawReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret);
             #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                             D64_BASE_ADDRESS + DEBUG_ADDRESS, buff, 
-                             8, &dmaMessageQ);
-                (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+                osPiReadIo(D64_CIBASE_ADDRESS + D64_REGISTER_USBP0R0, &ret);
             #endif
         #endif
-
-        // Ensure we got a USB request and this isn't something else
-        if (buff[0] != 'D' && buff[1] != 'M' && buff[2] != 'A' && buff[3] != '@')
-            return 0;
     
         // Get the data header
-        ret = buff[4] << 24 | buff[5] << 16 | buff[6] << 8 | buff[7];
         usb_datatype = USBHEADER_GETTYPE(ret);
         usb_dataleft = USBHEADER_GETSIZE(ret);
         usb_datasize = usb_dataleft;
         usb_readblock = -1;
-        copyleft = usb_dataleft;
-        
-        // Copy data from USB to ROM
-        while (copyleft > 0)
-        {
-            u32 block = copyleft%BUFFER_SIZE;
-            if (block == 0)
-                block = BUFFER_SIZE;
-                
-            // Arm the 64Drive's USB
-            usb_64drive_arm(DEBUG_ADDRESS, DEBUG_ADDRESS_SIZE);
-            
-            // Wait for data to arrive
-            while (usb_64drive_armstatus() != D64_USB_DATA)
-                ;
-                
-            // Put the data in the correct ROM offset
-            #ifdef LIBDRAGON
-                data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-                dma_read(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS, BUFFER_SIZE);
-                data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-                dma_read(usb_buffer, D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), BUFFER_SIZE);
-            #else
-                osWritebackDCacheAll();
-                #if USE_OSRAW
-                    osPiRawStartDma(OS_READ, 
-                                 D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
-                                 BUFFER_SIZE);
-                #else
-                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                                 D64_BASE_ADDRESS + DEBUG_ADDRESS, usb_buffer, 
-                                 BUFFER_SIZE, &dmaMessageQ);
-                    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-                #endif
-                osWritebackDCacheAll();
-                #if USE_OSRAW
-                    osPiRawStartDma(OS_WRITE, 
-                                 D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
-                                 BUFFER_SIZE);
-                #else
-                    osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                                 D64_BASE_ADDRESS + DEBUG_ADDRESS + (copyleft-block), usb_buffer, 
-                                 BUFFER_SIZE, &dmaMessageQ);
-                    (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-                #endif
-            #endif
-            
-            copyleft -= block;
-        }
         
         // Return the data header
         usb_64drive_waitidle();

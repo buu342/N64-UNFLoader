@@ -5,7 +5,7 @@
 CODECFILES  = main.c stacks.c 
 CODEHFILES  =
 
-DEBUGFILES = usb.c debug.c
+DEBUGFILES = usb.c
 
 TARGETS = unflexa3.n64
 
