@@ -4,7 +4,7 @@
 
 **The code in this repo might be unstable! For stable versions, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
-UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting libultra and libdragon (WIP). A very basic debug library (`debug.c`) that makes use of said USB library is also provided for libultra only.
+UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting both libultra and libdragon. A very basic debug library (`debug.c`) that makes use of said USB library is also provided.
 
 Currently supported devices:
 * 64Drive Hardware 1.0 (No longer comercially sold), using firmware 2.05+
@@ -26,10 +26,8 @@ Currently supported devices:
     - [How to use the Debug library](USB%2BDebug%20Library#how-to-use-the-debug-library)
     - [How these libraries work](USB%2BDebug%20Library#how-these-libraries-work)
 * [Example ROMs](Examples)
-    - [Print "Hello World"](Examples#1-hello-world)
-    - [Handle thread faults](Examples#2-thread-faults)
-    - [Read from USB](Examples#3-raw-usb-reading)
-    - [Interpret USB commands](Examples#4-command-interpreter)
+    - [Libultra](Examples/Libultra/#libultra-examples)
+    - [Libdragon](Examples/Libdragon/#libdragon-examples)
 * [Extending UNFLoader](#extending-unfloader)
 * [Known Issues and Suggestions](#known-issues-and-suggestions)
 * [Credits](#credits)
@@ -56,7 +54,7 @@ networkfusion for lending me his remote test rig for the ED3 and X7, as well as 
 
 danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
 
-korgeaux for implementing support for his SummerCart64.
+Polprzewodnikowy for implementing support for his SummerCart64, as well as setting up GitHub actions.
 
 CrashOveride for ensuring the samples compile on his Linux libultra port. 
 

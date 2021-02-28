@@ -1,5 +1,5 @@
 # USB + Debug Library
-This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The USB library is available for both libultra and libdragon (WIP), while the debug library is only available for libultra.
+This folder contains both the USB and debug library that works in tandem with UNFLoader's communication protocol. The USB and debug library are available for both libultra and libdragon.
 </br>
 </br>
 
@@ -10,7 +10,8 @@ This folder contains both the USB and debug library that works in tandem with UN
 </br>
 
 ### How to use the USB library
-Simply include the `usb.c` and `usb.h` in your project. You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
+Simply include the `usb.c` and `usb.h` in your project. If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`. </br></br>
+You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -84,7 +85,8 @@ void usb_purge();
 </br>
 
 ### How to use the Debug library
-The debug library is a basic practical implementation of the USB library. Simply include the `debug.c` and `debug.h` in your project (along with the usb library). You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB.
+The debug library is a basic practical implementation of the USB library. Simply include the `debug.c` and `debug.h` in your project (along with the usb library). If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`. </br></br>
+You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and, if you are using libultra, two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB. If you are using libdragon, the library will instead halt the program until it is finished reading/writing to the USB.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -105,14 +107,20 @@ void debug_initialize();
 void debug_printf(const char* message, ...);
 
 /*==============================
+    debug_dumpbinary
+    Dumps a binary file through USB
+    @param The file to dump
+    @param The size of the file
+==============================*/
+void debug_dumpbinary(void* file, int size);
+
+/*==============================
     debug_screenshot
     Sends the currently displayed framebuffer through USB.
-    @param The size of each pixel of the framebuffer in bytes
-           Typically 4 if 32-bit or 2 if 16-bit
-    @param The width of the framebuffer
-    @param The height of the framebuffer
+    DOES NOT PAUSE DRAWING THREAD! Using outside the drawing
+    thread may lead to a screenshot with visible tearing
 ==============================*/
-void debug_screenshot(int size, int w, int h);
+void debug_screenshot();
 
 /*==============================
     debug_assert
@@ -194,7 +202,7 @@ I recommend developers check out the [wiki](../../../wiki) chapters 1 and 2 to g
 <details><summary>Debug Library</summary>
 <p>
 
-* The debug library runs on a dedicated thread, which will only execute if invoked by debug commands. All threads will be blocked until the USB thread is finished.
+* The debug library runs on a dedicated thread, which will only execute if invoked by debug commands. All threads will be blocked until the USB thread is finished. Libdragon does not have threads, so instead it'll block the entire program.
 * Incoming USB data must be serviced first before you are able to write to USB. Every time a debug function is used, the library will first ensure there is no data to service before continuing. This means that incoming USB data **will only be read if a debug function is called**. Therefore, it is recommended to call `debug_pollcommands` as often as possible to ensure that data doesn't stay stuck waiting to be serviced. See Example 3 or 4 for examples on how to read incoming data.
 </p>
 </details>

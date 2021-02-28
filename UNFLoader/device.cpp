@@ -301,8 +301,9 @@ void device_sendrom(char* rompath)
         // Send the ROM
         funcPointer_sendrom(&local_usb, file, filesize);
 
-        // Close the file pipe
+        // Close the file pipe and start the timeout
         fclose(file);
+        global_timeouttime = global_timeout + time(NULL);
 
         // Start Debug Mode
         if (global_debugmode) 

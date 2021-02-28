@@ -6,6 +6,7 @@
         #include <stdlib.h>
         #include <string.h>
         #include <time.h>
+        #include <ctype.h>
         #ifndef LINUX
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
@@ -62,6 +63,7 @@
     extern FILE*   global_debugoutptr;
     extern char*   global_exportpath;
     extern time_t  global_timeout;
+    extern time_t  global_timeouttime;
     extern bool    global_closefail;
     extern char*   global_filename;
     extern WINDOW* global_window;

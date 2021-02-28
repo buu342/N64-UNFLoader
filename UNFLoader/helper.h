@@ -45,6 +45,7 @@
     char* gen_filename();
     #define SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
     u32 romhash(u8 *buff, u32 len);
-    s8 cic_from_hash(u32 hash);
+    s16 cic_from_hash(u32 hash);
+    void handle_timeout();
 
 #endif
