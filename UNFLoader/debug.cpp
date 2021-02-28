@@ -496,6 +496,7 @@ void debug_filesend(const char* filename)
     pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
     free(buffer);
     free(copy);
+    fclose(fp);
 }
 
 
