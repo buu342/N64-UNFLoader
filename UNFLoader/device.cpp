@@ -42,12 +42,6 @@ void device_find(int automode)
     int i;
     ftdi_context_t *cart = &local_usb;
 
-    // Check if running in sudo (Linux)
-    #ifdef LINUX
-        if (getuid() == geteuid())
-            terminate("You must be running sudo");
-    #endif
-
     // Initialize FTD
     if (automode == CART_NONE)
         pdprint("Attempting flashcart autodetection.\n", CRDEF_PROGRAM);
