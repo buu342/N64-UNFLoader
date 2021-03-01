@@ -159,7 +159,7 @@ char* command_color()
 
 
 /*==============================
-    command_texture
+    command_color
     Changes the square texture
 ==============================*/
 

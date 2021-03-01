@@ -15,21 +15,7 @@ set gccdir=%ROOT%\gcc
 set PATH=%ROOT%\gcc\mipse\bin;%ROOT%\usr\sbin;C:\WINDOWS\system32;
 set gccsw=-mips3 -mgp32 -mfp32 -funsigned-char -D_LANGUAGE_C -D_ULTRA64 -D__EXTENSIONS__
 set n64align=on
-set DEBUG_MODE=0
-goto CheckDebugMode
-
-
-:CheckDebugMode
-for /f "tokens=3" %%a in ('find /i "DEBUG_MODE" debug.h') do if not defined debugcheck set "debugcheck=%%a"
-if "%debugcheck%"=="1" (
-    echo Debug mode enabled
-    set DEBUG_MODE=1
-) else if "%debugcheck%"=="0" (
-    echo Debug mode disabled
-) else (
-    echo Unable to retrieve debug mode
-)
-echo.
+set DEBUG_MODE=1
 goto CheckDirectories
 
 
