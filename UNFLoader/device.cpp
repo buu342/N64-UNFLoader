@@ -44,7 +44,7 @@ void device_find(int automode)
 
     // Check if running in sudo (Linux)
     #ifdef LINUX
-        if (!getuid())
+        if (getuid() == geteuid())
             terminate("You must be running sudo");
     #endif
 
