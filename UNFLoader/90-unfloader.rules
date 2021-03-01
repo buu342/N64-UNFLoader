@@ -1,0 +1,25 @@
+# udev rules for Nintendo 64 flashcarts
+
+# How to use:
+# 1. Put this file in /dev/udev/rules.d/
+# 2. Unplug any flashcart connected to computer
+# 3. Add desired user to "users" group with "sudo usermod -a -G users $USER"
+# 4. Restart system OR run "sudo udevadm control --reload; newgrp users" in terminal
+# 5. Plug flashcart to computer
+# 6. Use UNFLoader
+
+
+# 64drive rules
+
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{product}=="64drive USB device", GROUP="users", MODE="0660", RUN+="/usr/sbin/rmmod ftdi_sio" RUN+="/usr/sbin/rmmod usbserial"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6014", ATTRS{product}=="64drive USB device", GROUP="users", MODE="0660", RUN+="/usr/sbin/rmmod ftdi_sio" RUN+="/usr/sbin/rmmod usbserial"
+
+
+# Everdrive64 rules
+
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{product}=="FT245R USB FIFO", GROUP="users", MODE="0660", RUN+="/usr/sbin/rmmod ftdi_sio" RUN+="/usr/sbin/rmmod usbserial"
+
+
+# SummerCart64 rules
+
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ATTRS{manufacturer}=="Polprzewodnikowy", ATTRS{product}=="Arrow USB Blaster", GROUP="users", MODE="0660", RUN+="/usr/sbin/rmmod ftdi_sio" RUN+="/usr/sbin/rmmod usbserial"
