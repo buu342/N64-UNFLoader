@@ -8,14 +8,19 @@
 #                    Code files and ROM name                   #
 ################################################################
 
-CODECFILES  = main.c stacks.c 
+ASMFILES    = asm/entry.s asm/rom_header.s
+ASMOBJECTS  =	$(ASMFILES:.s=.o)
+CODECFILES  = main.c stacks.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c usb.c
 
-TARGETS = unflexa1.n64
+ELF		= unflexa1.elf
+TARGETS	= unflexa1.z64
+MAP		= unflexa1.map
 
-REGISTRATION = "UNFLEXAM1" B U1 I
+LD_SCRIPT	= unflexa1.ld
+CP_LD_SCRIPT	= unflexa1_cp.ld
 
 
 ################################################################
@@ -32,8 +37,10 @@ default: $(TARGETS)
 
 include $(ROOT)/usr/include/make/PRdefs
 
+BOOT		= /usr/lib/n64/PR/bootcode/boot.6102
+BOOT_OBJ	= boot.6102.o
 CODESEGMENT = codesegment.o
-APP = $(TARGETS:.n64=.out)
+OBJECTS     = $(ASMOBJECTS) $(BOOT_OBJ) $(CODESEGMENT)
 
 
 ################################################################
@@ -61,7 +68,7 @@ endif
 
 LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include -I $(ROOT)/usr/include/nustd
 LCOPTS =	-G 0
-LDIRT  =	$(APP)
+LDIRT  =	$(ELF) $(CP_LD_SCRIPT) $(TARGETS) $(MAP) $(ASMOBJECTS)
 LDFLAGS=	$(MKDEPOPT)  -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -lnustd
 
 
@@ -71,12 +78,19 @@ LDFLAGS=	$(MKDEPOPT)  -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR $(N64LIB) -L$(N64_L
 
 include $(COMMONRULES)
 
-$(CODESEGMENT): $(CODEOBJECTS)
+.s.o:
+	$(AS) -Wa,-Iasm -o $@ $<
+
+$(CODESEGMENT):	$(CODEOBJECTS)
 	$(LD) -o $(CODESEGMENT) -r $(CODEOBJECTS) $(LDFLAGS)
 
-$(TARGETS) $(APP):	spec $(CODESEGMENT)
-	$(MAKEROM) $(MAKEROMFLAGS) -r $(TARGETS) -e $(APP) -s 9 spec
-	@makemask $(TARGETS)
-ifeq ($(ALLOWREGISTER), 1)
-	@nrdc $(TARGETS) $(REGISTRATION)
-endif
+$(BOOT_OBJ): $(BOOT)
+	$(OBJCOPY) -I binary -B mips -O elf32-bigmips $< $@
+
+$(CP_LD_SCRIPT): $(LD_SCRIPT)
+	cpp -P -Wno-trigraphs -o $@ $<
+
+$(TARGETS): $(OBJECTS) $(CP_LD_SCRIPT)
+	$(LD) -L. -T $(CP_LD_SCRIPT) -Map $(MAP) -o $(ELF) 
+	$(OBJCOPY) --pad-to=0x100000 --gap-fill=0xFF $(ELF) $(TARGETS) -O binary
+	makemask $(TARGETS)
