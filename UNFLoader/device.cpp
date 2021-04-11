@@ -100,7 +100,13 @@ void device_find(int automode)
     if (cart->carttype == CART_NONE)
     {
         if (automode == CART_NONE)
-            terminate("No flashcart detected.");
+        {
+            #ifdef LINUX
+                terminate("No flashcart detected. Are you running sudo?");
+            #else
+                terminate("No flashcart detected.");
+            #endif
+        }
         else
             terminate("Requested flashcart not found.");
     }

@@ -93,7 +93,7 @@ https://github.com/buu342/N64-UNFLoader
 
 // How many cycles for the 64Drive to wait for data. 
 // Lowering this might improve performance slightly faster at the expense of USB reading accuracy
-#define D64_POLLTIME       2000
+#define D64_POLLTIME       50000
 
 // Cartridge Interface definitions. Obtained from 64Drive's Spec Sheet
 #define D64_BASE_ADDRESS   0xB0000000
@@ -206,25 +206,25 @@ https://github.com/buu342/N64-UNFLoader
 *********************************/
 
 #ifdef LIBDRAGON
-    typedef unsigned char      u8;	
-    typedef unsigned short     u16;
-    typedef unsigned long      u32;
-    typedef unsigned long long u64;
+    typedef uint8_t  u8;	
+    typedef uint16_t u16;
+    typedef uint32_t u32;
+    typedef uint64_t u64;
 
-    typedef signed char s8;	
-    typedef short       s16;
-    typedef long        s32;
-    typedef long long   s64;
+    typedef int8_t  s8;	
+    typedef int16_t s16;
+    typedef int32_t s32;
+    typedef int64_t s64;
 
-    typedef volatile unsigned char      vu8;
-    typedef volatile unsigned short     vu16;
-    typedef volatile unsigned long      vu32;
-    typedef volatile unsigned long long vu64;
+    typedef volatile uint8_t  vu8;
+    typedef volatile uint16_t vu16;
+    typedef volatile uint32_t vu32;
+    typedef volatile uint64_t vu64;
 
-    typedef volatile signed char vs8;
-    typedef volatile short       vs16;
-    typedef volatile long        vs32;
-    typedef volatile long long   vs64;
+    typedef volatile int8_t  vs8;
+    typedef volatile int16_t vs16;
+    typedef volatile int32_t vs32;
+    typedef volatile int64_t vs64;
 
     typedef float  f32;
     typedef double f64;
@@ -260,7 +260,7 @@ void (*funcPointer_read)();
 
 // USB globals
 static s8 usb_cart = CART_NONE;
-static u8 usb_buffer[BUFFER_SIZE*3] __attribute__((aligned(16)));
+static u8 __attribute__((aligned(16))) usb_buffer[BUFFER_SIZE];
 int usb_datatype = 0;
 int usb_datasize = 0;
 int usb_dataleft = 0;
@@ -972,17 +972,17 @@ static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len)
     // Set up DMA transfer between RDRAM and the PI
     #ifdef LIBDRAGON
         data_cache_hit_writeback_invalidate(buff, len);
-        dma_read(buff, pi_address, len);
+        disable_interrupts();
     #else
         osInvalDCache(buff, len);
         #if USE_OSRAW
             osPiRawStartDma(OS_READ, 
-                        pi_address, buff, 
-                        len);
+                         pi_address, buff, 
+                         len);
         #else
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                        pi_address, buff, 
-                        len, &dmaMessageQ);
+                         pi_address, buff, 
+                         len, &dmaMessageQ);
             (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
     #endif
@@ -992,8 +992,17 @@ static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len)
     IO_WRITE(PI_STATUS_REG, 3);
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = len-1;
+    #ifdef LIBDRAGON
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_WRITELENGTH) = len-1;
+    #else
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = len-1;
+    #endif
     usb_everdrive_wait_pidma();
+    
+    // Enable system interrupts
+    #ifdef LIBDRAGON
+        enable_interrupts();
+    #endif
 }
 
 
@@ -1026,7 +1035,7 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
     // Set up DMA transfer between RDRAM and the PI
     #ifdef LIBDRAGON
         data_cache_hit_writeback(buff, len);
-        dma_write(buff, pi_address, len);
+        disable_interrupts();
     #else
         osWritebackDCache(buff, len);
         #if USE_OSRAW
@@ -1046,8 +1055,17 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
     IO_WRITE(PI_STATUS_REG, 3);
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
     *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
-    *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_WRITELENGTH) = len-1;
+    #ifdef LIBDRAGON
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = len-1;
+    #else
+        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_WRITELENGTH) = len-1;
+    #endif
     usb_everdrive_wait_pidma();
+    
+    // Enable system interrupts
+    #ifdef LIBDRAGON
+        enable_interrupts();
+    #endif
 }
 
 
@@ -1280,7 +1298,10 @@ static void usb_everdrive_read()
     // Set up DMA transfer between RDRAM and the PI
     #ifdef LIBDRAGON
         data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-        dma_write(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+        while (dma_busy());
+        *(vu32*)0xA4600010 = 3;
+        dma_read(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
     #else
         osWritebackDCacheAll();
         #if USE_OSRAW
@@ -1300,7 +1321,6 @@ static void usb_everdrive_read()
 /*********************************
        SummerCart64 functions
 *********************************/
-
 
 /*==============================
     usb_sc64_read_usb_scr

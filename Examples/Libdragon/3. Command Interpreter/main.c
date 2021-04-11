@@ -22,7 +22,7 @@ char global_green = 255;
 char global_blue = 255; 
 char global_move = 0;
 sprite_t* spr_texture;
-char pee = 0;
+
 
 /*********************************
         Function Prototypes
@@ -82,13 +82,6 @@ int main(void)
         if (global_move)
             x = (x+4)%(320-32);
 
-        // Handle pee
-        if (pee)
-        {
-            pee = 0;
-            debug_dumpbinary(global_texture, 4096);
-        }
-        
         // Draw the background and the sprite
         graphics_fill_screen(disp, (((uint32_t)global_red)<<24)|(((uint32_t)global_green)<<16)|(((uint32_t)global_blue)<<8)|0x000000FF);
         graphics_set_color(0x0, 0xFFFFFFFF);
@@ -184,6 +177,5 @@ char* command_texture()
     debug_parsecommand(global_texture);
     for (int i=0; i<4096; i++)
         spr_texture->data[i] = global_texture[i];
-    pee = 1;
     return NULL;
 }

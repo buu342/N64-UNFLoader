@@ -19,7 +19,7 @@ Handles USB I/O.
 #define VERBOSE     0
 #define BUFFER_SIZE 512
 #define HEADER_SIZE 16
-#define BLINKRATE   40
+#define BLINKRATE   0.5
 #define PATH_SIZE   256
 #define HISTORY_SIZE 100
 
@@ -190,7 +190,8 @@ void debug_main(ftdi_context_t *cart)
 void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
     char cmd_changed = 0;
-    static int blinker = 0;
+    static char blinkerstate = 1;
+    static clock_t blinkertime = 0;
     static int size = 0;
     static int curcmd = 0;
 
@@ -212,12 +213,12 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     else if (ch == KEY_LEFT && (*cursorpos) > 0)
     {
         (*cursorpos)--;
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
     else if (ch == KEY_RIGHT && (*cursorpos) < size)
     {
         (*cursorpos)++;
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
 
     // If the up or down arrow was pressed
@@ -236,7 +237,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             (*cursorpos) = (u16)slen;
             size = slen;
         }
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
 
     // Decide what to do on other key presses
@@ -266,7 +267,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         memset(buffer, 0, BUFFER_SIZE);
         (*cursorpos) = 0;
         size = 0;
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
     else if (ch == CH_BACKSPACE || ch == 263)
     {
@@ -284,7 +285,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             buffer[size] = 0;
             (*cursorpos)--;
             curcmd = 0;
-            blinker = BLINKRATE;
+            blinkerstate = 1;
         }
     }
     else if (ch == KEY_DC && (*cursorpos) != size) // DEL key
@@ -300,7 +301,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         size--;
         buffer[size] = 0;
         curcmd = 0;
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
     else if (ch != ERR && isascii(ch) && ch > 0x1F && size < BUFFER_SIZE)
     {
@@ -315,7 +316,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         buffer[(*cursorpos)++] = (char)ch;
         size++;
         curcmd = 0;
-        blinker = BLINKRATE;
+        blinkerstate = 1;
     }
 
     // Display what we've written
@@ -323,8 +324,12 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     pdprintw_nolog(inputwin, buffer, CRDEF_INPUT);
     
     // Draw the blinker
-    blinker = (blinker+1) % (1+BLINKRATE * 2);
-    if (blinker >= BLINKRATE)
+    if (blinkertime < clock())
+    {
+        blinkerstate = !blinkerstate;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+    }
+    if (blinkerstate)
     {
         int x, y;
         getyx(inputwin, y, x);
@@ -496,6 +501,7 @@ void debug_filesend(const char* filename)
     pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
     free(buffer);
     free(copy);
+    fclose(fp);
 }
 
 
