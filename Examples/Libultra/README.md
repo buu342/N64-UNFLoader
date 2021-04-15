@@ -1,7 +1,7 @@
 # Libultra Examples
 This folder contains example ROMs written in libultra utilizing the USB and debug library in conjunction with UNFLoader. Usage instructions are provided below, but assume you already know how to upload a ROM using the tool and how to enable debug mode. If you need instructions on how to do that, execute UNFLoader with the `-help` argument to read up on how to do it for your specific flashcart. 
 
-To build the ROMs, use the provided `makeme.bat`. Linux compatible shell scripts are unavailable for the time being, but will hopefully be included in the near future. The examples should be compatible with CrashOveride's Linux SDK port, however...
+To build the ROMs, use the provided `makeme.bat`. On Linux, using CrashOveride's SDK port, simply just call `make`.
 
 
 ### 1. Hello World
