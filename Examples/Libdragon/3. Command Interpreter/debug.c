@@ -44,25 +44,25 @@ https://github.com/buu342/N64-UNFLoader
     *********************************/
 
     #ifdef LIBDRAGON
-        typedef uint8_t  u8;	
-        typedef uint16_t u16;
-        typedef uint32_t u32;
-        typedef uint64_t u64;
+        typedef unsigned char      u8;	
+        typedef unsigned short     u16;
+        typedef unsigned long      u32;
+        typedef unsigned long long u64;
 
-        typedef int8_t  s8;	
-        typedef int16_t s16;
-        typedef int32_t s32;
-        typedef int64_t s64;
+        typedef signed char s8;	
+        typedef short       s16;
+        typedef long        s32;
+        typedef long long   s64;
 
-        typedef volatile uint8_t  vu8;
-        typedef volatile uint16_t vu16;
-        typedef volatile uint32_t vu32;
-        typedef volatile uint64_t vu64;
+        typedef volatile unsigned char      vu8;
+        typedef volatile unsigned short     vu16;
+        typedef volatile unsigned long      vu32;
+        typedef volatile unsigned long long vu64;
 
-        typedef volatile int8_t  vs8;
-        typedef volatile int16_t vs16;
-        typedef volatile int32_t vs32;
-        typedef volatile int64_t vs64;
+        typedef volatile signed char vs8;
+        typedef volatile short       vs16;
+        typedef volatile long        vs32;
+        typedef volatile long long   vs64;
 
         typedef float  f32;
         typedef double f64;
@@ -132,8 +132,8 @@ https://github.com/buu342/N64-UNFLoader
     #endif
 
     // Debug globals
-    static char debug_initialized = 0;
-    static char __attribute__((aligned(16))) debug_buffer[BUFFER_SIZE];
+    static char  debug_initialized = 0;
+    static char  debug_buffer[BUFFER_SIZE];
     
     // Commands hashtable related
     static debugCommand* debug_commands_hashtable[HASHTABLE_SIZE];
@@ -261,7 +261,6 @@ https://github.com/buu342/N64-UNFLoader
             {0,             0,           ""}
         };
     #endif
-
 
     /*********************************
              Debug functions
@@ -706,8 +705,6 @@ https://github.com/buu342/N64-UNFLoader
 
     static void debug_thread_usb(void *arg)
     {
-        char errbuff[4096*5];
-        int errbuffsize = 0;
         char errortype = USBERROR_NONE;
         usbMesg* threadMsg;
 
@@ -780,9 +777,6 @@ https://github.com/buu342/N64-UNFLoader
                 if (entry == NULL)
                 {
                     // Purge the USB contents and print unknown command
-                    usb_rewind(100000);
-                    errbuffsize = USBHEADER_GETSIZE(usb_poll());
-                    usb_read(errbuff, errbuffsize);
                     usb_purge();
                     errortype = USBERROR_UNKNOWN;
                 }
@@ -798,7 +792,6 @@ https://github.com/buu342/N64-UNFLoader
                         break;
                     case USBERROR_UNKNOWN:
                         usb_write(DATATYPE_TEXT, "Error: Unknown command\n", 23+1);
-                        usb_write(DATATYPE_RAWBINARY, errbuff, errbuffsize);
                         break;
                     case USBERROR_TOOMUCH:
                         usb_write(DATATYPE_TEXT, "Error: Command too large\n", 25+1);
