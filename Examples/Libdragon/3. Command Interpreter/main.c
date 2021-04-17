@@ -17,9 +17,9 @@ Handles the boot process of the ROM.
              Globals
 *********************************/
 
-char global_red = 255; 
-char global_green = 255; 
-char global_blue = 255; 
+int global_red = 255; 
+int global_green = 255; 
+int global_blue = 255; 
 char global_move = 0;
 sprite_t* spr_texture;
 
