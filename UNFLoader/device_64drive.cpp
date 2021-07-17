@@ -1,6 +1,6 @@
 /***************************************************************
                        device_64drive.cpp
-                               
+
 Handles 64Drive HW1 and HW2 USB communication. A lot of the code
 here is courtesy of MarshallH's 64Drive USB tool:
 http://64drive.retroactive.be/support.php
@@ -97,20 +97,20 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 nu
 	memset(recv_buff, 0, 32);
 
     // Setup the command to send
-    send_buff[0] = command; 
+    send_buff[0] = command;
 	send_buff[1] = 0x43;    // C
 	send_buff[2] = 0x4D;    // M
 	send_buff[3] = 0x44;    // D
 
     // Append extra arguments to the command if needed
-	if (numparams > 0) 
+	if (numparams > 0)
         *(u32 *)&send_buff[4] = swap_endian(va_arg(params, u32));
-	if (numparams > 1) 
+	if (numparams > 1)
         *(u32 *)&send_buff[8] = swap_endian(va_arg(params, u32));
     va_end(params);
 
     // Write to the cart
-    testcommand(FT_Write(cart->handle, send_buff, 4+(numparams*4), &cart->bytes_written), "Unable to write to 64Drive."); 
+    testcommand(FT_Write(cart->handle, send_buff, 4+(numparams*4), &cart->bytes_written), "Unable to write to 64Drive.");
     if (cart->bytes_written == 0)
         terminate("No bytes were written to 64Drive.");
 
@@ -118,9 +118,9 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 nu
     if (reply)
     {
         // These two instructions do not return a success, so ignore them
-	    if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG) 
+	    if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG)
             return;
-    		
+
         // Check that we received the signal that the operation completed
         testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
 	    recv_buff[1] = command << 24 | 0x504D43;
@@ -147,7 +147,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     u8*    rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
     time_t upload_time = clock();
     DWORD  cmps;
-    
+
     // Check we managed to malloc
     if (rom_buffer == NULL)
         terminate("Unable to allocate memory for buffer.");
@@ -238,7 +238,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, 1, (1 << 31) | cic, 0);
         pdprint("CIC set to %d.\n", CRDEF_PROGRAM, global_cictype);
     }
-    
+
     // Set Savetype
     if (global_savetype != 0)
     {
@@ -247,11 +247,11 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Decide a better, more optimized chunk size
-	if (size > 16 * 1024 * 1024) 
+	if (size > 16 * 1024 * 1024)
 		chunk = 32;
 	else if ( size > 2 * 1024 * 1024)
 		chunk = 16;
-	else 
+	else
 		chunk = 4;
 	chunk *= 128 * 1024; // Convert to megabytes
 
@@ -263,26 +263,26 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         int i;
 
         // Decide how many bytes to send
-		if (bytes_left >= chunk) 
+		if (bytes_left >= chunk)
 			bytes_do = chunk;
 		else
 			bytes_do = bytes_left;
 
         // If we have an uneven number of bytes, fix that
-		if (bytes_do%4 != 0) 
+		if (bytes_do%4 != 0)
 			bytes_do -= bytes_do%4;
 
         // End if we've got nothing else to send
-		if (bytes_do <= 0) 
+		if (bytes_do <= 0)
             break;
-		
+
         // Try to send chunks
 		for (i=0; i<2; i++)
         {
             int j;
 
             // If we failed the first time, clear the USB and try again
-			if (i == 1) 
+			if (i == 1)
             {
 				FT_ResetPort(cart->handle);
 				FT_ResetDevice(cart->handle);
@@ -298,12 +298,12 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 			FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
-			if (cart->bytes_written) 
+			if (cart->bytes_written)
                 break;
 		}
 
         // Check for a timeout
-		if (cart->bytes_written == 0) 
+		if (cart->bytes_written == 0)
         {
             free(rom_buffer);
             terminate("64Drive timed out.");
@@ -380,7 +380,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
     memcpy(datacopy, data, size);
     pdprint("\n", CRDEF_PROGRAM);
     progressbar_draw("Uploading data", CRDEF_INFO, 0.0);
-    
+
     // Send this block of data
     device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
     cart->status = FT_Write(cart->handle, datacopy, newsize, &cart->bytes_written);
@@ -388,7 +388,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
     // Read the CMP signal
     cart->status = FT_Read(cart->handle, buf, 4, &cart->bytes_read);
     cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
-    if (cmp_magic != 0x434D5040) 
+    if (cmp_magic != 0x434D5040)
         terminate("Received wrong CMPlete signal.");
 
     // Draw the progress bar
@@ -408,4 +408,5 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
 void device_close_64drive(ftdi_context_t* cart)
 {
     testcommand(FT_Close(cart->handle), "Unable to close flashcart.");
+    cart->handle = 0;
 }
