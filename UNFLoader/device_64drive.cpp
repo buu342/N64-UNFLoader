@@ -93,19 +93,19 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 nu
     va_start(params, numparams);
 
     // Clear the buffers
-	memset(send_buff, 0, 32);
-	memset(recv_buff, 0, 32);
+    memset(send_buff, 0, 32);
+    memset(recv_buff, 0, 32);
 
     // Setup the command to send
     send_buff[0] = command;
-	send_buff[1] = 0x43;    // C
-	send_buff[2] = 0x4D;    // M
-	send_buff[3] = 0x44;    // D
+    send_buff[1] = 0x43;    // C
+    send_buff[2] = 0x4D;    // M
+    send_buff[3] = 0x44;    // D
 
     // Append extra arguments to the command if needed
-	if (numparams > 0)
+    if (numparams > 0)
         *(u32 *)&send_buff[4] = swap_endian(va_arg(params, u32));
-	if (numparams > 1)
+    if (numparams > 1)
         *(u32 *)&send_buff[8] = swap_endian(va_arg(params, u32));
     va_end(params);
 
@@ -118,13 +118,13 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 nu
     if (reply)
     {
         // These two instructions do not return a success, so ignore them
-	    if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG)
+        if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG)
             return;
 
         // Check that we received the signal that the operation completed
         testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
-	    recv_buff[1] = command << 24 | 0x504D43;
-	    if (memcmp(recv_buff, &recv_buff[1], 4) != 0)
+        recv_buff[1] = command << 24 | 0x504D43;
+        if (memcmp(recv_buff, &recv_buff[1], 4) != 0)
             terminate("Did not receive completion signal.");
     }
 }
@@ -141,8 +141,8 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 {
     u32    ram_addr = 0x0;
     int	   bytes_left = size;
-	int	   bytes_done = 0;
-	int	   bytes_do;
+    int	   bytes_done = 0;
+    int	   bytes_do;
     int	   chunk = 0;
     u8*    rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
     time_t upload_time = clock();
@@ -247,13 +247,13 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     }
 
     // Decide a better, more optimized chunk size
-	if (size > 16 * 1024 * 1024)
-		chunk = 32;
-	else if ( size > 2 * 1024 * 1024)
-		chunk = 16;
-	else
-		chunk = 4;
-	chunk *= 128 * 1024; // Convert to megabytes
+    if (size > 16 * 1024 * 1024)
+        chunk = 32;
+    else if ( size > 2 * 1024 * 1024)
+        chunk = 16;
+    else
+        chunk = 4;
+    chunk *= 128 * 1024; // Convert to megabytes
 
     // Send chunks to the cart
     pdprint("\n", CRDEF_PROGRAM);
@@ -263,63 +263,63 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         int i;
 
         // Decide how many bytes to send
-		if (bytes_left >= chunk)
-			bytes_do = chunk;
-		else
-			bytes_do = bytes_left;
+        if (bytes_left >= chunk)
+            bytes_do = chunk;
+        else
+            bytes_do = bytes_left;
 
         // If we have an uneven number of bytes, fix that
-		if (bytes_do%4 != 0)
-			bytes_do -= bytes_do%4;
+        if (bytes_do%4 != 0)
+            bytes_do -= bytes_do%4;
 
         // End if we've got nothing else to send
-		if (bytes_do <= 0)
+        if (bytes_do <= 0)
             break;
 
         // Try to send chunks
-		for (i=0; i<2; i++)
+        for (i=0; i<2; i++)
         {
             int j;
 
             // If we failed the first time, clear the USB and try again
-			if (i == 1)
+            if (i == 1)
             {
-				FT_ResetPort(cart->handle);
-				FT_ResetDevice(cart->handle);
-				FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
-			}
+                FT_ResetPort(cart->handle);
+                FT_ResetDevice(cart->handle);
+                FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
+            }
 
-			// Send the chunk to RAM
-			device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-			fread(rom_buffer, bytes_do, 1, file);
-            if (global_z64)
-                for (j=0; j<bytes_do; j+=2)
-                    SWAP(rom_buffer[j], rom_buffer[j+1]);
-			FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
+            // Send the chunk to RAM
+            device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
+            fread(rom_buffer, bytes_do, 1, file);
+                  if (global_z64)
+                      for (j=0; j<bytes_do; j+=2)
+                          SWAP(rom_buffer[j], rom_buffer[j+1]);
+            FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
-			if (cart->bytes_written)
+            if (cart->bytes_written)
                 break;
-		}
+        }
 
         // Check for a timeout
-		if (cart->bytes_written == 0)
+        if (cart->bytes_written == 0)
         {
             free(rom_buffer);
             terminate("64Drive timed out.");
         }
 
-		// Ignore the success response
-		cart->status = FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        // Ignore the success response
+        cart->status = FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
 
         // Keep track of how many bytes were uploaded
-		bytes_left -= bytes_do;
-		bytes_done += bytes_do;
-		ram_addr += bytes_do;
+        bytes_left -= bytes_do;
+        bytes_done += bytes_do;
+        ram_addr += bytes_do;
 
-		// Draw the progress bar
-		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
-	}
+        // Draw the progress bar
+        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
+    }
 
     // Wait for the CMP signal
     #ifndef LINUX

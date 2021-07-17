@@ -132,9 +132,9 @@ void device_sendcmd_everdrive(ftdi_context_t* cart, char command, int address, i
 
 void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 {
-	int	   bytes_done = 0;
+    int	   bytes_done = 0;
     int	   bytes_left;
-	int	   bytes_do;
+    int	   bytes_do;
     char*  rom_buffer = (char*) malloc(sizeof(int) * 32*1024);
     int    crc_area = 0x100000 + 4096;
     time_t upload_time = clock();
@@ -174,27 +174,27 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
         int i;
 
         // Decide how many bytes to send
-		if (bytes_left >= 0x8000)
-			bytes_do = 0x8000;
-		else
-			bytes_do = bytes_left;
+        if (bytes_left >= 0x8000)
+            bytes_do = 0x8000;
+        else
+            bytes_do = bytes_left;
 
         // End if we've got nothing else to send
-		if (bytes_do <= 0)
+        if (bytes_do <= 0)
             break;
 
         // Try to send chunks
-		for (i=0; i<2; i++)
+        for (i=0; i<2; i++)
         {
             int j;
 
             // If we failed the first time, clear the USB and try again
-			if (i == 1)
+            if (i == 1)
             {
-				FT_ResetPort(cart->handle);
-				FT_ResetDevice(cart->handle);
-				FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
-			}
+                FT_ResetPort(cart->handle);
+                FT_ResetDevice(cart->handle);
+                FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
+            }
 
             // Read the ROM to the buffer and byteswap it if needed
             fread(rom_buffer, bytes_do, 1, file);
@@ -220,23 +220,23 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
             // Send the chunk to RAM. If we reached EOF it doesn't matter what we send
             // TODO: Send 0's when EOF is reached
-			FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
+            FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
-			if (cart->bytes_written)
+            if (cart->bytes_written)
                 break;
-		}
+        }
 
         // Check for a timeout
-		if (cart->bytes_written == 0)
+        if (cart->bytes_written == 0)
             terminate("Everdrive timed out.");
 
          // Keep track of how many bytes were uploaded
-		bytes_left -= bytes_do;
-		bytes_done += bytes_do;
+        bytes_left -= bytes_do;
+        bytes_done += bytes_do;
 
-		// Draw the progress bar
-		progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
+        // Draw the progress bar
+        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
     }
 
     // Send the PIFboot command
@@ -315,45 +315,45 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
         int i, block;
 
         // Decide how many bytes to send
-		if (left >= 512)
-			block = 512;
-		else
-			block = left;
+        if (left >= 512)
+          block = 512;
+        else
+          block = left;
 
         // End if we've got nothing else to send
-		if (block <= 0)
+        if (block <= 0)
             break;
 
         // Try to send chunks
-		for (i=0; i<2; i++)
+        for (i=0; i<2; i++)
         {
-            // If we failed the first time, clear the USB and try again
-			if (i == 1)
+                // If we failed the first time, clear the USB and try again
+            if (i == 1)
             {
-				FT_ResetPort(cart->handle);
-				FT_ResetDevice(cart->handle);
-				FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
-			}
+                FT_ResetPort(cart->handle);
+                FT_ResetDevice(cart->handle);
+                FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
+            }
 
-			// Send the chunk through USB
-			memcpy(buffer, data+read, block);
-			FT_Write(cart->handle, buffer, 512, &cart->bytes_written);
+            // Send the chunk through USB
+            memcpy(buffer, data+read, block);
+            FT_Write(cart->handle, buffer, 512, &cart->bytes_written);
 
-            // If we managed to write, don't try again
-			if (cart->bytes_written)
+                  // If we managed to write, don't try again
+            if (cart->bytes_written)
                 break;
-		}
+        }
 
         // Check for a timeout
-		if (cart->bytes_written == 0)
+        if (cart->bytes_written == 0)
             terminate("Everdrive timed out.");
 
         // Draw the progress bar
         progressbar_draw("Uploading data", CRDEF_INFO, (float)read/size);
 
         // Keep track of how many bytes were uploaded
-		left -= block;
-		read += block;
+        left -= block;
+        read += block;
     }
 
     // Send the CMP signal
