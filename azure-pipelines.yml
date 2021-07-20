@@ -153,13 +153,13 @@ jobs:
       unzip ./macos_drivers.zip
 
       echo Attach drivers disk image
-      hdiutil attach ./D2XX1.4.22.dmg
+      hdiutil attach ./D2XX1.4.24.dmg
 
       echo Install drivers to installation location
       sudo mkdir -p /usr/local/lib
       sudo mkdir -p /usr/local/include
-      sudo cp /Volumes/release/D2XX/libftd2xx.1.4.22.dylib /usr/local/lib/libftd2xx.1.4.22.dylib
-      sudo ln -sf /usr/local/lib/libftd2xx.1.4.22.dylib /usr/local/lib/libftd2xx.dylib
+      sudo cp /Volumes/release/D2XX/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.1.4.24.dylib
+      sudo ln -sf /usr/local/lib/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.dylib
       sudo cp /Volumes/release/D2XX/ftd2xx.h /usr/local/include/ftd2xx.h
       sudo cp /Volumes/release/D2XX/WinTypes.h /usr/local/include/WinTypes.h
 
