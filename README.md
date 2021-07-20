@@ -35,7 +35,7 @@ Currently supported devices:
 
 ### Extending UNFLoader
 
-This repository has a [wiki](../../wiki) where the tool, it's libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
+This repository has a [wiki](../../wiki) where the tool, its libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
 </br>
 </br>
 ### Known issues and suggestions
@@ -46,7 +46,7 @@ All known issues are mentioned in the [issues page](../../issues). Suggestions a
 ### Credits
 Marshallh for providing the 64Drive USB application code which this program was based off of.
 
-KRIKzz, saturnu, networkfusion, lambertjamesd, and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
+KRIKzz, saturnu, networkfusion, lambertjamesd, Wiseguy, and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
 
 fraser and networkfusion for all the help provided during the development of this project as well as their support.
 
@@ -60,4 +60,4 @@ CrashOveride for ensuring the samples compile on his Linux libultra port.
 
 This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
 
-The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried and kivan117. You guys are the reason this project was possible!
+The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried, Wiseguy, Zygal, and kivan117. You guys are the reason this project was possible!
