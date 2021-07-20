@@ -149,7 +149,7 @@ jobs:
       sudo installer -pkg ./helper.pkg -target /
 
       echo Install D2XX drivers
-      curl -L https://ftdichip.com/wp-content/uploads/2021/01/D2XX1.4.22.zip --output macos_drivers.zip
+      curl -L https://ftdichip.com/wp-content/uploads/2021/05/D2XX1.4.24.zip --output macos_drivers.zip
       unzip ./macos_drivers.zip
 
       echo Attach drivers disk image
