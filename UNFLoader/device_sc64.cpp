@@ -427,10 +427,10 @@ void device_senddata_sc64(ftdi_context_t* cart, int datatype, char* data, u32 si
     for (int i = 0; i < num_transfers; i++) {
         // Calculate block length
         u32 block_length = MIN(transfer_length, DEV_MAX_RW_BYTES);
-        
+
         // Send block
         device_sendcmd_sc64(cart, DEV_CMD_DEBUG_WRITE, buff_ptr, block_length, NULL, 0, false, 1, DEV_DEBUG_WRITE_PARAM_1(block_length));
-        
+
         // Update tracking variables
         transfer_length -= block_length;
         buff_ptr += block_length;
@@ -450,4 +450,5 @@ void device_senddata_sc64(ftdi_context_t* cart, int datatype, char* data, u32 si
 void device_close_sc64(ftdi_context_t* cart)
 {
     testcommand(FT_Close(cart->handle), "Error: Unable to close flashcart.\n");
+    cart->handle = 0;
 }
