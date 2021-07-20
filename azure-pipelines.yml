@@ -169,7 +169,7 @@ jobs:
       cd ..
 
       echo Detatch drivers disk image
-      diskutil eject /Volumes/dmg/release
+      diskutil eject /Volumes/dmg
     displayName: 'Build Program'
     continueOnError: false
   # Publish build artifacts to Azure Artifacts/TFS or a file share
