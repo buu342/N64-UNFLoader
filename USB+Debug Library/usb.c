@@ -1071,7 +1071,8 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
 
 static void usb_everdrive_writereg(u64 reg, u32 value) 
 {
-    usb_everdrive_writedata(&value, ED_GET_REGADD(reg), sizeof(u32));
+    u32 val __attribute__((aligned(8))) = value;
+    usb_everdrive_writedata(&val, ED_GET_REGADD(reg), sizeof(u32));
 }
 
 
