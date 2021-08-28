@@ -1071,7 +1071,8 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
 
 static void usb_everdrive_writereg(u64 reg, u32 value) 
 {
-    usb_everdrive_writedata(&value, ED_GET_REGADD(reg), sizeof(u32));
+    u32 val __attribute__((aligned(16))) = value;
+    usb_everdrive_writedata(&val, ED_GET_REGADD(reg), sizeof(u32));
 }
 
 
@@ -1082,7 +1083,7 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 
 static void usb_everdrive_usbbusy() 
 {
-    u32 val __attribute__((aligned(8)));
+    u32 val __attribute__((aligned(16)));
     do 
     {
         usb_everdrive_readreg(ED_REG_USBCFG, &val);
@@ -1099,7 +1100,7 @@ static void usb_everdrive_usbbusy()
 
 static u8 usb_everdrive_canread() 
 {
-    u32 val __attribute__((aligned(8)));
+    u32 val __attribute__((aligned(16)));
     u32 status = ED_USBSTAT_POWER;
     
     // Read the USB register and check its status
