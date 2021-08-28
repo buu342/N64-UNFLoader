@@ -955,7 +955,7 @@ static void usb_64drive_read()
 
 static void usb_everdrive_wait_pidma() 
 {
-    u32 status __attribute__((aligned(16)));
+    u32 status;
     do
     {
         status = *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_STATUS);
