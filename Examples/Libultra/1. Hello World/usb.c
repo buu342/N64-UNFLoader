@@ -814,8 +814,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 
 static void usb_64drive_arm(u32 offset, u32 size)
 {
-    u32 ret __attribute__((aligned(16)));
-    ret = usb_64drive_armstatus();
+    u32 ret = usb_64drive_armstatus();
     
     if (ret != D64_USB_ARMING && ret != D64_USB_ARMED)
     {
