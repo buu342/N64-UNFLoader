@@ -1082,12 +1082,15 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 
 static void usb_everdrive_usbbusy() 
 {
+    u32 timeout = 0;
     u32 val __attribute__((aligned(16)));
-    do 
+    do
     {
         usb_everdrive_readreg(ED_REG_USBCFG, &val);
-    } 
-    while ((val & ED_USBSTAT_ACT) != 0);
+        if (timeout++ != 8192)
+            continue;
+        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+    } while ((val & ED_USBSTAT_ACT) != 0);
 }
 
 
