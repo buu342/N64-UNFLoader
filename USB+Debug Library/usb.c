@@ -385,20 +385,7 @@ static void usb_findcart()
     
     // Check if we have an EverDrive
     if (buff == ED7_VERSION || buff == ED3_VERSION)
-    {        
-        // Initialize the PI
-        IO_WRITE(PI_STATUS_REG, 3);
-        IO_WRITE(PI_BSD_DOM1_LAT_REG, 0x40);
-        IO_WRITE(PI_BSD_DOM1_PWD_REG, 0x12);
-        IO_WRITE(PI_BSD_DOM1_PGS_REG, 0x07);
-        IO_WRITE(PI_BSD_DOM1_RLS_REG, 0x03);
-        IO_WRITE(PI_BSD_DOM2_LAT_REG, 0x05);
-        IO_WRITE(PI_BSD_DOM2_PWD_REG, 0x0C);
-        IO_WRITE(PI_BSD_DOM2_PGS_REG, 0x0D);
-        IO_WRITE(PI_BSD_DOM2_RLS_REG, 0x02);
-        IO_WRITE(PI_BSD_DOM1_LAT_REG, 0x04);
-        IO_WRITE(PI_BSD_DOM1_PWD_REG, 0x0C);
-        
+    {
         // Set the USB mode
         usb_everdrive_writereg(ED_REG_SYSCFG, 0);
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
