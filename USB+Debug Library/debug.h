@@ -139,7 +139,7 @@
         #define debug_assert(a)
         #define debug_pollcommands()
         #define debug_addcommand(a, b, c)
-        #define debug_parsecommand() NULL
+        #define debug_parsecommand(a) NULL
         #define debug_sizecommand() 0
         #define debug_printcommands()
         #define usb_initialize() 0
