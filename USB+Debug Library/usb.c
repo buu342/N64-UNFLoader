@@ -163,8 +163,9 @@ https://github.com/buu342/N64-UNFLoader
 
 #define ED_REGKEY  0xAA55
 
-#define ED3_VERSION 0xED640008
-#define ED7_VERSION 0xED640013
+#define ED25_VERSION 0xED640008
+#define ED3_VERSION  0xED640008
+#define ED7_VERSION  0xED640013
 
 
 /*********************************
@@ -382,6 +383,10 @@ static void usb_findcart()
     // Write the key to unlock the registers, then read the version register
     usb_everdrive_writereg(ED_REG_KEY, ED_REGKEY);
     usb_everdrive_readreg(ED_REG_VERSION, &buff);
+    
+    // EverDrive 2.5 not compatible
+    if (buff == ED25_VERSION)
+        return;
     
     // Check if we have an EverDrive
     if (buff == ED7_VERSION || buff == ED3_VERSION)
