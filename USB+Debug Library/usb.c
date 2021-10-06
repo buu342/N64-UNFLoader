@@ -163,7 +163,7 @@ https://github.com/buu342/N64-UNFLoader
 
 #define ED_REGKEY  0xAA55
 
-#define ED25_VERSION 0xED640008
+#define ED25_VERSION 0xED640007
 #define ED3_VERSION  0xED640008
 #define ED7_VERSION  0xED640013
 
