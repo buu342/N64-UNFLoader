@@ -546,14 +546,15 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
     int left = size;
 
     // Ensure the data fits within our buffer
-    if (left > BUFFER_SIZE)
-        left = BUFFER_SIZE;
+    if (left > BUFFER_SIZE-1)
+        left = BUFFER_SIZE-1;
 
     // Read bytes until we finished
     while (left != 0)
     {
         // Read from the USB and print it
         FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+        buffer[cart->bytes_read] = '\0';
         pdprint("%s", CRDEF_PRINT, buffer);
 
         // Store the amount of bytes read
@@ -562,8 +563,8 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
 
         // Ensure the data fits within our buffer
         left = size - total;
-        if (left > BUFFER_SIZE)
-            left = BUFFER_SIZE;
+        if (left > BUFFER_SIZE-1)
+            left = BUFFER_SIZE-1;
     }
 }
 
