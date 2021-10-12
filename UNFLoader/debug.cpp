@@ -554,7 +554,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
     {
         // Read from the USB and print it
         FT_Read(cart->handle, buffer, left, &cart->bytes_read);
-        pdprint("%s", CRDEF_PRINT, buffer);
+        pdprint("%.*s", CRDEF_PRINT, cart->bytes_read, buffer);
 
         // Store the amount of bytes read
         (*read) += cart->bytes_read;
