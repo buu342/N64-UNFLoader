@@ -1540,6 +1540,8 @@ static u32 usb_sc64_poll(void)
     {
         usb_sc64_perform_cmd(SC64_CMD_DEBUG_RX_BUSY, args);
     } while (args[0]);
+
+    return USBHEADER_CREATE(usb_datatype, usb_dataleft);
 }
 
 
