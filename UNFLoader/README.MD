@@ -132,6 +132,17 @@ Once the dependencies are installed, simply execute the makefile:
 make -f Makefile
 ```
 
+You can optionally install UNFLoader to `/usr/local/bin` (which will let you execute the tool in any folder, just remember to use `sudo`!) by calling:
+```
+sudo make install
+```
+
+and uninstall with:
+```
+sudo make uninstall
+```
+</br>
+
 **The Include folder should already have everything you need for Linux.**
 <details><summary>Updating libs to latest version (if required)</summary>
 
