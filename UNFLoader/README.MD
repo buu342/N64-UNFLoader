@@ -99,7 +99,7 @@ brew install ncurses
 Once the dependencies are installed, simply execute the makefile:
 
 ```
-make -f Makefile
+make
 ```
 
 **The Include folder should already have everything you need for macOS.**
@@ -129,7 +129,7 @@ sudo apt-get install libncurses5-dev libncursesw5-dev
 Once the dependencies are installed, simply execute the makefile:
 
 ```
-make -f Makefile
+make
 ```
 
 You can optionally install UNFLoader to `/usr/local/bin` (which will let you execute the tool in any folder, just remember to use `sudo`!) by calling:
