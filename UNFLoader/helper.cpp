@@ -42,10 +42,15 @@ void __pdprint(short color, const char* str, ...)
     vw_printw(stdscr, str, args);
     refresh();
 
+    va_end(args);
+
     // Print to the output debug file if it exists
     if (global_debugoutptr != NULL)
+    {
+        va_start(args, str);
         vfprintf(global_debugoutptr, str, args);
-    va_end(args);
+        va_end(args);
+    }
 }
 
 
@@ -81,10 +86,15 @@ void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
         wrefresh(win);
     }
 
+    va_end(args);
+
     // Print to the output debug file if it exists
     if (log && global_debugoutptr != NULL)
+    {
+        va_start(args, str);
         vfprintf(global_debugoutptr, str, args);
-    va_end(args);
+        va_end(args);
+    }
 }
 
 
@@ -99,6 +109,15 @@ void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
 static void __pdprint_v(short color, const char* str, va_list args)
 {
     int i;
+    va_list args_debugout;
+
+    // Print to the output debug file if it exists
+    if (global_debugoutptr != NULL)
+    {
+        va_copy(args_debugout, args);
+        vfprintf(global_debugoutptr, str, args_debugout);
+        va_end(args_debugout);
+    }
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
@@ -111,10 +130,6 @@ static void __pdprint_v(short color, const char* str, va_list args)
     // Print the string
     vw_printw(stdscr, str, args);
     refresh();
-
-    // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
-        vfprintf(global_debugoutptr, str, args);
 }
 
 
@@ -148,10 +163,15 @@ void __pdprint_replace(short color, const char* str, ...)
     vw_printw(stdscr, str, args);
     refresh();
 
+    va_end(args);
+
     // Print to the output debug file if it exists
     if (global_debugoutptr != NULL)
+    {
+        va_start(args, str);
         vfprintf(global_debugoutptr, str, args);
-    va_end(args);
+        va_end(args);
+    }
 }
 
 
