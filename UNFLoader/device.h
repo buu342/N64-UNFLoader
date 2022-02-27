@@ -45,6 +45,7 @@
     void  device_set_sc64(ftdi_context_t* cart, int index);
     void  device_open();
     void  device_sendrom(char* rompath);
+    bool  device_testdebug();
     void  device_senddata(int datatype, char* data, u32 size);
     bool  device_isopen();
     DWORD device_getcarttype();

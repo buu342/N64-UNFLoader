@@ -20,6 +20,7 @@ Passes flashcart communication to more specific functions
 
 void (*funcPointer_open)(ftdi_context_t*);
 void (*funcPointer_sendrom)(ftdi_context_t*, FILE *file, u32 size);
+bool (*funcPointer_testdebug)(ftdi_context_t*);
 void (*funcPointer_senddata)(ftdi_context_t*, int datatype, char *data, u32 size);
 void (*funcPointer_close)(ftdi_context_t*);
 
@@ -130,6 +131,7 @@ void device_set_64drive1(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
+    funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
     funcPointer_close = &device_close_64drive;
 }
@@ -169,6 +171,7 @@ void device_set_everdrive(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_everdrive;
     funcPointer_sendrom = &device_sendrom_everdrive;
+    funcPointer_testdebug = &device_testdebug_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
     funcPointer_close = &device_close_everdrive;
 }
@@ -190,6 +193,7 @@ void device_set_sc64(ftdi_context_t* cart, int index)
     // Set function pointers
     funcPointer_open = &device_open_sc64;
     funcPointer_sendrom = &device_sendrom_sc64;
+    funcPointer_testdebug = &device_testdebug_sc64;
     funcPointer_senddata = &device_senddata_sc64;
     funcPointer_close = &device_close_sc64;
 }
@@ -326,6 +330,19 @@ void device_sendrom(char* rompath)
         pdprint("Waiting for file changes. Press ESC to stop. Press R to resend.\n", CRDEF_INPUT);
         resend = false;
     }
+}
+
+
+/*==============================
+    device_testdebug
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns true if this cart can use debug mode, false otherwise
+==============================*/
+
+bool device_testdebug()
+{
+    return funcPointer_testdebug(&local_usb);
 }
 
 

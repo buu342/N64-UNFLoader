@@ -279,6 +279,21 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
 
 /*==============================
+    device_testdebug_everdrive
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns Always returns true.
+==============================*/
+
+bool device_testdebug_everdrive(ftdi_context_t* cart)
+{
+    // TODO: Make this check EverDrive firmware version
+    (void)cart; // Prevents error about unused parameter
+    return true;
+}
+
+
+/*==============================
     device_senddata_everdrive
     Sends data to the flashcart
     @param A pointer to the cart context

@@ -15,7 +15,7 @@ http://64drive.retroactive.be/support.php
         Function Prototypes
 *********************************/
 
-void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 numparams, ...);
+void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32* result, u32 numparams, ...);
 
 
 /*==============================
@@ -81,11 +81,12 @@ void device_open_64drive(ftdi_context_t* cart)
     @param A pointer to the cart context
     @param The command to send
     @param A bool stating whether a reply should be expected
+    @param A pointer to store the result of the reply
     @param The number of extra params to send
     @param The extra variadic commands to send
 ==============================*/
 
-void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 numparams, ...)
+void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32* result, u32 numparams, ...)
 {
     u8  send_buff[32];
     u32 recv_buff[32];
@@ -117,17 +118,55 @@ void device_sendcmd_64drive(ftdi_context_t* cart, u8 command, bool reply, u32 nu
     // If the command expects a response
     if (reply)
     {
+        u32 expected = command << 24 | 0x00504D43;
+
         // These two instructions do not return a success, so ignore them
         if (command == DEV_CMD_PI_WR_BL || command == DEV_CMD_PI_WR_BL_LONG)
             return;
 
-        // Check that we received the signal that the operation completed
+        // Read the reply from the 64Drive
         testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
-        recv_buff[1] = command << 24 | 0x504D43;
-        if (memcmp(recv_buff, &recv_buff[1], 4) != 0)
+
+        // Store the result if requested
+        if (result != NULL)
+        {
+            (*result) = swap_endian(recv_buff[0]);
+
+            // Read the rest of the stuff and the CMP as well
+            testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
+            testcommand(FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read), "Unable to read completion signal.");
+        }
+
+        // Check that we received the signal that the operation completed
+        if (memcmp(recv_buff, &expected, 4) != 0)
             terminate("Did not receive completion signal.");
     }
 }
+
+
+/*==============================
+    device_testdebug_64drive
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns True if the firmware version is higher than 2.04
+==============================*/
+
+bool device_testdebug_64drive(ftdi_context_t* cart)
+{
+    u32 result;
+    device_sendcmd_64drive(cart, DEV_CMD_GETVER, true, &result, 0);
+
+    // Firmware must be 2.05 or higher for USB stuff
+    if ((result & 0x0000FFFF) < 205)
+    {
+        pdprint("Please upgrade to firmware 2.05 or higher to access USB debugging.\n", CRDEF_ERROR);
+        return false;
+    }
+
+    // Otherwise, we can use debug mode.
+    return true;
+}
+
 
 /*==============================
     device_sendrom_64drive
@@ -177,7 +216,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         {
             // Set the CIC and print it
             cart->cictype = global_cictype;
-            device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, 1, (1 << 31) | cic, 0);
+            device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cic, 0);
             if (cic == 303)
                 terminate("The 8303 CIC is not supported through USB");
             pdprint("CIC set to ", CRDEF_PROGRAM);
@@ -235,14 +274,14 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
         // Set the CIC
         cart->cictype = global_cictype;
-        device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, 1, (1 << 31) | cic, 0);
+        device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cic, 0);
         pdprint("CIC set to %d.\n", CRDEF_PROGRAM, global_cictype);
     }
 
     // Set Savetype
     if (global_savetype != 0)
     {
-        device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, 1, global_savetype, 0);
+        device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, global_savetype, 0);
         pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
     }
 
@@ -290,7 +329,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             }
 
             // Send the chunk to RAM
-            device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
+            device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
             fread(rom_buffer, bytes_do, 1, file);
                   if (global_z64)
                       for (j=0; j<bytes_do; j+=2)
@@ -382,7 +421,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
     progressbar_draw("Uploading data", CRDEF_INFO, 0.0);
 
     // Send this block of data
-    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
+    device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, NULL, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
     cart->status = FT_Write(cart->handle, datacopy, newsize, &cart->bytes_written);
 
     // Read the CMP signal

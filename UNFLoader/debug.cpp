@@ -62,6 +62,13 @@ void debug_main(ftdi_context_t *cart)
     DWORD pending = 0;
     WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
 
+    // Check if this cart supports debug mode
+    if (!device_testdebug())
+    {
+        pdprint("Unable to start debug mode.\n\n", CRDEF_ERROR);
+        return;
+    }
+
     // Initialize debug mode keyboard input
     if (global_timeout != 0)
         pdprint("Debug mode started. Press ESC to stop or wait for timeout.\n\n", CRDEF_INPUT, global_timeout);

@@ -259,6 +259,20 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 
 
 /*==============================
+    device_testdebug_sc64
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns Always returns true.
+==============================*/
+
+bool device_testdebug_sc64(ftdi_context_t* cart)
+{
+    (void)cart; // Prevents error about unused parameter
+    return true;
+}
+
+
+/*==============================
     device_senddata_sc64
     Sends data to the flashcart
     @param A pointer to the cart context
