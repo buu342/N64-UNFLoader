@@ -64,7 +64,7 @@ jobs:
 
 - job: UNFLoader_Windows
   pool:
-    vmImage: 'windows-latest'
+    vmImage: 'windows-2019'
   steps:
   #- script: |
   #    echo Downloading dependencies
