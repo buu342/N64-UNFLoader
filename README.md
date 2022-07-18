@@ -9,7 +9,7 @@ UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer
 Currently supported devices:
 * 64Drive Hardware 1.0 (No longer comercially sold), using firmware 2.05+
 * [64Drive Hardware 2.0](http://64drive.retroactive.be/), using firmware 2.05+
-* EverDrive 3.0 (No longer comercially sold), using OS version 3.04+
+* EverDrive 3.0 (No longer comercially sold), using OS version 3.04+ (Please note that OS v3.07 onwards is **not** compatible with the 3.0).
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 * [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection)
 </br>

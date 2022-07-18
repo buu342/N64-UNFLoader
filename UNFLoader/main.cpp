@@ -376,7 +376,7 @@ void show_help()
                     "    execute.\n", CRDEF_PROGRAM);
             break;
         case '2':
-            pdprint(" 1) Ensure your device is on the latest firmware/version.\n"
+            pdprint(" 1) Ensure your device is on the latest firmware/version for your cart model.\n"
                     " 2) Plug your EverDrive USB into your PC, ensuring the console is turned ON and\n"
                     "    in the main menu.\n"
                     " 3) Run this program to upload a ROM. Example:\n" 
