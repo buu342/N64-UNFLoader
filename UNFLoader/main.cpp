@@ -24,6 +24,7 @@ UNFLoader Entrypoint
 *********************************/
 
 void parse_args(int argc, char* argv[]);
+void autodetect_romheader();
 void show_title();
 void list_args();
 void show_help();
@@ -52,6 +53,7 @@ WINDOW* global_window      = NULL;
 // Local globals
 static int   local_flashcart = CART_NONE;
 static char* local_rom = NULL;
+static bool  local_autodetect = true;
 
 
 
@@ -90,6 +92,7 @@ int main(int argc, char* argv[])
     // Start the program
     show_title();
     parse_args(argc, argv);
+    autodetect_romheader();
 
     if (local_rom == NULL)
         terminate("Missing ROM argument (-r <ROM NAME HERE>)\n");
@@ -117,7 +120,7 @@ int main(int argc, char* argv[])
 
 /*==============================
     parse_args
-    Parses the arguments passed to the prgram
+    Parses the arguments passed to the program
     @param The number of extra arguments
     @param An array with the arguments
 ==============================*/
@@ -198,6 +201,8 @@ void parse_args(int argc, char* argv[])
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
+        else if (!strcmp(command, "-a")) // Disable automatic header parsing
+            local_autodetect = false;
         else if (!strcmp(command, "-h")) // Set terminal height
         {
             i++;
@@ -273,6 +278,50 @@ void parse_args(int argc, char* argv[])
 
 
 /*==============================
+    autodetect_romheader
+    Reads the ROM header and sets the save/RTC value
+    using the ED format.
+==============================*/
+
+void autodetect_romheader()
+{
+    FILE *file;
+    char buff[0x40];
+    if (!local_autodetect)
+        return;
+
+    // Open the file
+    file = fopen(local_rom, "rb");
+    if (file == NULL)
+    {
+        device_close();
+        terminate("Unable to open file '%s'.\n", local_rom);
+    }
+
+    // Check for a valid header
+    fread(buff, 1, 0x40, file);
+    if (buff[0x3C] != 'E' || buff[0x3D] != 'D')
+        return;
+
+    // If the savetype hasn't been forced
+    if (global_savetype == 0)
+    {
+        switch (buff[0x3F])
+        {
+            case 0x10: global_savetype = 1; break;
+            case 0x20: global_savetype = 2; break;
+            case 0x30: global_savetype = 3; break;
+            case 0x50: global_savetype = 4; break;
+            case 0x40: global_savetype = 5; break;
+            case 0x60: global_savetype = 6; break;
+        }
+        if (global_savetype != 0)
+            pdprint("Auto set save type to %d from ED header.\n", CRDEF_PROGRAM, global_savetype);
+    }
+}
+
+
+/*==============================
     show_title
     Prints tht title of the program
 ==============================*/
@@ -309,6 +358,7 @@ void list_args()
     pdprint("Parameters: <required> [optional]\n", CRDEF_PROGRAM);
     pdprint("  -help\t\t\t   Learn how to use this tool.\n", CRDEF_PROGRAM);
     pdprint("  -r <file>\t\t   Upload ROM.\n", CRDEF_PROGRAM);
+    pdprint("  -a\t\t\t   Disable ED ROM header autodetection.\n", CRDEF_PROGRAM);
     pdprint("  -f <int>\t\t   Force flashcart type (skips autodetection).\n", CRDEF_PROGRAM);
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
