@@ -163,7 +163,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
 
     // Initialize the progress bar
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
+    progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, 0);
 
     // Send a command saying we're about to write to the cart
     device_sendcmd_everdrive(cart, 'W', 0x10000000, size, 0);
@@ -171,7 +171,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
     // Upload the ROM
     for ( ; ; )
     {
-        int i;
+        int i, ch;
 
         // Decide how many bytes to send
         if (bytes_left >= 0x8000)
@@ -182,6 +182,15 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
         // End if we've got nothing else to send
         if (bytes_do <= 0)
             break;
+        
+        // Check if ESC was pressed
+        ch = getch();
+        if (ch == CH_ESCAPE)
+        {
+            pdprint_replace("ROM upload canceled by the user\n", CRDEF_PROGRAM);
+            free(rom_buffer);
+            return;
+        }
 
         // Try to send chunks
         for (i=0; i<2; i++)
@@ -236,7 +245,7 @@ void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size)
         bytes_done += bytes_do;
 
         // Draw the progress bar
-        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
+        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, (float)bytes_done/size);
     }
 
     // Send the PIFboot command

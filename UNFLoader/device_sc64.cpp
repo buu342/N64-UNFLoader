@@ -140,9 +140,8 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 
     // Allocate ROM buffer
     rom_buffer = (u8 *)malloc(chunk * sizeof(u8));
-    if (rom_buffer == NULL) {
+    if (rom_buffer == NULL)
         terminate("Error: Unable to allocate memory for buffer.\n");
-    }
 
     // Set unknown CIC and TV type as default
     cic = -1;
@@ -150,8 +149,10 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     skip = 0;
 
     // Set CIC and TV type if provided
-    if (global_cictype != -1 && cart->cictype == 0) {
-        switch (global_cictype) {
+    if (global_cictype != -1 && cart->cictype == 0)
+    {
+        switch (global_cictype)
+        {
             case 0:
             case 6101: cic = 0x13F; tv = 0; break;
             case 1:
@@ -188,19 +189,17 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
     device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_SKIP_BOOTLOADER, (u32) skip, true);
 
     // Set savetype if provided
-    if (global_savetype > 0 && global_savetype <= 6) {
+    if (global_savetype > 0 && global_savetype <= 6)
         pdprint("Save type set to %d, %s.\n", CRDEF_PROGRAM, global_savetype, save_names[global_savetype - 1]);
-    } else {
+    else
         global_savetype = 0;
-    }
 
     // Commit save setting
-
     device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_SAVE_TYPE, global_savetype, true);
 
     // Init progressbar
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
+    progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, 0);
 
     // Prepare variables
     bytes_left = size;
@@ -213,41 +212,48 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 
     // Loop until ROM has been fully written
     do {
+        int ch;
+        
         // Calculate current chunk size
-        if (bytes_left < chunk) {
+        if (bytes_left < chunk)
             chunk = bytes_left;
+        
+        // Check if ESC was pressed
+        ch = getch();
+        if (ch == CH_ESCAPE)
+        {
+            pdprint_replace("ROM upload canceled by the user\n", CRDEF_PROGRAM);
+            free(rom_buffer);
+            return;
         }
 
         // Read ROM from file to buffer
         fread(rom_buffer, sizeof(u8), chunk, file);
-        if (global_z64) {
-            for (size_t i = 0; i < chunk; i += 2) {
-                SWAP(rom_buffer[i], rom_buffer[i + 1]);
-            }
-        }
+        if (global_z64)
+            for (size_t i=0; i<chunk; i+=2)
+                SWAP(rom_buffer[i], rom_buffer[i+1]);
 
         // Push data
         testcommand(FT_Write(cart->handle, rom_buffer, chunk, &cart->bytes_written), "Error: Unable to write data to SummerCart64.\n");
 
         // Break from loop if not all bytes has been sent
-        if (cart->bytes_written != chunk) {
+        if (cart->bytes_written != chunk)
             break;
-        }
 
         // Update bytes left
         bytes_left -= cart->bytes_written;
 
         // Update progressbar
-        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (size - bytes_left) / (float)size);
-    } while (bytes_left > 0);
+        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, (size - bytes_left) / (float)size);
+    } 
+    while (bytes_left > 0);
 
     // Free ROM buffer
     free(rom_buffer);
 
-    if (bytes_left > 0) {
-        // Throw error if upload was unsuccessful
+    // Throw error if upload was unsuccessful
+    if (bytes_left > 0)
         terminate("Error: SummerCart64 timed out");
-    }
 
     // Check if write was successful
     device_check_reply_sc64(cart, DEV_CMD_WRITE);

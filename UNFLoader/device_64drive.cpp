@@ -296,10 +296,10 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
     // Send chunks to the cart
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
+    progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, 0);
     for ( ; ; )
     {
-        int i;
+        int i, ch;
 
         // Decide how many bytes to send
         if (bytes_left >= chunk)
@@ -314,6 +314,15 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         // End if we've got nothing else to send
         if (bytes_do <= 0)
             break;
+        
+        // Check if ESC was pressed
+        ch = getch();
+        if (ch == CH_ESCAPE)
+        {
+            pdprint_replace("ROM upload canceled by the user\n", CRDEF_PROGRAM);
+            free(rom_buffer);
+            return;
+        }
 
         // Try to send chunks
         for (i=0; i<2; i++)
@@ -331,9 +340,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             // Send the chunk to RAM
             device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
             fread(rom_buffer, bytes_do, 1, file);
-                  if (global_z64)
-                      for (j=0; j<bytes_do; j+=2)
-                          SWAP(rom_buffer[j], rom_buffer[j+1]);
+            if (global_z64)
+                for (j=0; j<bytes_do; j+=2)
+                    SWAP(rom_buffer[j], rom_buffer[j+1]);
             FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
@@ -357,7 +366,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         ram_addr += bytes_do;
 
         // Draw the progress bar
-        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (float)bytes_done/size);
+        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, (float)bytes_done/size);
     }
 
     // Wait for the CMP signal

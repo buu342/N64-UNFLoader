@@ -309,7 +309,9 @@ void device_sendrom(char* rompath)
             pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM);
 
         // Send the ROM
+        timeout(0);
         funcPointer_sendrom(&local_usb, file, filesize);
+        timeout(-1);
 
         // Close the file pipe and start the timeout
         fclose(file);
