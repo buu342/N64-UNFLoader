@@ -251,6 +251,16 @@ void device_sendrom(char* rompath)
         filesize = ftell(file);
         fseek(file, 0, SEEK_SET);
 
+        // Check if the file was modified on Windows (since stat is broken on XP...)
+        #ifndef LINUX
+            LARGE_INTEGER lt;
+            WIN32_FILE_ATTRIBUTE_DATA fdata;
+            GetFileAttributesExA(rompath, GetFileExInfoStandard, &fdata);
+            lt.LowPart = fdata.ftLastWriteTime.dwLowDateTime;
+            lt.HighPart = (long)fdata.ftLastWriteTime.dwHighDateTime;
+            finfo.st_mtime = (time_t)(lt.QuadPart*1e-7);
+        #endif
+
         // If the file was not modified
         if (!resend && lastmod != 0 && lastmod == finfo.st_mtime)
         {
@@ -258,6 +268,7 @@ void device_sendrom(char* rompath)
 
             // Close the file and wait for three seconds
             fclose(file);
+            timeout(0);
             while (count < 30)
             {
                 int ch;
@@ -288,8 +299,9 @@ void device_sendrom(char* rompath)
                     break;
                 }
             }
+            timeout(-1);
 
-            // Restart the while loop
+            // Restart the for loop
             if (!resend)
                 clearerr(file);
             continue;
@@ -403,4 +415,3 @@ void device_close()
     funcPointer_close(&local_usb);
     pdprint("USB connection closed.\n", CRDEF_PROGRAM);
 }
-
