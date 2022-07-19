@@ -42,6 +42,7 @@
 
     // Useful functions
     void    refresh_pad();
+    void    scrollpad(int amount);
     void    testcommand(FT_STATUS status, const char* reason, ...);
     u32     swap_endian(u32 val);
     u32     calc_padsize(u32 size);

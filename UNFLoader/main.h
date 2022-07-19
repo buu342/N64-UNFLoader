@@ -36,6 +36,8 @@
     #define CH_ENTER     '\n'
     #define CH_BACKSPACE '\b'
 
+    #define MAXSCROLL (1000 + global_termsize[1])
+
 
     /*********************************
                  Typedefs
@@ -69,5 +71,6 @@
     extern WINDOW* global_window;
     extern int     global_termsize[2];
     extern int     global_padpos;
+    extern bool    global_scrolling;
 
 #endif

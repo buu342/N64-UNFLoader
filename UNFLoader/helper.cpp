@@ -287,20 +287,24 @@ void refresh_pad()
 {
     int xpos, ypos;
     getyx(global_window, ypos, xpos);
-    if (ypos >= global_termsize[0] - 1)
-        global_padpos = ypos - global_termsize[0]+1;
+    if (!global_scrolling)
+    {
+        if (ypos >= global_termsize[0] - 1)
+            global_padpos = ypos - global_termsize[0] + 1;
+    }
 
     // Refresh the pad itself
     prefresh(global_window, global_padpos, 0, 0, 0, global_termsize[0]-1, global_termsize[1]-1);
 
     // Render the scroll text
+    if (global_scrolling)
     {
         int textlen;
         char scrolltext[40 + 1];
         WINDOW* scrolltextwin;
 
         // Initialize the scroll text and the window to render the text to
-        sprintf(scrolltext, "%d/%d", ypos, ypos);
+        sprintf(scrolltext, "%d/%d", global_padpos, ypos-global_termsize[0]+1);
         textlen = strlen(scrolltext);
         scrolltextwin = newwin(1, textlen, global_termsize[0] - 2, global_termsize[1] - textlen);
 
@@ -313,6 +317,32 @@ void refresh_pad()
         wrefresh(scrolltextwin);
         delwin(scrolltextwin);
     }
+}
+
+
+/*==============================
+    scrollpad
+    Scrolls the window by a given amount
+    @param The amount to scroll the pad by
+==============================*/
+
+void scrollpad(int amount)
+{
+    int xpos, ypos;
+    int maxscrolldown;
+    getyx(global_window, ypos, xpos);
+    maxscrolldown = ypos - global_termsize[0] + 1;
+
+    // Reposition the pad
+    global_padpos += amount;
+    if (global_padpos < 0)
+        global_padpos = 0;
+    if (global_padpos > maxscrolldown)
+        global_padpos = maxscrolldown;
+    global_scrolling = (global_padpos != maxscrolldown);
+
+    // Refresh the pad to see the changes
+    refresh_pad();
 }
 
 

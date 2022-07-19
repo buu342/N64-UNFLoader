@@ -51,6 +51,7 @@ char*   global_filename    = NULL;
 WINDOW* global_window      = NULL;
 int     global_termsize[2] = {40, 80};
 int     global_padpos      = 0;
+bool    global_scrolling   = false;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
@@ -78,12 +79,14 @@ int main(int argc, char* argv[])
     start_color();
     use_default_colors();
     noecho();
+    keypad(stdscr, TRUE);
 
     // Setup our console
-    global_window = newpad(1000, global_termsize[1]);
-    scrollok(global_window, 0);
-    idlok(global_window, 1);
+    global_window = newpad(MAXSCROLL, global_termsize[1]);
+    scrollok(global_window, TRUE);
+    idlok(global_window, TRUE);
     resize_term(global_termsize[0], global_termsize[1]);
+    keypad(global_window, TRUE);
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);

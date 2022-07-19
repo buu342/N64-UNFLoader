@@ -76,7 +76,7 @@ void debug_main(ftdi_context_t *cart)
         pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
-    keypad(global_window, TRUE);
+    keypad(inputwin, TRUE);
 
     // Initialize our buffers
     outbuff = (char*) malloc(BUFFER_SIZE);
@@ -178,6 +178,7 @@ void debug_main(ftdi_context_t *cart)
     free(outbuff);
     free(inbuff);
 
+    global_scrolling = false;
     wclear(inputwin);
     wrefresh(inputwin);
     delwin(inputwin);
@@ -227,6 +228,12 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         (*cursorpos)++;
         blinkerstate = 1;
     }
+
+    // Handle the scrolling keys
+    if (ch == KEY_PPAGE)
+        scrollpad(-1);
+    else if(ch == KEY_NPAGE)
+        scrollpad(1);
 
     // If the up or down arrow was pressed
     if (cmd_changed)
