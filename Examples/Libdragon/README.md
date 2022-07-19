@@ -32,3 +32,4 @@ A ROM that demonstrates the command functions provided by the debug library. All
 2) On boot, a bunch of commands will appear on screen. 
 3) Play around with the different commands. Try seeing what happens when you provide more/less/wrong arguments.
 4) For replacing the texture, use the three provided `tex#.bin` files. They're 32x32 32-bit RGBA textures in binary format.
+5) If you own a 64Drive, you can press the button on the back of the cartridge to execute the `command_button` function.

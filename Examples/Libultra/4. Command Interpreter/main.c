@@ -23,6 +23,7 @@ char* command_ping();
 char* command_rotate();
 char* command_color();
 char* command_texture();
+void  command_button();
 
 
 /*==============================
@@ -50,6 +51,7 @@ void mainproc(void)
     debug_addcommand("rotate", "Toggles square rotation", command_rotate);
     debug_addcommand("color R G B", "Changes the background color", command_color);
     debug_addcommand("texture @file@", "Changes the square texture", command_texture);
+    debug_64drivebutton(command_button, TRUE);
     debug_printcommands();
         
     // Initialize stage 0
@@ -177,4 +179,15 @@ char* command_texture()
     // Replace the texture with the incoming data
     debug_parsecommand(global_texture);
     return NULL;
+}
+
+
+/*==============================
+    command_button
+    Prints when you pressed the 64Drive button
+==============================*/
+
+void command_button()
+{
+    debug_printf("You have pressed the 64Drive's button.\n");
 }

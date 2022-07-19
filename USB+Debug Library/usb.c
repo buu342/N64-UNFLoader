@@ -46,23 +46,23 @@ https://github.com/buu342/N64-UNFLoader
     #ifndef NULL
         #define NULL 0
     #endif
-
+    
     // MIPS addresses
     #define KSEG0 0x80000000
     #define KSEG1 0xA0000000
-
+    
     // Memory translation stuff
     #define	PHYS_TO_K1(x)       ((u32)(x)|KSEG1)
     #define	IO_WRITE(addr,data) (*(vu32 *)PHYS_TO_K1(addr)=(u32)(data))
     #define	IO_READ(addr)       (*(vu32 *)PHYS_TO_K1(addr))
-
+    
     // PI registers
     #define PI_BASE_REG   0x04600000
     #define PI_STATUS_REG (PI_BASE_REG+0x10)
     #define	PI_STATUS_ERROR		0x04
     #define	PI_STATUS_IO_BUSY	0x02
     #define	PI_STATUS_DMA_BUSY	0x01
-
+    
     #define PI_BSD_DOM1_LAT_REG	(PI_BASE_REG+0x14)
     #define PI_BSD_DOM1_PWD_REG	(PI_BASE_REG+0x18)
     #define PI_BSD_DOM1_PGS_REG	(PI_BASE_REG+0x1C)
@@ -207,22 +207,22 @@ https://github.com/buu342/N64-UNFLoader
     typedef uint16_t u16;
     typedef uint32_t u32;
     typedef uint64_t u64;
-
+    
     typedef int8_t  s8;	
     typedef int16_t s16;
     typedef int32_t s32;
     typedef int64_t s64;
-
+    
     typedef volatile uint8_t  vu8;
     typedef volatile uint16_t vu16;
     typedef volatile uint32_t vu32;
     typedef volatile uint64_t vu64;
-
+    
     typedef volatile int8_t  vs8;
     typedef volatile int16_t vs16;
     typedef volatile int32_t vs32;
     typedef volatile int64_t vs64;
-
+    
     typedef float  f32;
     typedef double f64;
 #endif
@@ -271,7 +271,7 @@ int usb_readblock = -1;
         OSIoMesg    dmaIOMessageBuf;
         OSMesgQueue dmaMessageQ;
     #endif
-
+    
     // osPiRaw
     #if USE_OSRAW
         extern s32 __osPiRawWriteIo(u32, u32);
@@ -309,7 +309,7 @@ char usb_initialize()
     
     // Find the flashcart
     usb_findcart();
-
+    
     // Set the function pointers based on the flashcart
     switch (usb_cart)
     {
@@ -359,7 +359,7 @@ static void usb_findcart()
         usb_cart = CART_64DRIVE;
         return;
     }
-
+    
     // Read the cartridge and check if we have a SummerCart64.
     #ifdef LIBDRAGON
         buff = io_read(SC64_REG_CFG_VERSION);
@@ -429,11 +429,11 @@ void usb_write(int datatype, const void* data, int size)
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
         return;
-        
+    
     // If there's data to read first, stop
     if (usb_dataleft != 0)
         return;
-        
+    
     // Call the correct write function
     funcPointer_write(datatype, data, size);
 }
@@ -493,7 +493,7 @@ void usb_read(void* buffer, int nbytes)
     // If there's no data to read, stop
     if (usb_dataleft == 0)
         return;
-
+    
     // Read chunks from ROM
     while (left > 0)
     {
@@ -502,7 +502,7 @@ void usb_read(void* buffer, int nbytes)
             left = usb_dataleft;
         if (block > left)
             block = left;
-            
+        
         // Call the read function if we're reading a new block
         if (usb_readblock != blockoffset)
         {
@@ -731,10 +731,10 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         int block = left;
         if (block > BUFFER_SIZE)
             block = BUFFER_SIZE;
-            
+        
         // Copy the data to the global buffer
         memcpy(usb_buffer, (void*)((char*)data+read), block);
-
+        
         // If the data was not 32-bit aligned, pad the buffer
         if (block < BUFFER_SIZE && size%4 != 0)
         {

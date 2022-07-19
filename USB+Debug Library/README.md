@@ -12,6 +12,9 @@ This folder contains both the USB and debug library that works in tandem with UN
 ### How to use the USB library
 Simply include the `usb.c` and `usb.h` in your project. If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`. </br></br>
 You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
+To write to USB, simply call `usb_write` and fill in the required data accordingly. An application must be running on the PC which can service the incoming data, such as UNFLoader in debug mode.
+To be able to read from USB, you must first call `usb_poll`. If it returns a nonzero value, then there is data available for you to read using `usb_read` and other similar functions. You can find information about the incoming data by using the `USBHEADER_GETX` helper macros. Polling should be done once per game loop.
+If you are using a 64Drive, and the data reading seems to behave intermittently, then open `usb.c` and increase the value of `D64_POLLTIME` until it works consistently.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -87,6 +90,7 @@ void usb_purge();
 ### How to use the Debug library
 The debug library is a basic practical implementation of the USB library. Simply include the `debug.c` and `debug.h` in your project (along with the usb library). If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`. </br></br>
 You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and, if you are using libultra, two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB. If you are using libdragon, the library will instead halt the program until it is finished reading/writing to the USB.
+Similar to the USB library, you must call `debug_pollcommands` once per game loop in order for the library to be able to read incoming data. This also applies to detecting changes to the 64Drive's button state.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -127,7 +131,15 @@ void debug_screenshot();
     Halts the program if the expression fails.
     @param The expression to test
 ==============================*/
-#define debug_assert(expr)
+#define debug_assert(expr);
+        
+/*==============================
+    debug_64drivebutton
+    Assigns a function to be executed when the 64drive button is pressed.
+    @param The function pointer to execute
+    @param Whether or not to execute the function only on pressing (ignore holding the button down)
+==============================*/
+void debug_64drivebutton(void(*execute)(), char onpress);
 
 /*==============================
     debug_pollcommands

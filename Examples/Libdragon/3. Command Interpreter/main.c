@@ -32,6 +32,7 @@ char* command_ping();
 char* command_move();
 char* command_color();
 char* command_texture();
+void  command_button();
 
 
 /*==============================
@@ -54,6 +55,7 @@ int main(void)
     debug_addcommand("move", "Toggles square movement", command_move);
     debug_addcommand("color R G B", "Changes the background color", command_color);
     debug_addcommand("texture @file@", "Changes the square texture", command_texture);
+    debug_64drivebutton(command_button, TRUE);
     debug_printcommands();
 
     // Initialize our sprite
@@ -178,4 +180,15 @@ char* command_texture()
     for (int i=0; i<4096; i++)
         spr_texture->data[i] = global_texture[i];
     return NULL;
+}
+
+
+/*==============================
+    command_button
+    Prints when you pressed the 64Drive button
+==============================*/
+
+void command_button()
+{
+    debug_printf("You have pressed the 64Drive's button.\n");
 }
