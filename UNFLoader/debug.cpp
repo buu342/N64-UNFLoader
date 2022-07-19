@@ -60,7 +60,7 @@ void debug_main(ftdi_context_t *cart)
     char *outbuff, *inbuff;
     u16 cursorpos = 0;
     DWORD pending = 0;
-    WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
+    WINDOW* inputwin = newwin(1, global_termsize[1], global_termsize[0]-1, 0);
 
     // Check if this cart supports debug mode
     if (!device_testdebug())
@@ -76,7 +76,7 @@ void debug_main(ftdi_context_t *cart)
         pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
-    keypad(stdscr, TRUE);
+    keypad(global_window, TRUE);
 
     // Initialize our buffers
     outbuff = (char*) malloc(BUFFER_SIZE);

@@ -49,6 +49,8 @@ time_t  global_timeouttime = 0;
 bool    global_closefail   = false;
 char*   global_filename    = NULL;
 WINDOW* global_window      = NULL;
+int     global_termsize[2] = {40, 80};
+int     global_padpos      = 0;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
@@ -78,16 +80,17 @@ int main(int argc, char* argv[])
     noecho();
 
     // Setup our console
-    scrollok(stdscr, 1);
-    idlok(stdscr, 1);
-    resize_term(40, 80);
-    global_window = newpad(1000, 80);
+    global_window = newpad(1000, global_termsize[1]);
+    scrollok(global_window, 0);
+    idlok(global_window, 1);
+    resize_term(global_termsize[0], global_termsize[1]);
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);
     init_pair(CR_GREEN, COLOR_GREEN, -1);
     init_pair(CR_BLUE, COLOR_BLUE, -1);
     init_pair(CR_YELLOW, COLOR_YELLOW, -1);
+    init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
 
     // Start the program
     show_title();
@@ -209,7 +212,10 @@ void parse_args(int argc, char* argv[])
 
             // If we have an argument after this one, then set the terminal height, otherwise terminate
             if (i<argc && argv[i][0] != '-')
-                resize_term(strtol(argv[i], NULL, 0), 80);
+            {
+                global_termsize[0] = strtol(argv[i], NULL, 0);
+                resize_term(global_termsize[0], global_termsize[1]);
+            }
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
@@ -338,7 +344,7 @@ void show_title()
         char str[2];
         str[0] = title[i];
         str[1] = '\0';
-        pdprint(str, 1+(i)%TOTAL_COLORS);
+        pdprint(str, 1+(i)%(TOTAL_COLORS-1));
     }
 
     // Print other stuff

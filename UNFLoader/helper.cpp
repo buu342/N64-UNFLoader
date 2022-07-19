@@ -32,15 +32,15 @@ void __pdprint(short color, const char* str, ...)
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
-        attroff(COLOR_PAIR(i+1));
+        wattroff(global_window, COLOR_PAIR(i+1));
 
     // If a color is specified, use it
     if (global_usecolors && color != CR_NONE)
-        attron(COLOR_PAIR(color));
+        wattron(global_window, COLOR_PAIR(color));
 
     // Print the string
-    vw_printw(stdscr, str, args);
-    refresh();
+    vw_printw(global_window, str, args);
+    refresh_pad();
 
     va_end(args);
 
@@ -82,8 +82,8 @@ void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
     vw_printw(win, str, args);
     if (log)
     {
-        refresh();
         wrefresh(win);
+        refresh_pad();
     }
 
     va_end(args);
@@ -121,15 +121,15 @@ static void __pdprint_v(short color, const char* str, va_list args)
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
-        attroff(COLOR_PAIR(i+1));
+        wattroff(global_window, COLOR_PAIR(i+1));
 
     // If a color is specified, use it
     if (global_usecolors && color != CR_NONE)
-        attron(COLOR_PAIR(color));
+        wattron(global_window, COLOR_PAIR(color));
 
     // Print the string
-    vw_printw(stdscr, str, args);
-    refresh();
+    vw_printw(global_window, str, args);
+    refresh_pad();
 }
 
 
@@ -149,19 +149,19 @@ void __pdprint_replace(short color, const char* str, ...)
 
     // Disable all the colors
     for (i=0; i<TOTAL_COLORS; i++)
-        attroff(COLOR_PAIR(i+1));
+        wattroff(global_window, COLOR_PAIR(i+1));
 
     // If a color is specified, use it
     if (global_usecolors && color != CR_NONE)
-        attron(COLOR_PAIR(color));
+        wattron(global_window, COLOR_PAIR(color));
 
     // Move the cursor back a line
-    getsyx(ypos, xpos);
-    move(ypos-1, 0);
+    getyx(global_window, ypos, xpos);
+    wmove(global_window, ypos-1, 0);
 
     // Print the string
-    vw_printw(stdscr, str, args);
-    refresh();
+    vw_printw(global_window, str, args);
+    refresh_pad();
 
     va_end(args);
 
@@ -222,7 +222,7 @@ void terminate(const char* reason, ...)
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)
-        attroff(COLOR_PAIR(i+1));
+        wattroff(global_window, COLOR_PAIR(i+1));
     endwin();
     exit(-1);
 }
@@ -272,9 +272,47 @@ static void terminate_v(const char* reason, va_list args)
 
     // End the program
     for (i=0; i<TOTAL_COLORS; i++)
-        attroff(COLOR_PAIR(i+1));
+        wattroff(global_window, COLOR_PAIR(i+1));
     endwin();
     exit(-1);
+}
+
+
+/*==============================
+    refresh_pad
+    Forces a refresh of the pad
+==============================*/
+
+void refresh_pad()
+{
+    int xpos, ypos;
+    getyx(global_window, ypos, xpos);
+    if (ypos >= global_termsize[0] - 1)
+        global_padpos = ypos - global_termsize[0]+1;
+
+    // Refresh the pad itself
+    prefresh(global_window, global_padpos, 0, 0, 0, global_termsize[0]-1, global_termsize[1]-1);
+
+    // Render the scroll text
+    {
+        int textlen;
+        char scrolltext[40 + 1];
+        WINDOW* scrolltextwin;
+
+        // Initialize the scroll text and the window to render the text to
+        sprintf(scrolltext, "%d/%d", ypos, ypos);
+        textlen = strlen(scrolltext);
+        scrolltextwin = newwin(1, textlen, global_termsize[0] - 2, global_termsize[1] - textlen);
+
+        // Set the scroll text color
+        if (global_usecolors)
+            wattron(scrolltextwin, COLOR_PAIR(CRDEF_SPECIAL));
+
+        // Print the scroll text
+        wprintw(scrolltextwin, "%s", scrolltext);
+        wrefresh(scrolltextwin);
+        delwin(scrolltextwin);
+    }
 }
 
 
@@ -332,9 +370,9 @@ void progressbar_draw(const char* text, short color, float percent)
 
     // Draw the progress bar itself
     for(i=0; i<blocks_done; i++) 
-        addch(ACS_BLOCK);
+        waddch(global_window, ACS_BLOCK);
     for(; i<prog_size; i++) 
-        addch(ACS_BOARD);
+        waddch(global_window, ACS_BOARD);
 
     // Print the butt of the progress bar
     pdprint("] %d%%\n", color, (int)(percent*100.0f));
@@ -441,10 +479,10 @@ s16 cic_from_hash(u32 hash)
 }
 
 /*==============================
-handle_timeout
-Draws a fancy progress bar
-@param The text to print before the progress bar
-@param The percentage of completion
+    handle_timeout
+    Draws a fancy progress bar
+    @param The text to print before the progress bar
+    @param The percentage of completion
 ==============================*/
 void handle_timeout()
 {

@@ -67,5 +67,7 @@
     extern bool    global_closefail;
     extern char*   global_filename;
     extern WINDOW* global_window;
+    extern int     global_termsize[2];
+    extern int     global_padpos;
 
 #endif
