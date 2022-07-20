@@ -234,6 +234,10 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         scrollpad(-1);
     else if(ch == KEY_NPAGE)
         scrollpad(1);
+    else if (ch == KEY_END)
+        scrollpad(INT_MAX);
+    else if (ch == KEY_HOME)
+        scrollpad(INT_MIN);
 
     // If the up or down arrow was pressed
     if (cmd_changed)
