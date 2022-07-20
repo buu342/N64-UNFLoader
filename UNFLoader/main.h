@@ -36,7 +36,9 @@
     #define CH_ENTER     '\n'
     #define CH_BACKSPACE '\b'
 
-    #define MAXSCROLL (1000 + global_termsize[1])
+    #define DEFAULT_TERMCOLS 80
+    #define DEFAULT_TERMROWS 40
+    #define DEFAULT_HISTORYSIZE 1000
 
 
     /*********************************

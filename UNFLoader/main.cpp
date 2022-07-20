@@ -49,7 +49,7 @@ time_t  global_timeouttime = 0;
 bool    global_closefail   = false;
 char*   global_filename    = NULL;
 WINDOW* global_window      = NULL;
-int     global_termsize[2] = {40, 80};
+int     global_termsize[2] = {DEFAULT_TERMROWS, DEFAULT_TERMCOLS};
 int     global_padpos      = 0;
 bool    global_scrolling   = false;
 
@@ -57,6 +57,7 @@ bool    global_scrolling   = false;
 static int   local_flashcart = CART_NONE;
 static char* local_rom = NULL;
 static bool  local_autodetect = true;
+static int   local_historysize = DEFAULT_HISTORYSIZE;
 
 
 
@@ -82,7 +83,7 @@ int main(int argc, char* argv[])
     keypad(stdscr, TRUE);
 
     // Setup our console
-    global_window = newpad(MAXSCROLL, global_termsize[1]);
+    global_window = newpad(local_historysize + global_termsize[0], global_termsize[1]);
     scrollok(global_window, TRUE);
     idlok(global_window, TRUE);
     resize_term(global_termsize[0], global_termsize[1]);
@@ -209,20 +210,43 @@ void parse_args(int argc, char* argv[])
         }
         else if (!strcmp(command, "-a")) // Disable automatic header parsing
             local_autodetect = false;
-        else if (!strcmp(command, "-h")) // Set terminal height
+        else if (!strcmp(command, "-w")) // Set terminal size
         {
             i++;
 
             // If we have an argument after this one, then set the terminal height, otherwise terminate
             if (i<argc && argv[i][0] != '-')
             {
+                i++;
                 global_termsize[0] = strtol(argv[i], NULL, 0);
-                resize_term(global_termsize[0], global_termsize[1]);
+
+                // If we have an argument after this one, then set the terminal width, otherwise terminate
+                if (i < argc && argv[i][0] != '-')
+                {
+                    global_termsize[1] = strtol(argv[i], NULL, 0);
+                    resize_term(global_termsize[0], global_termsize[1]);
+                    wresize(global_window, local_historysize + global_termsize[0], global_termsize[1]);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
             }
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
-        else if (!strcmp(command, "-w")) // Disable terminal colors command
+        else if (!strcmp(command, "-h")) // Set command history size
+        {
+            i++;
+
+            // If we have an argument after this one, then set the terminal height, otherwise terminate
+            if (i < argc && argv[i][0] != '-')
+            {
+                local_historysize = strtol(argv[i], NULL, 0);
+                wresize(global_window, local_historysize + global_termsize[0], global_termsize[1]);
+            }
+            else
+                terminate("Missing parameter(s) for command '%s'.", command);
+        }
+        else if (!strcmp(command, "-b")) // Disable terminal colors command
             global_usecolors = false;
         else if (!strcmp(command, "-e")) // Export directory
         {
@@ -384,11 +408,12 @@ void list_args()
     pdprint("  \t 5 - %s\t 6 - %s\n", CRDEF_PROGRAM, "SRAM 768Kbit", "FlashRAM 1Mbit (PokeStdm2)");
     pdprint("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n", CRDEF_PROGRAM);
     pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed).\n", CRDEF_PROGRAM);
+    pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
     pdprint("  -e <directory>\t   File export directory (Folder must exist!).\n", CRDEF_PROGRAM);
     pdprint(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
-    pdprint("  -h <int>\t\t   Force terminal height (number of rows).\n", CRDEF_PROGRAM);
-    pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
-    pdprint("  -w\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
+    pdprint("  -w <int> <int>\t   Force terminal size (number rows + columns).\n", CRDEF_PROGRAM);
+    pdprint("  -h <int>\t\t   Max window history (default %d).\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    pdprint("  -b\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
     pdprint("\n", CRDEF_PROGRAM);
 }
 
