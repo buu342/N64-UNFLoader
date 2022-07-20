@@ -3,6 +3,8 @@
 
 Handles USB I/O.
 ***************************************************************/
+
+#include <limits.h>
 #pragma warning(push, 0)
     #include "Include/lodepng.h"
 #pragma warning(pop)
