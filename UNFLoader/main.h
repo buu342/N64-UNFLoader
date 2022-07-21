@@ -74,5 +74,6 @@
     extern int     global_termsize[2];
     extern int     global_padpos;
     extern bool    global_scrolling;
+    extern bool    global_stackprints;
 
 #endif

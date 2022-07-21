@@ -47,6 +47,8 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
 static int debug_headerdata[HEADER_SIZE];
 static char** cmd_history;
 static int cmd_count = 0;
+static int   print_stackcount = 0;
+static char* print_lastmessage = NULL;
 
 
 /*==============================
@@ -179,12 +181,72 @@ void debug_main(ftdi_context_t *cart)
     // Clean up everything
     free(outbuff);
     free(inbuff);
+    if (print_lastmessage != NULL)
+        free(print_lastmessage);
 
+    print_stackcount = 0;
+    print_lastmessage = NULL;
     global_scrolling = false;
     wclear(inputwin);
     wrefresh(inputwin);
     delwin(inputwin);
     curs_set(0);
+}
+
+
+/*==============================
+    debug_putconsole
+    Puts text on the console, stacking if necessary
+    @param The message to print
+    @param The color to use
+    @param The size of the string we're printing
+    @param Whether to replace the previous line or not
+==============================*/
+
+static void debug_putconsole(char* printmessage, short color, u32 strsize, bool replace)
+{
+    // Stack duplicate prints
+    if (global_stackprints)
+    {
+        // If we received the same message, then increment the stack count and print that it was duplicated
+        if (print_lastmessage != NULL && !strcmp(printmessage, print_lastmessage))
+        {
+            print_stackcount++;
+            if (print_stackcount == 1)
+                pdprint("Previous message duplicated 1 time(s)\n", CRDEF_INFO);
+            else
+                pdprint_replace("Previous message duplicated %d time(s)\n", CRDEF_INFO, print_stackcount);
+            return;
+        }
+        else // Otherwise, store the new line
+        {
+            print_stackcount = 0;
+            if (print_lastmessage != NULL)
+                free(print_lastmessage);
+            print_lastmessage = (char*)malloc(sizeof(char) * strsize);
+            strcpy(print_lastmessage, printmessage);
+        }
+    }
+
+    // Print the text
+    if (replace)
+        pdprint_replace("%s", color, printmessage);
+    else
+        pdprint("%s", color, printmessage);
+}
+
+
+/*==============================
+    debug_clearconsolestack
+    Clear's the console message duplicate memory to prevent stacking
+==============================*/
+
+static void debug_clearconsolestack()
+{
+    if (print_lastmessage != NULL)
+        free(print_lastmessage);
+    print_stackcount = 0;
+    print_lastmessage = NULL;
 }
 
 
@@ -377,7 +439,7 @@ void debug_appendfilesend(char* data, u32 size)
         int charcount = 0;
         int filesize = 0;
         char sizestring[8];
-        char* filepath = (char*)malloc(512);
+        char* filepath = (char*)malloc(BUFFER_SIZE);
         char* lastat;
         char* fileend = strchr(++filestart, '@');
 
@@ -460,6 +522,7 @@ void debug_appendfilesend(char* data, u32 size)
     if (filestart != NULL)
         free(finaldata);
     pdprint_replace("Sent command '%s'\n", CRDEF_INFO, data);
+    debug_clearconsolestack();
 }
 
 
@@ -519,6 +582,7 @@ void debug_filesend(const char* filename)
     // Send the data to the connected flashcart
     device_senddata(DATATYPE_RAWBINARY, buffer, size);
     pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
+    debug_clearconsolestack();
     free(buffer);
     free(copy);
     fclose(fp);
@@ -564,6 +628,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
 {
     int total = 0;
     int left = size;
+    char* printmessage = (char*)malloc(sizeof(char)*size);
 
     // Ensure the data fits within our buffer
     if (left > BUFFER_SIZE)
@@ -574,7 +639,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
     {
         // Read from the USB and print it
         FT_Read(cart->handle, buffer, left, &cart->bytes_read);
-        pdprint("%.*s", CRDEF_PRINT, cart->bytes_read, buffer);
+        sprintf(printmessage + total, "%.*s", cart->bytes_read, buffer);
 
         // Store the amount of bytes read
         (*read) += cart->bytes_read;
@@ -585,6 +650,10 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
         if (left > BUFFER_SIZE)
             left = BUFFER_SIZE;
     }
+
+    // Print the text to the console
+    debug_putconsole(printmessage, CRDEF_PRINT, size, false);
+    free(printmessage);
 }
 
 
@@ -654,6 +723,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 
     // Close the file and free the memory used for the filename
     pdprint("Wrote %d bytes to %s.\n", CRDEF_INFO, size, filename);
+    debug_clearconsolestack();
     fclose(fp);
     free(filename);
     free(extraname);
@@ -793,6 +863,7 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
     // Close the file and free the dynamic memory used
     lodepng_encode32_file(filename, image, w, h);
     pdprint("Wrote %dx%d pixels to %s.\n", CRDEF_INFO, w, h, filename);
+    debug_clearconsolestack();
     free(image);
     free(filename);
     free(extraname);

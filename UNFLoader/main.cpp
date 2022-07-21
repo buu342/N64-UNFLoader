@@ -52,6 +52,7 @@ WINDOW* global_window      = NULL;
 int     global_termsize[2] = {DEFAULT_TERMROWS, DEFAULT_TERMCOLS};
 int     global_padpos      = 0;
 bool    global_scrolling   = false;
+bool    global_stackprints = true;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
@@ -265,6 +266,8 @@ void parse_args(int argc, char* argv[])
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
+        else if (!strcmp(command, "-m")) // Debug message stacking
+        global_stackprints = false;
         else if (!strcmp(command, "-l")) // Listen mode
         {
             global_listenmode = true;
@@ -413,6 +416,7 @@ void list_args()
     pdprint(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
     pdprint("  -w <int> <int>\t   Force terminal size (number rows + columns).\n", CRDEF_PROGRAM);
     pdprint("  -h <int>\t\t   Max window history (default %d).\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    pdprint("  -m \t\t\t   Always show duplicate prints in debug mode.\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
     pdprint("  -b\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
     pdprint("\n", CRDEF_PROGRAM);
 }
