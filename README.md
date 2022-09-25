@@ -11,7 +11,7 @@ Currently supported devices:
 * [64Drive Hardware 2.0](http://64drive.retroactive.be/), using firmware 2.05+
 * EverDrive 3.0 (No longer comercially sold), using OS version 3.04+ (Please note that OS v3.07 onwards is **not** compatible with the 3.0).
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
-* [SummerCart64](https://github.com/Polprzewodnikowy/SummerCollection)
+* [SC64](https://github.com/Polprzewodnikowy/SummerCollection)
 </br>
 
 ### Table of contents
@@ -54,7 +54,7 @@ networkfusion for lending me his remote test rig for the ED3 and X7, as well as 
 
 danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
 
-Polprzewodnikowy for implementing support for his SummerCart64, as well as setting up GitHub actions.
+Polprzewodnikowy for implementing support for his SC64, as well as setting up GitHub actions.
 
 CrashOveride for ensuring the samples compile on his Linux libultra port. 
 

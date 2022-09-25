@@ -204,7 +204,7 @@ I recommend developers check out the [wiki](../../../wiki) chapters 1 and 2 to g
 \<Nothing>
 
 
-**SummerCart 64**
+**SC64**
 
 \<Nothing>
 
