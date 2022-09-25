@@ -86,12 +86,12 @@ void device_find(int automode)
             break;
         }
 
-        // Look for SummerCart64
+        // Look for SC64
         if ((automode == CART_NONE || automode == CART_SC64) && device_test_sc64(cart, i))
         {
             device_set_sc64(cart, i);
             if (automode == CART_NONE)
-                pdprint_replace("SummerCart64 autodetected!\n", CRDEF_PROGRAM);
+                pdprint_replace("SC64 autodetected!\n", CRDEF_PROGRAM);
             break;
         }
     }
@@ -179,7 +179,7 @@ void device_set_everdrive(ftdi_context_t* cart, int index)
 
 /*==============================
     device_set_sc64
-    Marks the cart as being SummerCart64
+    Marks the cart as being SC64
     @param A pointer to the cart context
     @param The index of the cart
 ==============================*/

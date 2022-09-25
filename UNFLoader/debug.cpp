@@ -108,7 +108,6 @@ void debug_main(ftdi_context_t *cart)
     switch (cart->carttype)
     {
         case CART_EVERDRIVE: alignment = 16; break;
-        case CART_SC64: alignment = 4; break;
         default: alignment = 0;
     }
 
@@ -131,31 +130,66 @@ void debug_main(ftdi_context_t *cart)
                 pdprint("Receiving %d bytes\n", CRDEF_INFO, pending);
             #endif
 
-            // Ensure we have valid data by reading the header
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
-                terminate("Unexpected DMA header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
-
-            // Get information about the incoming data
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            info = swap_endian(outbuff[3] << 24 | outbuff[2] << 16 | outbuff[1] << 8 | outbuff[0]);
-
-            // Decide what to do with the received data
-            debug_decidedata(cart, info, outbuff, &read);
-
-            // Read the completion signal
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
-                terminate("Did not receive completion signal: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
-
-            // Ensure byte alignment by reading X amount of bytes needed
-            if (alignment != 0 && (read % alignment) != 0)
+            // SC64 doesn't follow same debug protocol as 64drive/Everdrive
+            if (cart->carttype == CART_SC64)
             {
-                int left = alignment - (read % alignment);
-                FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
+                u32 packet_size;
+
+                // Ensure we have valid data by reading the header
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'P' || outbuff[1] != 'K' || outbuff[2] != 'T' || outbuff[3] != 'U')
+                    terminate("Unexpected PKT header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Get packet size
+                FT_Read(cart->handle, &packet_size, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                packet_size = swap_endian(packet_size);
+
+                // Get information about the incoming data
+                FT_Read(cart->handle, &info, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                info = swap_endian(info);
+
+                // Check if packet size matches data length specified in information
+                if (packet_size != ((info & 0xFFFFFF) + 4))
+                    terminate("Packet size doesn't match size specified in header");
+
+                // Decide what to do with the received data
+                debug_decidedata(cart, info, outbuff, &read);
+
+                // Check if debug_decidedata consumed whole packet
+                if (read != (packet_size + 8))
+                    terminate("Function debug_decidedate didn't consume whole packet: %d != %d", read, (packet_size + 8));
+            }
+            else
+            {
+                // Ensure we have valid data by reading the header
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
+                    terminate("Unexpected DMA header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Get information about the incoming data
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                info = swap_endian(outbuff[3] << 24 | outbuff[2] << 16 | outbuff[1] << 8 | outbuff[0]);
+
+                // Decide what to do with the received data
+                debug_decidedata(cart, info, outbuff, &read);
+
+                // Read the completion signal
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
+                    terminate("Did not receive completion signal: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Ensure byte alignment by reading X amount of bytes needed
+                if (alignment != 0 && (read % alignment) != 0)
+                {
+                    int left = alignment - (read % alignment);
+                    FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
+                }
             }
         }
 
