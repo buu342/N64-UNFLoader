@@ -295,6 +295,7 @@ static void debug_clearconsolestack()
 
 void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
+    char refresh = false;
     char cmd_changed = 0;
     static char blinkerstate = 1;
     static clock_t blinkertime = 0;
@@ -308,6 +309,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         if (curcmd > cmd_count)
             curcmd = 0;
         cmd_changed = 1;
+        refresh = true;
     }
     else if (ch == KEY_UP)
     {
@@ -315,16 +317,21 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         if (curcmd < 0)
             curcmd = cmd_count;
         cmd_changed = 1;
+        refresh = true;
     }
     else if (ch == KEY_LEFT && (*cursorpos) > 0)
     {
         (*cursorpos)--;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch == KEY_RIGHT && (*cursorpos) < size)
     {
         (*cursorpos)++;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
 
     // Handle the scrolling keys
@@ -354,6 +361,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             size = slen;
         }
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
     }
 
     // Decide what to do on other key presses
@@ -384,6 +392,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         (*cursorpos) = 0;
         size = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch == CH_BACKSPACE || ch == 263)
     {
@@ -402,6 +412,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             (*cursorpos)--;
             curcmd = 0;
             blinkerstate = 1;
+            blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+            refresh = true;
         }
     }
     else if (ch == KEY_DC && (*cursorpos) != size) // DEL key
@@ -418,6 +430,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         buffer[size] = 0;
         curcmd = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch != ERR && isascii(ch) && ch > 0x1F && size < BUFFER_SIZE)
     {
@@ -433,6 +447,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         size++;
         curcmd = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
 
     // Display what we've written
@@ -444,6 +460,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     {
         blinkerstate = !blinkerstate;
         blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     if (blinkerstate)
     {
@@ -452,7 +469,10 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         mvwaddch(inputwin, y, (*cursorpos), ACS_BLOCK);
         wmove(inputwin, y, x);
     }
-    wrefresh(inputwin);
+    
+    // Refresh the input bar window
+    if (refresh)
+        wrefresh(inputwin);
 }
 
 
