@@ -92,7 +92,7 @@ https://github.com/buu342/N64-UNFLoader
 
 // How many cycles for the 64Drive to wait for data. 
 // Lowering this might improve performance slightly faster at the expense of USB reading accuracy
-#define D64_POLLTIME       2000
+#define D64_POLLTIME       50000
 
 // Cartridge Interface definitions. Obtained from 64Drive's Spec Sheet
 #define D64_BASE_ADDRESS   0xB0000000

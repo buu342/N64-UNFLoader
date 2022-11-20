@@ -6,7 +6,7 @@
     *********************************/
     
     // UNCOMMENT THE #DEFINE IF USING LIBDRAGON
-    //#define LIBDRAGON
+    #define LIBDRAGON
     
     // Settings
     #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager (libultra only)
