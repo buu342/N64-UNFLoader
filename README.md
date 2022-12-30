@@ -34,12 +34,12 @@ Currently supported devices:
 
 ### Extending UNFLoader
 
-This repository has a [wiki](../../wiki) where the tool, its libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
+This repository has a [wiki](https://github.com/buu342/N64-UNFLoader/wiki) where the tool, its libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
 </br>
 </br>
 ### Known issues and suggestions
 
-All known issues are mentioned in the [issues page](../../issues). Suggestions also belong there for the sake of keeping everything in one place.
+All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there for the sake of keeping everything in one place.
 </br>
 </br>
 ### Credits
