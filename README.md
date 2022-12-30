@@ -1,7 +1,7 @@
 # UNFLoader
 ![Build Status](https://github.com/buu342/N64-UNFLoader/actions/workflows/build.yml/badge.svg)
 
-**The code in this repo might be unstable! For stable versions, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
+**The code in this repo might be unstable! For stable releases, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
 UNFLoader is a USB ROM uploader (and debugging) tool designed to unify developer flashcarts for the Nintendo 64. The goal of this project is to provide developers with USB I/O functions that work without needing to worry about the target flashcart, provided by a single C file (`usb.c`) targeting both libultra and libdragon. A very basic debug library (`debug.c`) that makes use of said USB library is also provided.
 
@@ -14,17 +14,17 @@ Currently supported devices:
 </br>
 
 ### Table of contents
-* [UNFLoader](UNFLoader)
+* [UNFLoader](UNFLoader/README.md)
     - [System Requirements](UNFLoader/README.md#system-requirements)
     - [How to use UNFLoader](UNFLoader/README.md#how-to-use-unfloader)
     - [How to build UNFLoader for Windows](UNFLoader/README.md#how-to-build-unfloader-for-windows)
     - [How to build UNFLoader for macOS](UNFLoader/README.md#how-to-build-unfloader-for-macOS)
     - [How to build UNFLoader for Linux](UNFLoader/README.md#how-to-build-unfloader-for-linux)
-* [USB + Debug Library](USB%2BDebug%20Library)
+* [USB + Debug Library](USB%2BDebug%20Library/README.md)
     - [How to use the USB library](USB%2BDebug%20Library/README.md#how-to-use-the-usb-library)
     - [How to use the Debug library](USB%2BDebug%20Library/README.md#how-to-use-the-debug-library)
     - [How these libraries work](USB%2BDebug%20Library/README.md#how-these-libraries-work)
-* [Example ROMs](Examples)
+* [Example ROMs](Examples/README.md)
     - [Libultra](Examples/Libultra/README.md#libultra-examples)
     - [Libdragon](Examples/Libdragon/README.md#libdragon-examples)
 * [Extending UNFLoader](#extending-unfloader)
