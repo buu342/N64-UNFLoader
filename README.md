@@ -11,7 +11,7 @@ Currently supported devices:
 * EverDrive 3.0 (No longer comercially sold), using OS version 3.04+ (Please note that OS v3.07 onwards is **not** compatible with the 3.0).
 * [EverDrive X7](https://krikzz.com/store/home/55-everdrive-64-x7.html), using OS version 3.04+
 * [SC64](https://github.com/Polprzewodnikowy/SummerCollection)
-</br>
+
 
 ### Table of contents
 * [UNFLoader](UNFLoader/README.md)
@@ -30,33 +30,28 @@ Currently supported devices:
 * [Extending UNFLoader](#extending-unfloader)
 * [Known Issues and Suggestions](#known-issues-and-suggestions)
 * [Credits](#credits)
-</br>
+
 
 ### Extending UNFLoader
 
 This repository has a [wiki](https://github.com/buu342/N64-UNFLoader/wiki) where the tool, its libraries, and the supported flashcarts are all documented. It is recommended that you read through that to familiarize yourself with everything. If you want to submit changes, feel free to fork the repository and make pull requests!
-</br>
-</br>
+
+
 ### Known issues and suggestions
 
 All known issues are mentioned in the [issues page](https://github.com/buu342/N64-UNFLoader/issues). Suggestions also belong there for the sake of keeping everything in one place.
-</br>
-</br>
+
+
 ### Credits
-Marshallh for providing the 64Drive USB application code which this program was based off of.
+* Marshallh for providing the 64Drive USB application code which this program was based off of.
+* KRIKzz, saturnu, NetworkFusion, lambertjamesd, Wiseguy, and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
+* fraser and networkfusion for all the help provided during the development of this project as well as their support.
+* NetworkFusion for lending me his remote test rig for the ED64-V3 and ED64-X7, as well as setting up the azure pipeline system and helping organize this repo.
+* danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
+* Polprzewodnikowy for implementing support for his SC64, as well as setting up GitHub actions.
+* CrashOveride for ensuring the samples compile on his Linux libultra port.
+* The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, NetworkFusion, CrashOveride, gravatos, PerKimba, manfried, Wiseguy, Zygal, and kivan117. You guys are the reason this project was possible!
 
-KRIKzz, saturnu, networkfusion, lambertjamesd, Wiseguy, and jsdf for providing sample code for the EverDrive 3.0 and/or X7.
 
-fraser and networkfusion for all the help provided during the development of this project as well as their support.
-
-networkfusion for lending me his remote test rig for the ED3 and X7, as well as setting up the azure pipeline system and helping organize this repo.
-
-danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
-
-Polprzewodnikowy for implementing support for his SC64, as well as setting up GitHub actions.
-
-CrashOveride for ensuring the samples compile on his Linux libultra port. 
 
 This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
-
-The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, networkfusion, CrashOveride, gravatos, PerKimba, manfried, Wiseguy, Zygal, and kivan117. You guys are the reason this project was possible!
