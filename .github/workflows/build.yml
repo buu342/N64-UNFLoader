@@ -2,11 +2,11 @@ name: Build
 
 on:
   push:
-    branches:
-      - master
+#    branches:
+#      - master
+    paths-ignore: [ "Examples/**", "*.md", ".gitignore", "LICENSE" ]
   pull_request:
-    branches:
-      - master
+    paths-ignore: [ "Examples/**", "*.md", ".gitignore", "LICENSE" ]
   release:
     types:
       - created
@@ -14,6 +14,7 @@ on:
 env:
   WINDOWS_ARTIFACT_NAME: UNFLoader-Windows
   LINUX_ARTIFACT_NAME: UNFLoader-Linux
+  MACOS_ARTIFACT_NAME: UNFLoader-macOS
 
 jobs:
   build-windows:
@@ -24,17 +25,20 @@ jobs:
       BUILD_DIRECTORY: ./UNFLoader/Release
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1
+      uses: microsoft/setup-msbuild@v1.1
+      with:
+        vs-version: '16.0'
+        msbuild-architecture: x86
 
     - name: Build
       working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ env.WINDOWS_ARTIFACT_NAME }}
         path: ${{ env.BUILD_DIRECTORY }}/UNFLoader.exe
@@ -47,7 +51,7 @@ jobs:
       BUILD_DIRECTORY: ./UNFLoader
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install dependencies
         run: sudo apt-get install libncurses5-dev libncursesw5-dev
@@ -74,28 +78,79 @@ jobs:
           make
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ env.LINUX_ARTIFACT_NAME }}
+          path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
+
+  build-macos:
+    runs-on: macos-latest
+    env:
+      LIBFTD2XX_VERSION: '1.4.24'
+      SOURCES_DIRECTORY: ./UNFLoader/
+      BUILD_DIRECTORY: ./UNFLoader
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build
+        run: |
+          echo Install helper package
+          curl -L https://www.ftdichip.com/old2020/Drivers/D2XX/MacOSX/D2xxHelper_v2.0.0.pkg --output helper.pkg
+          sudo installer -pkg ./helper.pkg -target /
+
+          echo Install D2XX drivers
+          curl -L https://ftdichip.com/wp-content/uploads/2021/05/D2XX${{ env.LIBFTD2XX_VERSION }}.zip --output macos_drivers.zip
+          unzip ./macos_drivers.zip
+
+          echo Attach drivers disk image
+          hdiutil attach ./D2XX${{ env.LIBFTD2XX_VERSION }}.dmg
+
+          echo Install drivers to installation location
+          sudo mkdir -p /usr/local/lib
+          sudo mkdir -p /usr/local/include
+          sudo cp /Volumes/dmg/release/build/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib /usr/local/lib/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib
+          sudo ln -sf /usr/local/lib/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib /usr/local/lib/libftd2xx.dylib
+          sudo cp /Volumes/dmg/release/ftd2xx.h /usr/local/include/ftd2xx.h
+          sudo cp /Volumes/dmg/release/WinTypes.h /usr/local/include/WinTypes.h
+
+          echo Build macOS App
+          cd ${{ env.SOURCES_DIRECTORY }}
+          make
+          cd ..
+
+          echo Detatch drivers disk image
+          diskutil eject /Volumes/dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.MACOS_ARTIFACT_NAME }}
           path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
 
   release:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'created'
-    needs: [build-windows, build-linux]
+    needs: [build-windows, build-linux, build-macos]
 
     steps:
     - name: Download Windows artifact
       id: download-windows
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: ${{ env.WINDOWS_ARTIFACT_NAME }}
 
     - name: Download Linux artifact
       id: download-linux
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: ${{ env.LINUX_ARTIFACT_NAME }}
+
+    - name: Download macOS artifact
+      id: download-macos
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ env.MACOS_ARTIFACT_NAME }}
 
     - name: Get release
       id: get_release
@@ -120,5 +175,15 @@ jobs:
       with:
         upload_url: ${{ steps.get_release.outputs.upload_url }}
         asset_path: ${{ steps.download-linux.outputs.download-path }}/UNFLoader
+        asset_name: UNFLoader
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS release asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        asset_path: ${{ steps.download-macos.outputs.download-path }}/UNFLoader
         asset_name: UNFLoader
         asset_content_type: application/octet-stream
