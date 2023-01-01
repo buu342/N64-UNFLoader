@@ -1,5 +1,5 @@
 # UNFLoader
-![Build Status](https://github.com/buu342/N64-UNFLoader/actions/workflows/build.yml/badge.svg)
+![Build Status](https://github.com/buu342/N64-UNFLoader/actions/workflows/build.yml/badge.svg) [![Build Status](https://dev.azure.com/buu342/buu342/_apis/build/status/buu342.N64-UNFLoader?branchName=master)](https://dev.azure.com/buu342/buu342/_build/latest?definitionId=1&branchName=master)
 
 **The code in this repo might be unstable! For stable releases, head to the [releases page](https://github.com/buu342/N64-UNFLoader/releases)**
 
