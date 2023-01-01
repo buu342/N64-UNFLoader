@@ -1,0 +1,118 @@
+trigger:
+  branches:
+    include: ["master", "develop*", "release*", "refs/tags/*" ]
+  paths:
+    exclude: [ "doc", "*.md", ".gitignore" ]
+
+jobs:
+- job: UNFLoader_Linux
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      echo Add Linux dependencies
+      sudo apt-get install libncurses5-dev libncursesw5-dev
+      # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.cpp
+      # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
+      
+      curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-1.4.8.gz --output libftd2xx.gz
+      mkdir ./libftd2xx
+      tar xvzf libftd2xx.gz -C ./libftd2xx
+      cd ./libftd2xx/release/
+      cp WinTypes.h ftd2xx.h $BUILD_SOURCESDIRECTORY/UNFLoader/Include/
+      
+      echo Install FTDI driver.
+      sudo cp build/lib* /usr/local/lib
+      cd /usr/local/lib
+      sudo ln -s libftd2xx.so.1.4.8 libftd2xx.so
+      sudo chmod 0755 libftd2xx.so.1.4.8
+      #cd ./build/
+      #cp libftd2xx.so.1.4.8 $BUILD_SOURCESDIRECTORY/UNFLoader/Include/libftd2xx.so
+      
+      cd $BUILD_SOURCESDIRECTORY
+      
+      echo Build App
+      cd ./UNFLoader/
+      ls
+      make -f Makefile
+      #copy to artifacts directory
+    displayName: 'Build Program'
+    continueOnError: false
+
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader' 
+      artifactName: 'unfloader-linux' 
+      publishLocation: 'Container' # Options: container, filePath
+      parallel: true # Optional
+
+- job: UNFLoader_Windows
+  pool:
+    vmImage: 'windows-2019'
+  steps:
+       
+  # Visual Studio build
+  # Build with MSBuild and set the Visual Studio version property
+  - task: VSBuild@1
+    inputs:
+      solution: '**\*.sln' 
+      vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
+      msbuildArchitecture: 'x86' # Optional. Options: x86, x64
+
+
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Debug/UNFLoader.exe'
+      #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'unfloader-windows' 
+      publishLocation: 'Container' # Options: container, filePath
+      #targetPath: # Required when publishLocation == FilePath
+      parallel: true # Optional
+      #parallelCount: # Optional
+
+      
+- job: UFNLoader_macOS
+  pool:
+    vmImage: 'macOS-latest'
+  steps:
+  - script: |
+      echo Install helper package
+      curl -L https://www.ftdichip.com/old2020/Drivers/D2XX/MacOSX/D2xxHelper_v2.0.0.pkg --output helper.pkg
+      sudo installer -pkg ./helper.pkg -target /
+
+      echo Install D2XX drivers
+      curl -L https://ftdichip.com/wp-content/uploads/2021/05/D2XX1.4.24.zip --output macos_drivers.zip
+      unzip ./macos_drivers.zip
+
+      echo Attach drivers disk image
+      hdiutil attach ./D2XX1.4.24.dmg
+
+      echo Install drivers to installation location
+      sudo mkdir -p /usr/local/lib
+      sudo mkdir -p /usr/local/include
+      sudo cp /Volumes/dmg/release/build/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.1.4.24.dylib
+      sudo ln -sf /usr/local/lib/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.dylib
+      sudo cp /Volumes/dmg/release/ftd2xx.h /usr/local/include/ftd2xx.h
+      sudo cp /Volumes/dmg/release/WinTypes.h /usr/local/include/WinTypes.h
+
+      echo Build macOS App
+      cd ./UNFLoader/
+      make
+      cd ..
+
+      echo Detatch drivers disk image
+      diskutil eject /Volumes/dmg
+    displayName: 'Build Program'
+    continueOnError: false
+  # Publish build artifacts to Azure Artifacts/TFS or a file share
+  - task: PublishBuildArtifacts@1
+    displayName: Publish Build Artifacts
+    inputs:
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader'
+      artifactName: 'unfloader-macOS' 
+      publishLocation: 'Container' # Options: container, filePath
+      parallel: true # Optional
