@@ -37,7 +37,7 @@ sudo rmmod ftdi_sio
 <details><summary>macOS</summary>
 <p>
     
-![The macOS System Information window showing an FTDI device connected to a USB3 port](../.github/macos_system_report.png)
+![The macOS System Information window showing an FTDI device connected to a USB3 port](../Content/macos_system_report.png)
 * Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
 * Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
 * [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
