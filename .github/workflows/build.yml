@@ -2,6 +2,7 @@ name: Build
 
 on:
   push:
+# TODO: using branches might exclude forks so commented out at the moment.
 #    branches:
 #      - master
     paths-ignore: [ "Examples/**", "*.md", ".gitignore", "LICENSE" ]
@@ -128,62 +129,245 @@ jobs:
           name: ${{ env.MACOS_ARTIFACT_NAME }}
           path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
 
-  release:
+  prepare-releases:
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'created'
     needs: [build-windows, build-linux, build-macos]
 
     steps:
+#FIXME: updating a draft is a known issue: https://github.com/softprops/action-gh-release/pull/245
+# for the moment, we are just going to delete them to re-add in the next step!
+      - name: Delete drafts
+        run:
+          echo should delete drafts...
+        # uses: hugo19941994/delete-draft-releases@v1.0.0
+        # with:
+        #   threshold: 1y
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# TODO: what (if any) steps should be run on a fork!
+  generate-prerelease:
+    runs-on: ubuntu-latest
+#    if: github.event_name == 'release' && github.event.action == 'created'
+    needs: [build-windows, build-linux, build-macos, prepare-releases]
+
+    steps:
+    - uses: actions/checkout@v3
+
     - name: Download Windows artifact
-      id: download-windows
+      id: download-windows-artifact
       uses: actions/download-artifact@v3
       with:
         name: ${{ env.WINDOWS_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/windows-artifact-download
 
     - name: Download Linux artifact
-      id: download-linux
+      id: download-linux-artifact
       uses: actions/download-artifact@v3
       with:
         name: ${{ env.LINUX_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/linux-artifact-download
 
     - name: Download macOS artifact
-      id: download-macos
+      id: download-macos-artifact
       uses: actions/download-artifact@v3
       with:
         name: ${{ env.MACOS_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/macos-artifact-download
 
-    - name: Get release
-      id: get_release
-      uses: bruceadams/get-release@v1.2.2
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+    - name: Generate individual directories for binaries and compress
+      run: |
+        cd ${{ runner.temp }}
+        mkdir -p ${{ runner.temp }}/binaries/linux
+        # Move and rename the binary to lowercase for better support.
+        cp ${{ steps.download-linux-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/linux/unfloader
+        # Make sure the binary is executable.
+        chmod 755 ${{ runner.temp }}/binaries/linux/unfloader
+        tar -zcvf unfloader-linux.tar.gz binaries/linux
 
-    - name: Upload Windows release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        mkdir -p ${{ runner.temp }}/binaries/macOS
+        # Move the binary.
+        cp ${{ steps.download-macos-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/macOS/UNFLoader
+        tar -zcvf UNFLoader-macOS.tar.gz binaries/macOS
+        
+        mkdir -p ${{ runner.temp }}/binaries/windows
+        # Move the binary.
+        cp ${{ steps.download-windows-artifact.outputs.download-path }}/UNFLoader.exe ${{ runner.temp }}/binaries/windows/UNFLoader.exe
+        zip -r unfloader-windows.zip binaries/windows
+
+    - name: Convert files for release upload
+      run: |
+        mv ${{ github.workspace }}/LICENSE ${{ github.workspace }}/LICENSE.txt
+        mv ${{ github.workspace }}/INSTALLATION.md ${{ github.workspace }}/INSTALLATION.txt
+
+    - name: Generate Pre-Release
+      if: github.event_name != 'pull_request'
+      uses: softprops/action-gh-release@v1
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ${{ steps.download-windows.outputs.download-path }}/UNFLoader.exe
-        asset_name: UNFLoader.exe
-        asset_content_type: application/octet-stream
+        draft: false
+        prerelease: true
+        name: "UNFLoader-prerelease-latest"
+        tag_name: "prerelease-latest"
+        files: |
+          ${{ runner.temp }}/*.zip
+          ${{ runner.temp }}/*.tar.gz
+          LICENSE.txt
+          INSTALLATION.txt
 
-    - name: Upload Linux release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ${{ steps.download-linux.outputs.download-path }}/UNFLoader
-        asset_name: UNFLoader
-        asset_content_type: application/octet-stream
+# TODO: what (if any) steps should be run on a fork!
+# TODO: what about compiled examples?
+  generate-release:
+    runs-on: ubuntu-latest
+    # if: github.event_name == 'release' && github.event.action == 'created'
+    needs: [build-windows, build-linux, build-macos, prepare-releases]
 
-    - name: Upload macOS release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download Windows artifact
+      id: download-windows-artifact
+      uses: actions/download-artifact@v3
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
-        asset_path: ${{ steps.download-macos.outputs.download-path }}/UNFLoader
-        asset_name: UNFLoader
-        asset_content_type: application/octet-stream
+        name: ${{ env.WINDOWS_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/windows-artifact-download
+
+    - name: Download Linux artifact
+      id: download-linux-artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ env.LINUX_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/linux-artifact-download
+
+    - name: Download macOS artifact
+      id: download-macos-artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: ${{ env.MACOS_ARTIFACT_NAME }}
+        path: ${{ runner.temp }}/macos-artifact-download
+
+    # https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-ruby
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        bundler-cache: true
+        ruby-version: '3.1'
+      continue-on-error: true
+
+    - name: Install Package Creator
+      run: |
+        echo installing jordansissel/fpm ruby package
+        gem install fpm
+      continue-on-error: true
+
+    # https://fpm.readthedocs.io/en/v1.15.0/getting-started.html
+    - name: Generate packages for linux based OS
+      run: |
+        # Create a folder packages can control
+        mkdir -p ${{ runner.temp }}/packages
+
+        # Move and make executable lowercase (otherwise could be issues)
+        cp $Source_Directory_Path/$Package_Name ${{ runner.temp }}/packages/${Package_Name,,}
+
+        # Make sure executible has execute permissions
+        chmod 755 ${{ runner.temp }}/packages/${Package_Name,,}
+
+        # base directory for package generation
+        cd ${{ runner.temp }}/packages
+
+        echo Generating debian based package
+        fpm \
+          -t deb \
+          -s dir \
+          -p ${Package_Name,,}-$Package_Version-$Package_Revision-any.deb \
+          --name ${Package_Name,,} \
+          --license $Package_License \
+          --version $Package_Version \
+          --architecture all \
+          --depends bash \
+          --description "$Package_Description" \
+          --url "$Package_Url" \
+          --maintainer "$Package_Maintainer" \
+          ${Package_Name,,}=$Installation_Directory_Path
+
+        echo Generating RPM based package
+        fpm \
+          -t rpm \
+          -s dir \
+          -p ${Package_Name,,}-$Package_Version-$Package_Revision-x86_64.rpm \
+          --name ${Package_Name,,} \
+          --license $Package_License \
+          --version $Package_Version \
+          --architecture x86_64 \
+          --depends nginx \
+          --description "$Package_Description" \
+          --url "$Package_Url" \
+          --maintainer "$Package_Maintainer" \
+          ${Package_Name,,}=$Installation_Directory_Path
+      continue-on-error: true
+      env:
+        Source_Directory_Path: ${{ steps.download-linux-artifact.outputs.download-path }}
+        Installation_Directory_Path: /usr/bin/
+        Package_Name: UNFLoader
+        Package_Version: '1.0.0' # ${{ github.ref }}
+        Package_Revision: latest # ${{ github.run_id }}
+        Package_License: DWTFYWTPL # TODO: is this the correct naming?!
+        Package_Description: UNFLoader for the N64
+        Package_Url: https://n64brew.com
+        Package_Maintainer:  buu342
+
+    - name: Generate individual directories for binaries and compress
+      run: |
+        cd ${{ runner.temp }}
+        mkdir -p ${{ runner.temp }}/binaries/linux
+        # Move and rename the binary to lowercase for better support.
+        cp ${{ steps.download-linux-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/linux/unfloader
+        # Make sure the binary is executable.
+        chmod 755 ${{ runner.temp }}/binaries/linux/unfloader
+        tar -zcvf unfloader-linux.tar.gz binaries/linux
+
+        mkdir -p ${{ runner.temp }}/binaries/macOS
+        # Move the binary.
+        cp ${{ steps.download-macos-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/macOS/UNFLoader
+        tar -zcvf UNFLoader-macOS.tar.gz binaries/macOS
+        
+        mkdir -p ${{ runner.temp }}/binaries/windows
+        # Move the binary.
+        cp ${{ steps.download-windows-artifact.outputs.download-path }}/UNFLoader.exe ${{ runner.temp }}/binaries/windows/UNFLoader.exe
+        zip -r unfloader-windows.zip binaries/windows
+
+    - name: Convert files for release upload
+      run: |
+        mv ${{ github.workspace }}/LICENSE ${{ github.workspace }}/LICENSE.txt
+        mv ${{ github.workspace }}/INSTALLATION.md ${{ github.workspace }}/INSTALLATION.txt
+
+    - name: Generate draft release notes
+      run: |
+        CHANGELOG_TEXT='Release of UNFLoader and its respective N64-side library (targeting libultra and libdragon).</br>'
+        CHANGELOG_TEXT+='</br>'
+        CHANGELOG_TEXT+='Fully supports USB I/O for:</br>'
+        CHANGELOG_TEXT+='    * 64Drive HW1</br>'
+        CHANGELOG_TEXT+='    * 64Drive HW2</br>'
+        CHANGELOG_TEXT+='    * EverDrive 3.0 (OS 3.06 only)</br>'
+        CHANGELOG_TEXT+='    * EverDrive X7</br>'
+        CHANGELOG_TEXT+='    * SC64</br>'
+        CHANGELOG_TEXT+='</br>'
+        CHANGELOG_TEXT+='Compiled executables are available below:</br>'
+        echo "$CHANGELOG_TEXT" > ${{ github.workspace }}-CHANGELOG.txt
+
+    - name: Generate Release
+#      if: startsWith(github.ref, 'refs/heads/master') # Actually, should we only do it on a tag?! if: startsWith(github.ref, 'refs/tags/')
+      if: github.event_name != 'pull_request'
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: true # always make sure there is a manual step
+        prerelease: false
+        body_path: ${{ github.workspace }}-CHANGELOG.txt
+        name: "UNFLoader"
+        tag_name: "latest"
+        files: |
+          ${{ runner.temp }}/packages/**/*.deb
+          ${{ runner.temp }}/packages/**/*.rpm
+          ${{ runner.temp }}/*.zip
+          ${{ runner.temp }}/*.tar.gz
+          LICENSE.txt
+          INSTALLATION.txt
