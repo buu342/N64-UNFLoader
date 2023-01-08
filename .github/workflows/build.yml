@@ -129,97 +129,11 @@ jobs:
           name: ${{ env.MACOS_ARTIFACT_NAME }}
           path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
 
-  prepare-releases:
+
+# TODO: what (if any) steps should be run on a fork!
+  attempt-releases:
     runs-on: ubuntu-latest
     needs: [build-windows, build-linux, build-macos]
-
-    steps:
-#FIXME: updating a draft is a known issue: https://github.com/softprops/action-gh-release/pull/245
-# for the moment, we are just going to delete them to re-add in the next step!
-      - name: Delete drafts
-        run:
-          echo should delete drafts...
-        # uses: hugo19941994/delete-draft-releases@v1.0.0
-        # with:
-        #   threshold: 1y
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-# TODO: what (if any) steps should be run on a fork!
-  generate-prerelease:
-    runs-on: ubuntu-latest
-#    if: github.event_name == 'release' && github.event.action == 'created'
-    needs: [build-windows, build-linux, build-macos, prepare-releases]
-
-    steps:
-    - uses: actions/checkout@v3
-
-    - name: Download Windows artifact
-      id: download-windows-artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: ${{ env.WINDOWS_ARTIFACT_NAME }}
-        path: ${{ runner.temp }}/windows-artifact-download
-
-    - name: Download Linux artifact
-      id: download-linux-artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: ${{ env.LINUX_ARTIFACT_NAME }}
-        path: ${{ runner.temp }}/linux-artifact-download
-
-    - name: Download macOS artifact
-      id: download-macos-artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: ${{ env.MACOS_ARTIFACT_NAME }}
-        path: ${{ runner.temp }}/macos-artifact-download
-
-    - name: Generate individual directories for binaries and compress
-      run: |
-        cd ${{ runner.temp }}
-        mkdir -p ${{ runner.temp }}/binaries/linux
-        # Move and rename the binary to lowercase for better support.
-        cp ${{ steps.download-linux-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/linux/unfloader
-        # Make sure the binary is executable.
-        chmod 755 ${{ runner.temp }}/binaries/linux/unfloader
-        tar -zcvf unfloader-linux.tar.gz binaries/linux
-
-        mkdir -p ${{ runner.temp }}/binaries/macOS
-        # Move the binary.
-        cp ${{ steps.download-macos-artifact.outputs.download-path }}/UNFLoader ${{ runner.temp }}/binaries/macOS/UNFLoader
-        tar -zcvf UNFLoader-macOS.tar.gz binaries/macOS
-        
-        mkdir -p ${{ runner.temp }}/binaries/windows
-        # Move the binary.
-        cp ${{ steps.download-windows-artifact.outputs.download-path }}/UNFLoader.exe ${{ runner.temp }}/binaries/windows/UNFLoader.exe
-        zip -r unfloader-windows.zip binaries/windows
-
-    - name: Convert files for release upload
-      run: |
-        mv ${{ github.workspace }}/LICENSE ${{ github.workspace }}/LICENSE.txt
-        mv ${{ github.workspace }}/INSTALLATION.md ${{ github.workspace }}/INSTALLATION.txt
-
-    - name: Generate Pre-Release
-      if: github.event_name != 'pull_request'
-      uses: softprops/action-gh-release@v1
-      with:
-        draft: false
-        prerelease: true
-        name: "UNFLoader-prerelease-latest"
-        tag_name: "prerelease-latest"
-        files: |
-          ${{ runner.temp }}/*.zip
-          ${{ runner.temp }}/*.tar.gz
-          LICENSE.txt
-          INSTALLATION.txt
-
-# TODO: what (if any) steps should be run on a fork!
-# TODO: what about compiled examples?
-  generate-release:
-    runs-on: ubuntu-latest
-    # if: github.event_name == 'release' && github.event.action == 'created'
-    needs: [build-windows, build-linux, build-macos, prepare-releases]
 
     steps:
     - uses: actions/checkout@v3
@@ -354,6 +268,9 @@ jobs:
         CHANGELOG_TEXT+='Compiled executables are available below:</br>'
         echo "$CHANGELOG_TEXT" > ${{ github.workspace }}-CHANGELOG.txt
 
+# TODO: what (if any) steps should be run on a fork!
+# TODO: what about compiled examples?
+
     - name: Generate Release
 #      if: startsWith(github.ref, 'refs/heads/master') # Actually, should we only do it on a tag?! if: startsWith(github.ref, 'refs/tags/')
       if: github.event_name != 'pull_request'
@@ -367,6 +284,20 @@ jobs:
         files: |
           ${{ runner.temp }}/packages/**/*.deb
           ${{ runner.temp }}/packages/**/*.rpm
+          ${{ runner.temp }}/*.zip
+          ${{ runner.temp }}/*.tar.gz
+          LICENSE.txt
+          INSTALLATION.txt
+
+    - name: Generate Pre-Release
+      if: github.event_name != 'pull_request'
+      uses: softprops/action-gh-release@v1
+      with:
+        draft: false
+        prerelease: true
+        name: "UNFLoader-prerelease-latest"
+        tag_name: "prerelease-latest"
+        files: |
           ${{ runner.temp }}/*.zip
           ${{ runner.temp }}/*.tar.gz
           LICENSE.txt
