@@ -32,8 +32,10 @@ void handle_resize(int sig);
 *********************************/
 
 // Program globals
-WINDOW* global_window = NULL;
-bool    global_usecurses = true;
+WINDOW* global_terminal   = NULL;
+WINDOW* global_inputwin   = NULL;
+WINDOW* global_outputwin  = NULL;
+bool    global_usecurses  = true;
 
 
 /*==============================
@@ -48,7 +50,9 @@ int main(int argc, char* argv[])
     if (global_usecurses)
         initialize_curses();
 
-    printf("Hello World!\n");
+    // Loop forever
+    while(1)
+        ;
 
     if (global_usecurses)
         endwin();
@@ -64,9 +68,11 @@ int main(int argc, char* argv[])
 
 void initialize_curses()
 {
+    int w, h;
+
     // Initialize PDCurses
-    global_window = initscr();
-    if (global_window == NULL)
+    global_terminal = initscr();
+    if (initscr() == NULL)
     {
         fputs("Error: Curses failed to initialize the screen.", stderr);
         exit(EXIT_FAILURE);
@@ -75,6 +81,7 @@ void initialize_curses()
     use_default_colors();
     noecho();
     keypad(stdscr, TRUE);
+    getmaxyx(global_terminal, h, w);
 
     #ifdef LINUX
         // Initialize signal
@@ -84,20 +91,19 @@ void initialize_curses()
         sigaction(SIGWINCH, &sa, NULL);
     #endif
 
-    // Draw a box to border the window
-    box(global_window, 0, 0);
-    wrefresh(global_window);
-
-    // Loop forever
-    while(1)
-        ;
-
-    /*
     // Setup our console
-    global_window = newpad(local_historysize + global_termsize[0], global_termsize[1]);
-    scrollok(global_window, TRUE);
-    idlok(global_window, TRUE);
-    keypad(global_window, TRUE);
+    global_outputwin = newwin(h-1, w, 0, 0);
+    global_inputwin = newwin(1, w, h-1, 0);
+    scrollok(global_outputwin, TRUE);
+    idlok(global_outputwin, TRUE);
+    keypad(global_outputwin, TRUE);
+
+    // Draw a box to border the window
+    box(global_outputwin, 0, 0);
+    wrefresh(global_outputwin);
+
+    whline(global_inputwin, '=', w);
+    wrefresh(global_inputwin);
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);
@@ -105,13 +111,26 @@ void initialize_curses()
     init_pair(CR_BLUE, COLOR_BLUE, -1);
     init_pair(CR_YELLOW, COLOR_YELLOW, -1);
     init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
-    */
 }
 
 void handle_resize(int sig)
 {
+    int w, h;
     endwin();
-    clear();
-    box(global_window, 0, 0);
-    wrefresh(global_window);
+    clear(); // This re-initializes ncurses, no need to call newwin
+
+    // Get the new terminal size
+    getmaxyx(global_terminal, h, w);
+
+    // Refresh the output window
+    wresize(global_outputwin, h-1, w);
+    wclear(global_outputwin);
+    box(global_outputwin, 0, 0);
+    wrefresh(global_outputwin);
+
+    // Resize and reposition the input window
+    wresize(global_inputwin, 1, w);
+    mvwin(global_inputwin, h-1, 0);
+    whline(global_inputwin, '=', w);
+    wrefresh(global_inputwin);
 }
