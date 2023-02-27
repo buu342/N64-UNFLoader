@@ -1,10 +1,7 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
-CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
-	device_64drive.cpp \
-	device_everdrive.cpp \
-	device_sc64.cpp
+CODEFILES=main.cpp
 CODEOBJECTS =	$(CODEFILES:.cpp=.o)
 LIBFILES=Include/lodepng.cpp
 LIBOBJECTS =	$(LIBFILES:.cpp=.o)
