@@ -32,8 +32,8 @@ void handle_resize(int sig);
 *********************************/
 
 // Program globals
-WINDOW* global_window;
-bool    global_usecurses   = true;
+WINDOW* global_window = NULL;
+bool    global_usecurses = true;
 
 
 /*==============================
@@ -64,8 +64,6 @@ int main(int argc, char* argv[])
 
 void initialize_curses()
 {
-    struct sigaction sa;
-
     // Initialize PDCurses
     global_window = initscr();
     if (global_window == NULL)
@@ -78,10 +76,13 @@ void initialize_curses()
     noecho();
     keypad(stdscr, TRUE);
 
-    // Initialize signal
-    memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_handler = handle_resize;
-    sigaction(SIGWINCH, &sa, NULL);
+    #ifdef LINUX
+        // Initialize signal
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(struct sigaction));
+        sa.sa_handler = handle_resize;
+        sigaction(SIGWINCH, &sa, NULL);
+    #endif
 
     // Draw a box to border the window
     box(global_window, 0, 0);
