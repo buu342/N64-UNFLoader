@@ -42,6 +42,17 @@
 
 
     /*********************************
+               Enumerations
+    *********************************/
+    
+    typedef enum {
+        Initializing, 
+        ShowingHelp, 
+        Terminating, 
+    } progState;
+
+
+    /*********************************
                  Typedefs
     *********************************/
 

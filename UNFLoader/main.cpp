@@ -6,6 +6,7 @@ UNFLoader Entrypoint
 
 #include "main.h"
 #include "helper.h"
+#include <thread>
 #include <signal.h>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
@@ -26,6 +27,7 @@ UNFLoader Entrypoint
 void parse_args(int argc, char* argv[]);
 void initialize_curses();
 void show_title();
+void handle_input();
 #define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
 
 
@@ -47,9 +49,10 @@ bool    global_debugmode   = false;
 bool    global_z64         = false;
 
 // Local globals
-static bool  local_autodetect  = true;
-static int   local_historysize = DEFAULT_HISTORYSIZE;
-static int   local_progstate   = 0;
+static bool        local_autodetect  = true;
+static int         local_historysize = DEFAULT_HISTORYSIZE;
+static progState   local_progstate   = Initializing;
+static std::thread thread_input;
 
 
 /*==============================
@@ -68,14 +71,16 @@ int main(int argc, char* argv[])
     if (global_usecurses)
         initialize_curses();
     show_title();
+    thread_input = std::thread(handle_input);
 
     // Loop forever
-    while(1)
+    while(local_progstate != Terminating)
         ;
 
     // End the program
     if (global_usecurses)
         endwin();
+    thread_input.join();
     return 0;
 }
 
@@ -92,14 +97,14 @@ void parse_args(int argc, char* argv[])
     // If no arguments were given, print the args
     if (argc == 1) 
     {
-        local_progstate = 1;
+        local_progstate = ShowingHelp;
         return;
     }
 
     // If the first character is not a dash, assume a ROM path
     if (argv[1][0] != '-')
     {
-
+        global_rompath = argv[1];
         return;
     }
 
@@ -198,3 +203,18 @@ void show_title()
     log_simple("Compiled on %s\n\n", __DATE__);
 }
 
+void handle_input()
+{
+    while (local_progstate != Terminating)
+    {
+        int ch = wgetch(global_inputwin);
+        if (ch == 27)
+            local_progstate = Terminating;
+
+        #ifndef LINUX
+            Sleep(10);
+        #else
+            usleep(10);
+        #endif
+    }
+}
