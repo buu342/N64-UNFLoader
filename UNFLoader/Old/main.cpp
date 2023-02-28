@@ -26,7 +26,6 @@ UNFLoader Entrypoint
 
 void parse_args(int argc, char* argv[]);
 void autodetect_romheader();
-void handle_winch(int sig);
 void show_title();
 void list_args();
 void show_help();
@@ -74,7 +73,6 @@ static int   local_historysize = DEFAULT_HISTORYSIZE;
 int main(int argc, char* argv[])
 {
     int i;
-   struct sigaction sa;
 
     // Initialize PDCurses
     #ifdef LINUX
@@ -85,11 +83,6 @@ int main(int argc, char* argv[])
     use_default_colors();
     noecho();
     keypad(stdscr, TRUE);
-
-    // Initialize signal
-    memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_handler = handle_winch;
-    sigaction(SIGWINCH, &sa, NULL);
 
     // Setup our console
     global_window = newpad(local_historysize + global_termsize[0], global_termsize[1]);
@@ -362,14 +355,6 @@ void autodetect_romheader()
         if (global_savetype != 0)
             pdprint("Auto set save type to %d from ED header.\n", CRDEF_PROGRAM, global_savetype);
     }
-}
-
-void handle_winch(int sig)
-{
-    endwin();
-    // Needs to be called after an endwin() so ncurses will initialize
-    // itself with the new terminal dimensions.
-    refresh();
 }
 
 

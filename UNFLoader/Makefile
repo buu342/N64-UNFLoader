@@ -1,9 +1,9 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
-CODEFILES=main.cpp
+CODEFILES = main.cpp helper.cpp
 CODEOBJECTS =	$(CODEFILES:.cpp=.o)
-LIBFILES=Include/lodepng.cpp
+LIBFILES = Include/lodepng.cpp
 LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CXX=g++

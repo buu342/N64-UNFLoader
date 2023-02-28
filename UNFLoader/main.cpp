@@ -23,8 +23,10 @@ UNFLoader Entrypoint
         Function Prototypes
 *********************************/
 
+void parse_args(int argc, char* argv[]);
 void initialize_curses();
-void handle_resize(int sig);
+void show_title();
+#define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
 
 
 /*********************************
@@ -32,10 +34,22 @@ void handle_resize(int sig);
 *********************************/
 
 // Program globals
-WINDOW* global_terminal   = NULL;
-WINDOW* global_inputwin   = NULL;
-WINDOW* global_outputwin  = NULL;
-bool    global_usecurses  = true;
+WINDOW* global_terminal    = NULL;
+WINDOW* global_inputwin    = NULL;
+WINDOW* global_outputwin   = NULL;
+FILE*   global_debugoutptr = NULL;
+char*   global_rompath     = NULL;
+int     global_cictype     = -1;
+u32     global_savetype    = 0;
+bool    global_usecurses   = true;
+bool    global_listenmode  = false;
+bool    global_debugmode   = false;
+bool    global_z64         = false;
+
+// Local globals
+static bool  local_autodetect  = true;
+static int   local_historysize = DEFAULT_HISTORYSIZE;
+static int   local_progstate   = 0;
 
 
 /*==============================
@@ -47,16 +61,65 @@ bool    global_usecurses  = true;
 
 int main(int argc, char* argv[])
 {
+    // Read program arguments
+    parse_args(argc, argv);
+
+    // Initialize the program
     if (global_usecurses)
         initialize_curses();
+    show_title();
 
     // Loop forever
     while(1)
         ;
 
+    // End the program
     if (global_usecurses)
         endwin();
     return 0;
+}
+
+
+/*==============================
+    parse_args
+    Parses the arguments passed to the program
+    @param The number of extra arguments
+    @param An array with the arguments
+==============================*/
+
+void parse_args(int argc, char* argv[])
+{
+    // If no arguments were given, print the args
+    if (argc == 1) 
+    {
+        local_progstate = 1;
+        return;
+    }
+
+    // If the first character is not a dash, assume a ROM path
+    if (argv[1][0] != '-')
+    {
+
+        return;
+    }
+
+    // Handle the rest of the program arguments
+    for (int i=1; i<argc; i++) 
+    {
+        char* command = argv[i];
+        switch(argv[i][1])
+        {
+            case 'r':
+                if (nextarg_isvalid())
+                    global_rompath = argv[i];
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+                break;
+            default:
+                terminate("Unknown command '%s'", command);
+                break;
+        }
+    }
 }
 
 
@@ -72,7 +135,7 @@ void initialize_curses()
 
     // Initialize PDCurses
     global_terminal = initscr();
-    if (initscr() == NULL)
+    if (global_terminal == NULL)
     {
         fputs("Error: Curses failed to initialize the screen.", stderr);
         exit(EXIT_FAILURE);
@@ -92,17 +155,12 @@ void initialize_curses()
     #endif
 
     // Setup our console
-    global_outputwin = newwin(h-1, w, 0, 0);
+    global_outputwin = newpad(h + local_historysize, w);
     global_inputwin = newwin(1, w, h-1, 0);
     scrollok(global_outputwin, TRUE);
     idlok(global_outputwin, TRUE);
     keypad(global_outputwin, TRUE);
-
-    // Draw a box to border the window
-    box(global_outputwin, 0, 0);
-    wrefresh(global_outputwin);
-
-    whline(global_inputwin, '=', w);
+    refresh_output();
     wrefresh(global_inputwin);
 
     // Initialize the colors
@@ -113,24 +171,30 @@ void initialize_curses()
     init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
 }
 
-void handle_resize(int sig)
+
+/*==============================
+    show_title
+    Prints tht title of the program
+==============================*/
+
+void show_title()
 {
-    int w, h;
-    endwin();
-    clear(); // This re-initializes ncurses, no need to call newwin
+    int i;
+    char title[] = PROGRAM_NAME_SHORT;
+    int titlesize = sizeof(title)/sizeof(title[0]);
+ 
+    // Print the title
+    for (i=0; i<titlesize-1; i++)
+    {
+        char str[2];
+        str[0] = title[i];
+        str[1] = '\0';
+        log_colored(str, 1+(i)%(TOTAL_COLORS-1));
+    }
 
-    // Get the new terminal size
-    getmaxyx(global_terminal, h, w);
-
-    // Refresh the output window
-    wresize(global_outputwin, h-1, w);
-    wclear(global_outputwin);
-    box(global_outputwin, 0, 0);
-    wrefresh(global_outputwin);
-
-    // Resize and reposition the input window
-    wresize(global_inputwin, 1, w);
-    mvwin(global_inputwin, h-1, 0);
-    whline(global_inputwin, '=', w);
-    wrefresh(global_inputwin);
+    // Print info stuff
+    log_simple("\n--------------------------------------------\n");
+    log_simple("Cobbled together by Buu342\n");
+    log_simple("Compiled on %s\n\n", __DATE__);
 }
+

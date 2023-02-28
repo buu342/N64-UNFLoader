@@ -1,6 +1,7 @@
 #ifndef __HELPER_HEADER
 #define __HELPER_HEADER
 
+
     /*********************************
                   Macros
     *********************************/
@@ -23,5 +24,20 @@
     #define CRDEF_PRINT   CR_YELLOW
     #define CRDEF_INFO    CR_BLUE
     #define CRDEF_SPECIAL CR_MAGENTA
+
+
+    /*********************************
+            Function Prototypes
+    *********************************/
+
+    // Printing
+    #include "helper_internal.h"
+    #define log_simple(string, ...) __log_output(CRDEF_PROGRAM, string, ##__VA_ARGS__)
+    #define log_colored(string, color, ...) __log_output(color, string, ##__VA_ARGS__)
+
+    // Other
+    void terminate(const char* reason, ...);
+    void handle_resize(int sig);
+    void refresh_output();
 
 #endif

@@ -58,5 +58,9 @@
     *********************************/
 
     extern bool    global_usecurses;
+    extern WINDOW* global_terminal;
+    extern WINDOW* global_inputwin;
+    extern WINDOW* global_outputwin;
+    extern FILE*   global_debugoutptr;
 
 #endif
