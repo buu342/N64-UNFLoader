@@ -75,17 +75,22 @@ void terminate(const char* reason, ...)
         global_debugoutptr = NULL;
     }
 
-    // Pause the program if curses is setup properly
+    // Pause the program
+    log_colored("Press any key to continue...", CRDEF_INPUT);
+    #ifndef LINUX
+        system("pause");
+    #else
+        system("read");
+    #endif
+
+    // Cleanup curses
     if (global_usecurses && global_terminal != NULL)
     {
-        log_colored("Press any key to continue...", CRDEF_INPUT);
-        getchar();
+        // End the program
+        for (i = 0; i < TOTAL_COLORS; i++)
+            wattroff(global_outputwin, COLOR_PAIR(i + 1));
+        endwin();
     }
-
-    // End the program
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_outputwin, COLOR_PAIR(i+1));
-    endwin();
     exit(-1);
 }
 
@@ -96,9 +101,9 @@ void terminate(const char* reason, ...)
     @param Unused
 ==============================*/
 
-void handle_resize(int sig)
+void handle_resize(int)
 {
-    int w, h, x, y;
+    int w, h;
     endwin();
     clear(); // This re-initializes ncurses, no need to call newwin
 

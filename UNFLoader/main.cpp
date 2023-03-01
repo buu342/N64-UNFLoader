@@ -6,8 +6,8 @@ UNFLoader Entrypoint
 
 #include "main.h"
 #include "helper.h"
+//#include <cstdio>
 #include <thread>
-#include <signal.h>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -52,7 +52,7 @@ bool    global_z64         = false;
 static bool        local_autodetect  = true;
 static int         local_historysize = DEFAULT_HISTORYSIZE;
 static progState   local_progstate   = Initializing;
-static std::thread thread_input;
+//static std::thread thread_input;
 
 
 /*==============================
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
     if (global_usecurses)
         initialize_curses();
     show_title();
-    thread_input = std::thread(handle_input);
+    //thread_input = std::thread(handle_input);
 
     // Loop forever
     while(local_progstate != Terminating)
@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     // End the program
     if (global_usecurses)
         endwin();
-    thread_input.join();
+    //thread_input.join();
     return 0;
 }
 

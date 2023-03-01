@@ -7,10 +7,12 @@
         #include <string.h>
         #include <time.h>
         #include <ctype.h>
+        #include <stdbool.h>
         #ifndef LINUX
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
             #include <unistd.h>
+            #include <signal.h>
         #endif
 
         #ifndef LINUX
@@ -28,9 +30,12 @@
     /*********************************
                   Macros
     *********************************/
-
-    #define false 0
-    #define true  1
+    #ifndef false
+        #define false 0
+    #endif
+    #ifndef true
+        #define true  1
+    #endif
 
     #define CH_ESCAPE    27
     #define CH_ENTER     '\n'
