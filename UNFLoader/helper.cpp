@@ -1,6 +1,8 @@
 #include "main.h"
 #include "helper.h"
-
+#ifdef LINUX
+    #include <termios.h>
+#endif
 
 /*==============================
     __log_output
@@ -76,12 +78,25 @@ void terminate(const char* reason, ...)
     }
 
     // Pause the program
-    log_colored("Press any key to continue...", CRDEF_INPUT);
-    #ifndef LINUX
-        system("pause");
-    #else
-        system("read");
-    #endif
+    log_colored("Press any key to continue...\n", CRDEF_INPUT);
+    if (global_terminal == NULL)
+    {
+        #ifndef LINUX
+            kbhit();
+        #else
+            struct termios info, orig;
+            tcgetattr(0, &info);
+            tcgetattr(0, &orig);
+            info.c_lflag &= ~(ICANON | ECHO);
+            info.c_cc[VMIN] = 1;
+            info.c_cc[VTIME] = 0;
+            tcsetattr(0, TCSANOW, &info);
+            getchar();
+            tcsetattr(0, TCSANOW, &orig);
+        #endif
+    }
+    else
+        getch();
 
     // Cleanup curses
     if (global_usecurses && global_terminal != NULL)

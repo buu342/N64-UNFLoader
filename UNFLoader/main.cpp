@@ -6,7 +6,6 @@ UNFLoader Entrypoint
 
 #include "main.h"
 #include "helper.h"
-//#include <cstdio>
 #include <thread>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
@@ -142,7 +141,7 @@ void initialize_curses()
     global_terminal = initscr();
     if (global_terminal == NULL)
     {
-        fputs("Error: Curses failed to initialize the screen.", stderr);
+        fputs("Error: Curses failed to initialize the screen.\n", stderr);
         exit(EXIT_FAILURE);
     }
     start_color();
