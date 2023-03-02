@@ -82,7 +82,7 @@ void terminate(const char* reason, ...)
     if (global_terminal == NULL)
     {
         #ifndef LINUX
-            kbhit();
+            system("pause > nul");
         #else
             struct termios info, orig;
             tcgetattr(0, &info);
