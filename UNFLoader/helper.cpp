@@ -104,6 +104,7 @@ void terminate(const char* reason, ...)
         // End the program
         for (i = 0; i < TOTAL_COLORS; i++)
             wattroff(global_outputwin, COLOR_PAIR(i + 1));
+        curs_set(TRUE);
         endwin();
     }
     exit(-1);

@@ -9,9 +9,9 @@ LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 CXX=g++
 
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncurses -lftd2xx -lpthread
+	DEPENDENCIES := -lncursesw -lftd2xx -lpthread
 else
-	DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt 
+	DEPENDENCIES := -lncursesw -lftd2xx -lpthread -lrt 
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib

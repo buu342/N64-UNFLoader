@@ -7,6 +7,7 @@ UNFLoader Entrypoint
 #include "main.h"
 #include "helper.h"
 #include <thread>
+#include <chrono>
 #include <atomic>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
@@ -28,6 +29,7 @@ void parse_args(int argc, char* argv[]);
 void initialize_curses();
 void show_title();
 void handle_input();
+void teste();
 #define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
 
 
@@ -72,17 +74,19 @@ int main(int argc, char* argv[])
         initialize_curses();
     show_title();
     thread_input = std::thread(handle_input);
+    std::thread thread_test = std::thread(teste);
 
     // Loop forever
     while (local_progstate != Terminating)
         ;
 
-    log_simple("Done\n");
+    // Join threads
+    thread_input.join();
+    thread_test.join();
 
     // End the program
     if (global_usecurses)
         endwin();
-    thread_input.join();
     return 0;
 }
 
@@ -141,6 +145,7 @@ void initialize_curses()
     int w, h;
 
     // Initialize PDCurses
+    setlocale(LC_ALL, "");
     global_terminal = initscr();
     if (global_terminal == NULL)
     {
@@ -152,6 +157,7 @@ void initialize_curses()
     noecho();
     keypad(stdscr, TRUE);
     getmaxyx(global_terminal, h, w);
+    curs_set(FALSE);
 
     #ifdef LINUX
         // Initialize signal
@@ -207,18 +213,29 @@ void show_title()
 
 void handle_input()
 {
+    char input[255];
+    int c = 0;
+    memset(input, 0, 255);
     while (local_progstate != Terminating)
     {
-        log_simple("Waiting input\n");
         int ch = wgetch(global_inputwin);
         if (ch == 27)
             local_progstate = Terminating;
-        log_simple("Got %d\n", ch);
+        input[c++] = ch;
+        wclear(global_inputwin);
+        wprintw(global_inputwin, "%s", input);
+        wprintw(global_inputwin, "\xe2\x96\x88\n");
+        wrefresh(global_inputwin);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
 
-        #ifndef LINUX
-            Sleep(10);
-        #else
-            usleep(10);
-        #endif
+void teste()
+{
+    int i = 0;
+    while (local_progstate != Terminating)
+    {
+        log_colored("Hello %d\n", CRDEF_PRINT, i++);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
