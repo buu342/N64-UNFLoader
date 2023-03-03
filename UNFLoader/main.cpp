@@ -7,6 +7,7 @@ UNFLoader Entrypoint
 #include "main.h"
 #include "helper.h"
 #include <thread>
+#include <atomic>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -48,10 +49,10 @@ bool    global_debugmode   = false;
 bool    global_z64         = false;
 
 // Local globals
-static bool        local_autodetect  = true;
-static int         local_historysize = DEFAULT_HISTORYSIZE;
-static progState   local_progstate   = Initializing;
-//static std::thread thread_input;
+static bool                   local_autodetect  = true;
+static int                    local_historysize = DEFAULT_HISTORYSIZE;
+static std::atomic<progState> local_progstate   = Initializing;
+static std::thread            thread_input;
 
 
 /*==============================
@@ -70,16 +71,18 @@ int main(int argc, char* argv[])
     if (global_usecurses)
         initialize_curses();
     show_title();
-    //thread_input = std::thread(handle_input);
+    thread_input = std::thread(handle_input);
 
     // Loop forever
-    while(local_progstate != Terminating)
+    while (local_progstate != Terminating)
         ;
+
+    log_simple("Done\n");
 
     // End the program
     if (global_usecurses)
         endwin();
-    //thread_input.join();
+    thread_input.join();
     return 0;
 }
 
@@ -206,9 +209,11 @@ void handle_input()
 {
     while (local_progstate != Terminating)
     {
+        log_simple("Waiting input\n");
         int ch = wgetch(global_inputwin);
         if (ch == 27)
             local_progstate = Terminating;
+        log_simple("Got %d\n", ch);
 
         #ifndef LINUX
             Sleep(10);
