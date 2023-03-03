@@ -221,10 +221,14 @@ void handle_input()
         int ch = wgetch(global_inputwin);
         if (ch == 27)
             local_progstate = Terminating;
-        input[c++] = ch;
+        input[c++] = (char)ch;
         wclear(global_inputwin);
         wprintw(global_inputwin, "%s", input);
-        wprintw(global_inputwin, "\xe2\x96\x88\n");
+        #ifndef LINUX
+            wprintw(global_inputwin, "%c", 219);
+        #else
+            wprintw(global_inputwin, "\xe2\x96\x88\n");
+        #endif
         wrefresh(global_inputwin);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

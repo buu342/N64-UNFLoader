@@ -8,6 +8,7 @@
         #include <time.h>
         #include <ctype.h>
         #include <stdbool.h>
+        #include <locale.h>
         #ifndef LINUX
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
@@ -20,7 +21,6 @@
             #include "Include/curspriv.h"
             #include "Include/panel.h"
         #else
-            #include <locale.h>
             #include <curses.h>
         #endif
         #include "Include/ftd2xx.h"
