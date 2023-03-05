@@ -241,7 +241,11 @@ void device_sendrom(char* rompath)
         global_filename = rompath;
 
         // Read the ROM header to check if its byteswapped
-        fread(rom_header, 4, 1, file);
+        if (fread(rom_header, 1, 4, file) != 4)
+        {
+            device_close();
+            terminate("Unable to read 4 bytes from '%s'.\n", rompath);
+        }
         if (!(rom_header[0] == 0x80 && rom_header[1] == 0x37 && rom_header[2] == 0x12 && rom_header[3] == 0x40))
             global_z64 = true;
 
@@ -250,6 +254,12 @@ void device_sendrom(char* rompath)
         fseek(file, 0, SEEK_END);
         filesize = ftell(file);
         fseek(file, 0, SEEK_SET);
+
+        if (filesize < 0)
+        {
+            device_close();
+            terminate("Unable to get file size of '%s'.\n", rompath);
+        }
 
         // Check if the file was modified on Windows (since stat is broken on XP...)
         #ifndef LINUX
