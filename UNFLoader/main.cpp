@@ -53,7 +53,7 @@ bool    global_z64         = false;
 // Local globals
 static bool                   local_autodetect  = true;
 static int                    local_historysize = DEFAULT_HISTORYSIZE;
-static std::atomic<progState> local_progstate   = Initializing;
+static std::atomic<progState> local_progstate (Initializing);
 static std::thread            thread_input;
 
 
