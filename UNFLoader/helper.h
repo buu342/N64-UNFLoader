@@ -39,5 +39,6 @@
     void terminate(const char* reason, ...);
     void handle_resize(int sig);
     void refresh_output();
+    void scroll_output(int value);
 
 #endif

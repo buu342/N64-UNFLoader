@@ -6,6 +6,7 @@ UNFLoader Entrypoint
 
 #include "main.h"
 #include "helper.h"
+#include <climits>
 #include <thread>
 #include <chrono>
 #include <atomic>
@@ -172,7 +173,8 @@ void initialize_curses()
     global_inputwin = newwin(1, w, h-1, 0);
     scrollok(global_outputwin, TRUE);
     idlok(global_outputwin, TRUE);
-    keypad(global_outputwin, TRUE);
+    keypad(global_inputwin, TRUE);
+    wtimeout(global_inputwin, 0);
     refresh_output();
     wrefresh(global_inputwin);
 
@@ -211,24 +213,63 @@ void show_title()
     log_simple("Compiled on %s\n\n", __DATE__);
 }
 
+
+/*==============================
+    handle_input
+    TODO
+==============================*/
+
+#define BLINKRATE   0.5
 void handle_input()
 {
     char input[255];
     int c = 0;
+    static bool showcurs = true;
+    static clock_t blinktime = 0;
+
     memset(input, 0, 255);
     while (local_progstate != Terminating)
     {
         int ch = wgetch(global_inputwin);
-        if (ch == 27)
-            local_progstate = Terminating;
-        input[c++] = (char)ch;
+
+        // Handle key presses
+        switch (ch)
+        {
+            case 27: local_progstate = Terminating; break;
+            case KEY_PPAGE: scroll_output(1); break;
+            case KEY_NPAGE: scroll_output(-1); break;
+            case KEY_HOME: scroll_output(INT_MAX); break;
+            case KEY_END: scroll_output(INT_MIN); break;
+            case '\r':
+            case CH_ENTER: memset(input, 0, 255); c = 0; break;
+            default: 
+                if (ch != ERR && isascii(ch) && ch > 0x1F && c < 255)
+                    input[c++] = (char)ch; 
+                break;
+        }
+        
+        // Write the input
         wclear(global_inputwin);
         wprintw(global_inputwin, "%s", input);
-        #ifndef LINUX
-            wprintw(global_inputwin, "%c", 219);
-        #else
-            wprintw(global_inputwin, "\xe2\x96\x88\n");
-        #endif
+
+        // Cursor blinking timer
+        if (blinktime < clock())
+        {
+            showcurs = !showcurs;
+            blinktime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        }
+
+        // Cursor rendering
+        if (showcurs)
+        {
+            #ifndef LINUX
+                wprintw(global_inputwin, "%c", 219);
+            #else
+                wprintw(global_inputwin, "\xe2\x96\x88\n");
+            #endif
+        }
+
+        // Refresh the input pad to show changes
         wrefresh(global_inputwin);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

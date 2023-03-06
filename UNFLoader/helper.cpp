@@ -1,8 +1,14 @@
 #include "main.h"
 #include "helper.h"
+#include <atomic>
+#include <algorithm>
 #ifdef LINUX
     #include <termios.h>
 #endif
+
+static std::atomic<int> local_padbottom (-1);
+static std::atomic<int> local_scrolly (0);
+
 
 /*==============================
     __log_output
@@ -21,6 +27,8 @@ void __log_output(short color, const char* str, ...)
     // Perform the print
     if (global_usecurses && global_terminal != NULL)
     {
+        int x, y;
+
         // Disable all the colors
         for (int i=0; i<TOTAL_COLORS; i++)
             wattroff(global_outputwin, COLOR_PAIR(i+1));
@@ -149,9 +157,69 @@ void refresh_output()
     // Get the terminal size
     getmaxyx(global_terminal, h, w);
 
+    // Initialize padbottom if it hasn't been yet
+    if (local_padbottom == -1)
+        local_padbottom = h-2;
+
     // Get the cursor position
     getyx(global_outputwin, y, x);
 
+    // Perform scrolling if needed
+    if (y > local_padbottom)
+    {
+        int newlinecount = y - local_padbottom;
+        local_padbottom += newlinecount;
+        if (local_scrolly != 0)
+            local_scrolly += newlinecount;
+    }
+
     // Refresh the output window
-    prefresh(global_outputwin, 0, 0, 0, 0, h-2, w-1);
+    prefresh(global_outputwin, local_padbottom - (h-2) - local_scrolly, 0, 0, 0, h-2, w-1);
+
+    // Print scroll text
+    if (local_scrolly != 0)
+    {
+        int textlen;
+        char scrolltext[40 + 1];
+        WINDOW* scrolltextwin;
+
+        // Initialize the scroll text and the window to render the text to
+        sprintf(scrolltext, "%d/%d", local_padbottom.load() - local_scrolly.load(), local_padbottom.load());
+        textlen = strlen(scrolltext);
+        scrolltextwin = newwin(1, textlen, h-2, w-textlen);
+
+        // Set the scroll text color
+        wattron(scrolltextwin, COLOR_PAIR(CRDEF_SPECIAL));
+
+        // Print the scroll text
+        wprintw(scrolltextwin, "%s", scrolltext);
+        wrefresh(scrolltextwin);
+        delwin(scrolltextwin);
+    }
+}
+
+
+/*==============================
+    scroll_output
+    TODO
+==============================*/
+
+void scroll_output(int value)
+{
+    int w, h;
+
+    // Check if we can scroll
+    getmaxyx(global_terminal, h, w);
+    if (local_padbottom < h)
+        return;
+
+    // Perform the scrolling
+    local_scrolly += value;
+    if (local_scrolly > local_padbottom-(h-2))
+        local_scrolly = local_padbottom.load()-(h-2);
+    else if (local_scrolly < 0)
+        local_scrolly = 0;
+
+    // Refresh the output window to see the changes
+    refresh_output();
 }
