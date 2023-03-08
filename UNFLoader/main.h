@@ -3,25 +3,12 @@
 
     #pragma warning(push, 0)
         #include <stdio.h>
-        #include <stdlib.h>
-        #include <string.h>
-        #include <time.h>
         #include <ctype.h>
         #include <stdbool.h>
-        #include <locale.h>
         #ifndef LINUX
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
             #include <unistd.h>
-            #include <signal.h>
-        #endif
-
-        #ifndef LINUX
-            #include "Include/curses.h"
-            #include "Include/curspriv.h"
-            #include "Include/panel.h"
-        #else
-            #include <curses.h>
         #endif
         #include "Include/ftd2xx.h"
         #include <atomic>

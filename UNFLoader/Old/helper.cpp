@@ -162,6 +162,7 @@ void __pdprint_replace(short color, const char* str, ...)
     // Print the string
     vw_printw(global_window, str, args);
     refresh_pad();
+
     va_end(args);
 
     // Print to the output debug file if it exists

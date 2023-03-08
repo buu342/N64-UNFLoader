@@ -1,21 +1,36 @@
+/***************************************************************
+                            main.cpp
+                               
+Handles terminal I/O, both with and without curses.
+***************************************************************/ 
+
 #include "main.h"
+#include "helper.h"
 #include "term.h"
+#ifndef LINUX
+    #include "Include/curses.h"
+    #include "Include/curspriv.h"
+    #include "Include/panel.h"
+#else
+    #include <curses.h>
+    #include <termios.h>
+#endif
+#include <string.h>
+#include <locale.h>
+#include <signal.h>
 #include <thread>
 #include <queue>
 #include <atomic>
 #include <algorithm>
 #include <climits>
 #include <chrono>
-#ifdef LINUX
-    #include <termios.h>
-#endif
 
 
 /*********************************
               Macros
 *********************************/
 
-#define BLINKRATE   0.5
+#define BLINKRATE   500
 
 #define CH_ESCAPE    27
 #define CH_ENTER     '\n'
@@ -46,6 +61,7 @@ static void refresh_output();
 static std::thread thread_input;
 static std::thread thread_terminate;
 
+// NCurses globals
 WINDOW* local_terminal      = NULL;
 WINDOW* local_inputwin      = NULL;
 WINDOW* local_outputwin     = NULL;
@@ -58,11 +74,11 @@ static std::atomic<int> local_scrolly (0);
 static std::queue<Output*> local_mesgqueue;
 
 // Input window globals
-static bool    local_allowinput = true;
-static char    local_input[255];
-static int     local_inputcount = 0;
-static bool    local_showcurs   = true;
-static clock_t local_blinktime  = 0;
+static bool     local_allowinput = true;
+static char     local_input[255];
+static int      local_inputcount = 0;
+static bool     local_showcurs   = true;
+static uint64_t local_blinktime  = 0;
 
 
 /*==============================
@@ -75,7 +91,7 @@ void initialize_curses()
 {
     int w, h;
 
-    // Initialize PDCurses
+    // Initialize Curses
     setlocale(LC_ALL, "");
     local_terminal = initscr();
     if (local_terminal == NULL)
@@ -90,15 +106,15 @@ void initialize_curses()
     getmaxyx(local_terminal, h, w);
     curs_set(FALSE);
 
+    // Initialize signal if using Linux
     #ifdef LINUX
-        // Initialize signal
         struct sigaction sa;
         memset(&sa, 0, sizeof(struct sigaction));
         sa.sa_handler = handle_resize;
         sigaction(SIGWINCH, &sa, NULL);
     #endif
 
-    // Setup our console
+    // Setup our console windows
     local_outputwin = newpad(h + global_historysize, w);
     local_inputwin = newwin(1, w, h-1, 0);
     scrollok(local_outputwin, TRUE);
@@ -128,7 +144,7 @@ void initialize_curses()
 
 /*==============================
     end_curses
-    TODO
+    Stops curses safetly
 ==============================*/
 
 void end_curses()
@@ -150,7 +166,7 @@ void end_curses()
 
 /*==============================
     termthread
-    TODO
+    Thread logic for I/O
 ==============================*/
 
 static void termthread()
@@ -386,7 +402,7 @@ static void refresh_output()
 
 /*==============================
     handle_input
-    TODO
+    Reads user input using curses
 ==============================*/
 
 static void handle_input()
@@ -416,18 +432,20 @@ static void handle_input()
         default: 
             if (ch != ERR && isascii(ch) && ch > 0x1F && local_inputcount < 255)
             {
-                local_input[local_inputcount++] = (char)ch; 
+                local_input[local_inputcount++] = (char)ch;
+                local_showcurs = true;
+                local_blinktime = time_miliseconds();
                 wrotein = true;
             }
             break;
     }
 
     // Cursor blinking timer
-    if (local_blinktime < clock())
+    if ((time_miliseconds() - local_blinktime) > BLINKRATE)
     {
         wrotein = true;
         local_showcurs = !local_showcurs;
-        local_blinktime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        local_blinktime = time_miliseconds();
     }
     
     // Handle terminal resize
@@ -468,7 +486,11 @@ static void handle_input()
 
 /*==============================
     scroll_output
-    TODO
+    Scrolls the window pad by a
+    given amount.
+    @param A number with how much to
+           scroll by. Negative numbers
+           scroll down, positive up.
 ==============================*/
 
 static void scroll_output(int value)
