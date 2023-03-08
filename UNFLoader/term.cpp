@@ -186,7 +186,8 @@ static void termthread()
             refresh_output();
 
         // Deal with input
-        handle_input();
+        if (local_allowinput)
+            handle_input();
 
         // Handle the signal flag
         if (local_resizesignal)
@@ -397,13 +398,21 @@ static void handle_input()
     ch = wgetch(local_inputwin);
     switch (ch)
     {
-        case CH_ESCAPE: scroll_output(-local_padbottom); global_escpressed = true; break;
         case KEY_PPAGE: scroll_output(1); break;
         case KEY_NPAGE: scroll_output(-1); break;
         case KEY_HOME: scroll_output(local_padbottom); break;
         case KEY_END: scroll_output(-local_padbottom); break;
+        case CH_ESCAPE: 
+            scroll_output(-local_padbottom); 
+            global_escpressed = true; 
+            local_allowinput = false;
+            // Intentional fallthrough
         case '\r':
-        case CH_ENTER: memset(local_input, 0, 255); local_inputcount = 0; wrotein = true; break;
+        case CH_ENTER: 
+            memset(local_input, 0, 255);
+            local_inputcount = 0; 
+            wrotein = true; 
+            break;
         default: 
             if (ch != ERR && isascii(ch) && ch > 0x1F && local_inputcount < 255)
             {
