@@ -36,6 +36,11 @@ Handles terminal I/O, both with and without curses.
 #define CH_ENTER     '\n'
 #define CH_BACKSPACE '\b'
 
+
+/*********************************
+            Structures
+*********************************/
+
 typedef struct {
     char* str;
     short col;
