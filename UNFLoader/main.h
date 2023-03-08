@@ -24,26 +24,20 @@
             #include <curses.h>
         #endif
         #include "Include/ftd2xx.h"
+        #include <atomic>
     #pragma warning(pop)
 
 
     /*********************************
                   Macros
     *********************************/
+
     #ifndef false
         #define false 0
     #endif
     #ifndef true
         #define true  1
     #endif
-
-    #define CH_ESCAPE    27
-    #define CH_ENTER     '\n'
-    #define CH_BACKSPACE '\b'
-
-    #define DEFAULT_TERMCOLS 80
-    #define DEFAULT_TERMROWS 40
-    #define DEFAULT_HISTORYSIZE 1000
 
 
     /*********************************
@@ -74,9 +68,9 @@
     *********************************/
 
     extern bool    global_usecurses;
-    extern WINDOW* global_terminal;
-    extern WINDOW* global_inputwin;
-    extern WINDOW* global_outputwin;
     extern FILE*   global_debugoutptr;
+    extern int     global_historysize;
+    extern std::atomic<progState> global_progstate;
+    extern std::atomic<bool> global_escpressed;
 
 #endif

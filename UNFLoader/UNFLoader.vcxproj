@@ -104,9 +104,8 @@
   <ItemGroup>
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="include\lodepng.cpp" />
-    <ClCompile Include="main.cpp">
-      <FileType>CppClass</FileType>
-    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="term.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helper.h" />
@@ -117,6 +116,7 @@
     <ClInclude Include="include\lodepng.h" />
     <ClInclude Include="include\panel.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="term.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\ftd2xx.lib" />

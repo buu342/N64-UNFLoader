@@ -3,6 +3,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="helper.cpp" />
+    <ClCompile Include="term.cpp" />
     <ClCompile Include="include\lodepng.cpp">
       <Filter>Include</Filter>
     </ClCompile>
@@ -11,6 +12,7 @@
     <ClInclude Include="helper.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="helper_internal.h" />
+    <ClInclude Include="term.h" />
     <ClInclude Include="include\panel.h">
       <Filter>Include</Filter>
     </ClInclude>

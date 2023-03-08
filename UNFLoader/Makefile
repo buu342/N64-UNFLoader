@@ -1,7 +1,7 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
-CODEFILES = main.cpp helper.cpp
+CODEFILES = main.cpp helper.cpp term.cpp
 CODEOBJECTS =	$(CODEFILES:.cpp=.o)
 LIBFILES = Include/lodepng.cpp
 LIBOBJECTS =	$(LIBFILES:.cpp=.o)
@@ -15,7 +15,7 @@ else
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED
+CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3
 
 default: $(APP)
 
