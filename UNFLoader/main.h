@@ -32,6 +32,7 @@
     
     typedef enum {
         Initializing, 
+        ShowingArgs, 
         ShowingHelp, 
         Terminating, 
     } progState;

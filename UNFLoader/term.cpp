@@ -245,10 +245,11 @@ void __log_output(const short color, const char* str, ...)
     // Perform the print
     if (local_terminal != NULL)
     {
-        Output* mesg = (Output*) malloc(sizeof(Output));
+        Output* mesg = (Output*)malloc(sizeof(Output));
         mesg->col = color;
-        mesg->str = (char*) malloc(vsnprintf(NULL, 0, str, args) + 1);
-        va_end(args);
+        mesg->str = (char*)malloc(vsnprintf(NULL, 0, str, args) + 1);
+        va_end(args); 
+
         va_start(args, str);
         vsprintf(mesg->str, str, args);
         local_mesgqueue.push(mesg);

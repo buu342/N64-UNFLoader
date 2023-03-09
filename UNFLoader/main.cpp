@@ -7,7 +7,6 @@ UNFLoader Entrypoint
 #include "main.h"
 #include "term.h"
 #include "device.h"
-#pragma comment(lib, "Include/FTD2XX.lib")
 
 
 /*********************************
@@ -25,6 +24,7 @@ UNFLoader Entrypoint
 
 void parse_args(int argc, char* argv[]);
 void show_title();
+void show_args();
 #define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
 
 
@@ -59,6 +59,12 @@ int main(int argc, char* argv[])
     term_initialize();
     show_title();
 
+    if (global_progstate == ShowingArgs)
+    {
+        show_args();
+        terminate(NULL);
+    }
+
     // Loop forever
     while (!global_escpressed)
     {
@@ -85,7 +91,7 @@ void parse_args(int argc, char* argv[])
     // If no arguments were given, print the args
     if (argc == 1) 
     {
-        global_progstate = ShowingHelp;
+        global_progstate = ShowingArgs;
         return;
     }
 
@@ -118,7 +124,7 @@ void parse_args(int argc, char* argv[])
 
 /*==============================
     show_title
-    Prints tht title of the program
+    Prints the title of the program
 ==============================*/
 
 void show_title()
@@ -140,4 +146,43 @@ void show_title()
     log_simple("\n--------------------------------------------\n");
     log_simple("Cobbled together by Buu342\n");
     log_simple("Compiled on %s\n\n", __DATE__);
+}
+
+
+/*==============================
+    show_args
+    Prints the arguments of the program
+==============================*/
+
+void show_args()
+{
+    log_simple("Parameters: <required> [optional]\n", CRDEF_PROGRAM);
+    log_simple("  -help\t\t\t   Learn how to use this tool.\n", CRDEF_PROGRAM);
+    log_simple("  -r <file>\t\t   Upload ROM.\n", CRDEF_PROGRAM);
+    log_simple("  -a\t\t\t   Disable ED ROM header autodetection.\n", CRDEF_PROGRAM);
+    log_simple("  -f <int>\t\t   Force flashcart type (skips autodetection).\n", CRDEF_PROGRAM);
+    log_simple("  \t %d - %s\n", CRDEF_PROGRAM, (int)CART_64DRIVE1, "64Drive HW1");
+    /*
+    log_simple("  \t %d - %s\n", CRDEF_PROGRAM, (int)CART_64DRIVE2, "64Drive HW2");
+    log_simple("  \t %d - %s\n", CRDEF_PROGRAM, (int)CART_EVERDRIVE, "EverDrive 3.0 or X7");
+    log_simple("  \t %d - %s\n", CRDEF_PROGRAM, (int)CART_SC64, "SC64");
+    log_simple("  -c <int>\t\t   Set CIC emulation (64Drive HW2 only).\n", CRDEF_PROGRAM);
+    log_simple("  \t %d - %s\t %d - %s\n", CRDEF_PROGRAM, (int)CIC_6101, "6101 (NTSC)", (int)CIC_6102, "6102 (NTSC)");
+    log_simple("  \t %d - %s\t %d - %s\n", CRDEF_PROGRAM, (int)CIC_7101, "7101 (NTSC)", (int)CIC_7102, "7102 (PAL)");
+    log_simple("  \t %d - %s\t\t %d - %s\n", CRDEF_PROGRAM, (int)CIC_X103, "x103 (All)", (int)CIC_X105, "x105 (All)");
+    log_simple("  \t %d - %s\t\t %d - %s\n", CRDEF_PROGRAM, (int)CIC_X106, "x106 (All)", (int)CIC_5101, "5101 (NTSC)");
+    log_simple("  -s <int>\t\t   Set save emulation.\n", CRDEF_PROGRAM);    
+    log_simple("  \t %d - %s\t %d - %s\n", CRDEF_PROGRAM, (int)SAVE_EEPROM4K, "EEPROM 4Kbit", (int)SAVE_EEPROM16K, "EEPROM 16Kbit");
+    log_simple("  \t %d - %s\t %d - %s\n", CRDEF_PROGRAM, (int)SAVE_SRAM256, "SRAM 256Kbit", (int)SAVE_FLASHRAM, "FlashRAM 1Mbit");
+    log_simple("  \t %d - %s\t %d - %s\n", CRDEF_PROGRAM, (int)SAVE_SRAM768, "SRAM 768Kbit", (int)SAVE_FLASHRAMPKMN, "FlashRAM 1Mbit (PokeStdm2)");
+    log_simple("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n", CRDEF_PROGRAM);
+    log_simple("  -l\t\t\t   Listen mode (reupload ROM when changed).\n", CRDEF_PROGRAM);
+    log_simple("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
+    log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n", CRDEF_PROGRAM);
+    log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
+    log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n", CRDEF_PROGRAM);
+    log_simple("  -h <int>\t\t   Max window history (default %d).\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    log_simple("  -m \t\t\t   Always show duplicate prints in debug mode.\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    log_simple("  -b\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
+    log_simple("\n", CRDEF_PROGRAM);*/
 }
