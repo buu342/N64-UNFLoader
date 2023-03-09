@@ -62,6 +62,7 @@
       <TreatWarningAsError>false</TreatWarningAsError>
       <LanguageStandard>
       </LanguageStandard>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
