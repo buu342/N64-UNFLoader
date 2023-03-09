@@ -10,7 +10,6 @@
         #else
             #include <unistd.h>
         #endif
-        #include "Include/ftd2xx.h"
         #include <atomic>
     #pragma warning(pop)
 
@@ -54,9 +53,7 @@
                  Globals
     *********************************/
 
-    extern bool    global_usecurses;
     extern FILE*   global_debugoutptr;
-    extern int     global_historysize;
     extern std::atomic<progState> global_progstate;
     extern std::atomic<bool> global_escpressed;
 

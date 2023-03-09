@@ -6,6 +6,7 @@ UNFLoader Entrypoint
 
 #include "main.h"
 #include "term.h"
+#include "device.h"
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -23,7 +24,6 @@ UNFLoader Entrypoint
 *********************************/
 
 void parse_args(int argc, char* argv[]);
-void initialize_curses();
 void show_title();
 #define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
 
@@ -33,15 +33,7 @@ void show_title();
 *********************************/
 
 // Program globals
-FILE*   global_debugoutptr = NULL;
-char*   global_rompath     = NULL;
-int     global_cictype     = -1;
-u32     global_savetype    = 0;
-bool    global_usecurses   = true;
-bool    global_listenmode  = false;
-bool    global_debugmode   = false;
-bool    global_z64         = false;
-int     global_historysize = DEFAULT_HISTORYSIZE;
+FILE* global_debugoutptr = NULL;
 std::atomic<progState> global_progstate (Initializing);
 std::atomic<bool> global_escpressed (false);
 
@@ -64,8 +56,7 @@ int main(int argc, char* argv[])
     parse_args(argc, argv);
 
     // Initialize the program
-    if (global_usecurses)
-        initialize_curses();
+    term_initialize();
     show_title();
 
     // Loop forever
@@ -101,7 +92,7 @@ void parse_args(int argc, char* argv[])
     // If the first character is not a dash, assume a ROM path
     if (argv[1][0] != '-')
     {
-        global_rompath = argv[1];
+        device_setrom(argv[1]);
         return;
     }
 
@@ -113,7 +104,7 @@ void parse_args(int argc, char* argv[])
         {
             case 'r':
                 if (nextarg_isvalid())
-                    global_rompath = argv[i];
+                    device_setrom(argv[i]);
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;

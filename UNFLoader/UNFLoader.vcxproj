@@ -102,14 +102,15 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="device.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="include\lodepng.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="term.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="device.h" />
     <ClInclude Include="helper.h" />
-    <ClInclude Include="helper_internal.h" />
     <ClInclude Include="include\curses.h" />
     <ClInclude Include="include\curspriv.h" />
     <ClInclude Include="include\ftd2xx.h" />
@@ -117,6 +118,7 @@
     <ClInclude Include="include\panel.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="term.h" />
+    <ClInclude Include="term_internal.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\ftd2xx.lib" />

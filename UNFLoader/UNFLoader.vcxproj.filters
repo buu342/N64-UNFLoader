@@ -7,11 +7,11 @@
     <ClCompile Include="include\lodepng.cpp">
       <Filter>Include</Filter>
     </ClCompile>
+    <ClCompile Include="device.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helper.h" />
     <ClInclude Include="main.h" />
-    <ClInclude Include="helper_internal.h" />
     <ClInclude Include="term.h" />
     <ClInclude Include="include\panel.h">
       <Filter>Include</Filter>
@@ -28,6 +28,8 @@
     <ClInclude Include="include\curses.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="device.h" />
+    <ClInclude Include="term_internal.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\pdcurses.lib">

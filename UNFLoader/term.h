@@ -33,8 +33,11 @@
     *********************************/
 
     // Terminal handling
-    void initialize_curses();
-    void end_curses();
+    void term_initialize();
+    void term_sethistorysize(int val);
+    void term_usecurses(bool val);
+    bool term_isusingcurses();
+    void term_end();
 
     // Printing
     #include "term_internal.h"

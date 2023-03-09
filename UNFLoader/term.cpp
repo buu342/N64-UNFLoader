@@ -52,10 +52,13 @@ typedef struct {
 *********************************/
 
 static void termthread();
-static void handle_resize(int sig);
 static void handle_input();
 static void scroll_output(int value);
 static void refresh_output();
+
+#ifdef LINUX
+static void handle_resize(int sig);
+#endif
 
 
 /*********************************
@@ -67,6 +70,7 @@ static std::thread thread_input;
 static std::thread thread_terminate;
 
 // NCurses globals
+bool    local_usecurses     = true;
 WINDOW* local_terminal      = NULL;
 WINDOW* local_inputwin      = NULL;
 WINDOW* local_outputwin     = NULL;
@@ -77,6 +81,7 @@ static std::atomic<bool> local_resizesignal (false);
 static std::atomic<int> local_padbottom (-1);
 static std::atomic<int> local_scrolly (0);
 static std::queue<Output*> local_mesgqueue;
+static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 
 // Input window globals
 static bool     local_allowinput = true;
@@ -87,72 +92,75 @@ static uint64_t local_blinktime  = 0;
 
 
 /*==============================
-    initialize_curses
+    term_initialize
     Initializes n/pdcurses for fancy
     terminal control 
 ==============================*/
 
-void initialize_curses()
+void term_initialize()
 {
-    int w, h;
-
-    // Initialize Curses
-    setlocale(LC_ALL, "");
-    local_terminal = initscr();
-    if (local_terminal == NULL)
+    if (local_usecurses)
     {
-        fputs("Error: Curses failed to initialize the screen.\n", stderr);
-        exit(EXIT_FAILURE);
-    }
-    start_color();
-    use_default_colors();
-    noecho();
-    keypad(stdscr, TRUE);
-    getmaxyx(local_terminal, h, w);
-    curs_set(FALSE);
+        int w, h;
 
-    // Initialize signal if using Linux
-    #ifdef LINUX
+        // Initialize Curses
+        setlocale(LC_ALL, "");
+        local_terminal = initscr();
+        if (local_terminal == NULL)
+        {
+            fputs("Error: Curses failed to initialize the screen.\n", stderr);
+            exit(EXIT_FAILURE);
+        }
+        start_color();
+        use_default_colors();
+        noecho();
+        keypad(stdscr, TRUE);
+        getmaxyx(local_terminal, h, w);
+        curs_set(FALSE);
+
+        // Initialize signal if using Linux
+#ifdef LINUX
         struct sigaction sa;
         memset(&sa, 0, sizeof(struct sigaction));
         sa.sa_handler = handle_resize;
         sigaction(SIGWINCH, &sa, NULL);
-    #endif
+#endif
 
-    // Setup our console windows
-    local_outputwin = newpad(h + global_historysize, w);
-    local_inputwin = newwin(1, w, h-1, 0);
-    scrollok(local_outputwin, TRUE);
-    idlok(local_outputwin, TRUE);
-    keypad(local_inputwin, TRUE);
-    wtimeout(local_inputwin, 0);
-    #ifdef LINUX
+        // Setup our console windows
+        local_outputwin = newpad(h + local_historysize, w);
+        local_inputwin = newwin(1, w, h - 1, 0);
+        scrollok(local_outputwin, TRUE);
+        idlok(local_outputwin, TRUE);
+        keypad(local_inputwin, TRUE);
+        wtimeout(local_inputwin, 0);
+#ifdef LINUX
         set_escdelay(0);
-    #endif
-    refresh_output();
-    wrefresh(local_inputwin);
+#endif
+        refresh_output();
+        wrefresh(local_inputwin);
 
-    // Initialize the input data
-    memset(local_input, 0, 255);
+        // Initialize the input data
+        memset(local_input, 0, 255);
 
-    // Initialize the colors
-    init_pair(CR_RED, COLOR_RED, -1);
-    init_pair(CR_GREEN, COLOR_GREEN, -1);
-    init_pair(CR_BLUE, COLOR_BLUE, -1);
-    init_pair(CR_YELLOW, COLOR_YELLOW, -1);
-    init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
+        // Initialize the colors
+        init_pair(CR_RED, COLOR_RED, -1);
+        init_pair(CR_GREEN, COLOR_GREEN, -1);
+        init_pair(CR_BLUE, COLOR_BLUE, -1);
+        init_pair(CR_YELLOW, COLOR_YELLOW, -1);
+        init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
 
-    // Create the terminal thread
-    thread_input = std::thread(termthread);
+        // Create the terminal thread
+        thread_input = std::thread(termthread);
+    }
 }
 
 
 /*==============================
-    end_curses
+    term_end
     Stops curses safetly
 ==============================*/
 
-void end_curses()
+void term_end()
 {
     if (local_terminal != NULL)
     {
@@ -311,24 +319,26 @@ void terminate(const char* reason, ...)
 
     // End
     global_progstate = Terminating;
-    end_curses();
+    term_end();
     exit(-1);
 }
 
 
-/*==============================
-    handle_resize
-    Handles the resize signal
-    @param Unused
-==============================*/
+#ifdef LINUX
+    /*==============================
+        handle_resize
+        Handles the resize signal
+        @param Unused
+    ==============================*/
 
-static void handle_resize(int)
-{
-    endwin();
-    clear(); // This re-initializes ncurses, no need to call newwin
+    static void handle_resize(int)
+    {
+        endwin();
+        clear(); // This re-initializes ncurses, no need to call newwin
 
-    local_resizesignal = true;
-}
+        local_resizesignal = true;
+    }
+#endif
 
 
 /*==============================
@@ -515,4 +525,42 @@ static void scroll_output(int value)
 
     // Refresh the output window to see the changes
     refresh_output();
+}
+
+
+/*==============================
+    term_sethistorysize
+    Sets the number of terminal lines
+    to store for scrolling
+    @param The scroll history size
+==============================*/
+
+void term_sethistorysize(int val)
+{
+    local_historysize = val;
+}
+
+
+/*==============================
+    term_usecurses
+    Enables/disable the use of curses
+    @param Whether to enable/disable curses
+==============================*/
+
+void term_usecurses(bool val)
+{
+    local_usecurses = val;
+}
+
+
+/*==============================
+    term_isusingcurses
+    Checks if the program is using curses
+    @return Whether the program is 
+            using curses or not
+==============================*/
+
+bool term_isusingcurses()
+{
+    return local_usecurses;
 }
