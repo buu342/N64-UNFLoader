@@ -8,6 +8,11 @@ Passes flashcart communication to more specific functions
 #include "Include/ftd2xx.h"
 #pragma comment(lib, "Include/FTD2XX.lib")
 
+
+/*********************************
+             Globals
+*********************************/
+
 static char*    local_rompath  = NULL;
 static bool     local_isz64    = false;
 static CartType local_carttype = CART_NONE;

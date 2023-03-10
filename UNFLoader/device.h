@@ -1,6 +1,11 @@
 #ifndef __DEVICE_HEADER
 #define __DEVICE_HEADER
 
+
+    /*********************************
+               Enumerations
+    *********************************/
+
     typedef enum {
         CART_NONE      = 0,
         CART_64DRIVE1  = 1,
@@ -30,6 +35,11 @@
         SAVE_SRAM768      = 5,
         SAVE_FLASHRAMPKMN = 6,
     } SaveType;
+
+
+    /*********************************
+            Function Prototypes
+    *********************************/
 
 	void device_setrom(char* path);
     void device_setcart(CartType cart);

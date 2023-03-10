@@ -14,12 +14,19 @@
     #include <termios.h>
 #endif
 
+
+/*********************************
+             Globals
+*********************************/
+
+// Useful constants for converting between enums and strings
 const char* cart_strings[] = {"64Drive HW1", "64Drive HW2", "EverDrive", "SC64"}; // In order of the CartType enums
 const int   cart_strcount = sizeof(cart_strings)/sizeof(cart_strings[0]);
 const char* cic_strings[] = {"6101", "6102", "7101", "7102", "X103", "X105", "X106", "5101"}; // In order of the CICType enums
 const int   cic_strcount = sizeof(cic_strings)/sizeof(cic_strings[0]);
 const char* save_strings[] = {"EEPROM 4Kbit", "EEPROM 16Kbit", "SRAM 256Kbit", "FlashRAM 1Mbit", "SRAM 768Kbit", "FlashRAM 1Mbit (PokeStdm2)"}; // In order of the SaveType enums
 const int   save_strcount = sizeof(save_strings)/sizeof(save_strings[0]);
+
 
 /*==============================
     terminate
@@ -81,7 +88,9 @@ void terminate(const char* reason, ...)
 /*==============================
     time_miliseconds
     Retrieves the current system
-    time in miliseconds
+    time in miliseconds.
+    Needed because clock() wasn't
+    working properly???
     @return The time in miliseconds
 ==============================*/
 
@@ -108,7 +117,7 @@ uint64_t time_miliseconds()
     @return The CartType enum
 ==============================*/
 
-CartType cart_strtotype(char* cartstring)
+CartType cart_strtotype(const char* cartstring)
 {
     // If the cart string is a single number, then it's pretty easy to get the cart enum
     if (cartstring[0] >= ('0'+((int)CART_64DRIVE1)) && cartstring[0] <= ('0'+((int)CART_SC64)) && cartstring[1] == '\0')
@@ -150,7 +159,7 @@ const char* cart_typetostr(CartType cartenum)
     @return The CICType enum
 ==============================*/
 
-CICType cic_strtotype(char* cicstring)
+CICType cic_strtotype(const char* cicstring)
 {
     // If the CIC string is a single number, then it's pretty easy to get the CIC enum
     if (cicstring[0] >= ('0'+((int)CIC_6101)) && cicstring[0] <= ('0'+((int)CIC_5101)) && cicstring[1] == '\0')
@@ -192,7 +201,7 @@ const char* cic_typetostr(CICType cicenum)
     @return The SaveType enum
 ==============================*/
 
-SaveType save_strtotype(char* savestring)
+SaveType save_strtotype(const char* savestring)
 {
     // If the save string is a single number, then it's pretty easy to get the save enum
     if (savestring[0] >= ('0'+((int)SAVE_EEPROM4K)) && savestring[0] <= ('0'+((int)SAVE_FLASHRAMPKMN)) && savestring[1] == '\0')

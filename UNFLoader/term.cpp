@@ -54,9 +54,8 @@ static void termthread();
 static void handle_input();
 static void scroll_output(int value);
 static void refresh_output();
-
 #ifdef LINUX
-static void handle_resize(int sig);
+    static void handle_resize(int sig);
 #endif
 
 
@@ -119,12 +118,12 @@ void term_initialize()
         curs_set(FALSE);
 
         // Initialize signal if using Linux
-#ifdef LINUX
-        struct sigaction sa;
-        memset(&sa, 0, sizeof(struct sigaction));
-        sa.sa_handler = handle_resize;
-        sigaction(SIGWINCH, &sa, NULL);
-#endif
+        #ifdef LINUX
+            struct sigaction sa;
+            memset(&sa, 0, sizeof(struct sigaction));
+            sa.sa_handler = handle_resize;
+            sigaction(SIGWINCH, &sa, NULL);
+        #endif
 
         // Setup our console windows
         local_outputwin = newpad(h + local_historysize, w);
@@ -133,9 +132,9 @@ void term_initialize()
         idlok(local_outputwin, TRUE);
         keypad(local_inputwin, TRUE);
         wtimeout(local_inputwin, 0);
-#ifdef LINUX
-        set_escdelay(0);
-#endif
+        #ifdef LINUX
+            set_escdelay(0);
+        #endif
         refresh_output();
         wrefresh(local_inputwin);
 
@@ -325,7 +324,7 @@ static void refresh_output()
         char scrolltext[40 + 1];
 
         // Initialize the scroll text and the window to render the text to
-        sprintf(scrolltext, "%d/%d", local_padbottom.load() - local_scrolly.load(), local_padbottom.load());
+        sprintf(scrolltext, "%d/%d", local_padbottom.load() - local_scrolly.load() - (h+2), local_padbottom.load() - (h+2));
         scrolltextlen = strlen(scrolltext);
 
         // Initialize the scroll text window if necessary
@@ -522,4 +521,17 @@ bool term_isusingcurses()
 void term_hideinput(bool val)
 {
     local_showinput = !val;
+}
+
+
+/*==============================
+    term_setsize
+    Forces the terminal to a specific size
+    @param The number of rows
+    @param The number of columns
+==============================*/
+
+void term_setsize(int h, int w)
+{
+    resize_term(h, w);
 }

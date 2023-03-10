@@ -8,6 +8,7 @@ UNFLoader Entrypoint
 #include "helper.h"
 #include "term.h"
 #include "device.h"
+#include <stdlib.h>
 #include <string.h>
 
 /*********************************
@@ -40,6 +41,12 @@ FILE* global_debugoutptr = NULL;
 std::atomic<progState> global_progstate (Initializing);
 std::atomic<bool> global_escpressed (false);
 
+// Local globals
+static bool local_debugmode = false;
+static bool local_listenmode = false;
+static char* local_debugoutfilepath = NULL; // MOVE THIS OVER TO debug.cpp LATER
+static char* local_binaryoutfolderpath = NULL; // MOVE THIS OVER TO debug.cpp LATER
+
 
 /*==============================
     main
@@ -70,12 +77,16 @@ int main(int argc, char* argv[])
     }
 
     // Loop forever
-    while (!global_escpressed)
+    do 
     {
+        /*
         static int i = 0;   
         log_colored("Hello %d\n", CRDEF_PRINT, i++);
+        */
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+    while ((local_debugmode || local_listenmode) && !global_escpressed);
+    while ((local_debugmode || local_listenmode) && !global_escpressed);
 
     // End the program
     terminate(NULL);
@@ -177,7 +188,7 @@ void parse_args(int argc, char* argv[])
                 {
                     CICType cic = cic_strtotype(argv[i]);
                     device_setcic(cic);
-                    log_simple("CIC set to '%s'\n", cic_typetostr(cic));
+                    log_simple("CIC forced to '%s'\n", cic_typetostr(cic));
                 }
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
@@ -189,6 +200,42 @@ void parse_args(int argc, char* argv[])
                     device_setsave(save);
                     log_simple("Save type set to '%s'\n", save_typetostr(save));
                 }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+                break;
+            case 'd': // Set debug mode
+                local_debugmode = true;
+                if (nextarg_isvalid())
+                {
+                    local_debugoutfilepath = argv[i];
+                    log_simple("Debug logging to file '%s'", local_debugoutfilepath);
+                }
+                break;
+            case 'l': // Set listen mode
+                local_listenmode = true;
+                break;
+            case 'e': // File export directory
+                local_binaryoutfolderpath = argv[i];
+                log_simple("File export path set to '%s'", local_binaryoutfolderpath);
+                break;
+            case 'w': // Window size
+                if (nextarg_isvalid())
+                {
+                    int h = atoi(argv[i]);
+                    if (nextarg_isvalid())
+                    {
+                        int w = atoi(argv[i]);
+                        term_setsize(h, w);
+                    }
+                    else
+                        terminate("Missing parameter(s) for command '%s'.", command);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+                break;
+            case 'h': // Set history size
+                if (nextarg_isvalid())
+                    term_sethistorysize(atoi(command));
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
@@ -235,32 +282,32 @@ void show_title()
 void show_args()
 {
     log_simple("Parameters: <required> [optional]\n");
-    log_simple("  -help\t\t\t   Learn how to use this tool.\n");
-    log_simple("  -r <file>\t\t   Upload ROM.\n");
+    log_simple("  -help\t\t\t   Learn how to use this tool.\n");                                                                        // Done
+    log_simple("  -r <file>\t\t   Upload ROM.\n");                                                                                      // Done
     log_simple("  -a\t\t\t   Disable ED ROM header autodetection.\n");
-    log_simple("  -f <int>\t\t   Force flashcart type (skips autodetection).\n");
-    log_simple("  \t %d - %s\n", (int)CART_64DRIVE1, "64Drive HW1");
-    log_simple("  \t %d - %s\n", (int)CART_64DRIVE2, "64Drive HW2");
-    log_simple("  \t %d - %s\n", (int)CART_EVERDRIVE, "EverDrive 3.0 or X7");
-    log_simple("  \t %d - %s\n", (int)CART_SC64, "SC64");
-    log_simple("  -c <int>\t\t   Set CIC emulation (64Drive HW2 only).\n");
-    log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_6101, "6101 (NTSC)", (int)CIC_6102, "6102 (NTSC)");
-    log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_7101, "7101 (NTSC)", (int)CIC_7102, "7102 (PAL)");
-    log_simple("  \t %d - %s\t\t %d - %s\n", (int)CIC_X103, "x103 (All)", (int)CIC_X105, "x105 (All)");
-    log_simple("  \t %d - %s\t\t %d - %s\n", (int)CIC_X106, "x106 (All)", (int)CIC_5101, "5101 (NTSC)");
-    log_simple("  -s <int>\t\t   Set save emulation.\n");    
-    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_EEPROM4K, "EEPROM 4Kbit", (int)SAVE_EEPROM16K, "EEPROM 16Kbit");
-    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM256, "SRAM 256Kbit", (int)SAVE_FLASHRAM, "FlashRAM 1Mbit");
-    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM768, "SRAM 768Kbit", (int)SAVE_FLASHRAMPKMN, "FlashRAM 1Mbit (PokeStdm2)");
-    log_simple("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n");
-    log_simple("  -l\t\t\t   Listen mode (reupload ROM when changed).\n");
+    log_simple("  -f <int>\t\t   Force flashcart type (skips autodetection).\n");                                                       // Done
+    log_simple("  \t %d - %s\n", (int)CART_64DRIVE1, "64Drive HW1");                                                                    //
+    log_simple("  \t %d - %s\n", (int)CART_64DRIVE2, "64Drive HW2");                                                                    //
+    log_simple("  \t %d - %s\n", (int)CART_EVERDRIVE, "EverDrive 3.0 or X7");                                                           //
+    log_simple("  \t %d - %s\n", (int)CART_SC64, "SC64");                                                                               //
+    log_simple("  -c <int>\t\t   Set CIC emulation (64Drive HW2 only).\n");                                                             // Done
+    log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_6101, "6101 (NTSC)", (int)CIC_6102, "6102 (NTSC)");                                 //
+    log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_7101, "7101 (NTSC)", (int)CIC_7102, "7102 (PAL)");                                  //
+    log_simple("  \t %d - %s\t\t %d - %s\n", (int)CIC_X103, "x103 (All)", (int)CIC_X105, "x105 (All)");                                 //
+    log_simple("  \t %d - %s\t\t %d - %s\n", (int)CIC_X106, "x106 (All)", (int)CIC_5101, "5101 (NTSC)");                                //
+    log_simple("  -s <int>\t\t   Set save emulation.\n");                                                                               // Done
+    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_EEPROM4K, "EEPROM 4Kbit", (int)SAVE_EEPROM16K, "EEPROM 16Kbit");                   //
+    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM256, "SRAM 256Kbit", (int)SAVE_FLASHRAM, "FlashRAM 1Mbit");                    //
+    log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM768, "SRAM 768Kbit", (int)SAVE_FLASHRAMPKMN, "FlashRAM 1Mbit (PokeStdm2)");    //
+    log_simple("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n");                                               // Done
+    log_simple("  -l\t\t\t   Listen mode (reupload ROM when changed).\n");                                                              // Done
     log_simple("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n");
-    log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n");
-    log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");
-    log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");
-    log_simple("  -h <int>\t\t   Max window history (default %d).\n", DEFAULT_HISTORYSIZE);
-    log_simple("  -m \t\t\t   Always show duplicate prints in debug mode.\n", DEFAULT_HISTORYSIZE);
-    log_simple("  -b\t\t\t   Disable ncurses.\n");
+    log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n");                                                   // Done
+    log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");                                                 //
+    log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");                                                  // Not quite working?
+    log_simple("  -h <int>\t\t   Max window history (default %d).\n", DEFAULT_HISTORYSIZE);                                             // Done
+    log_simple("  -m \t\t\t   Always show duplicate prints in debug mode.\n");
+    log_simple("  -b\t\t\t   Disable ncurses.\n");                                                                                      // Done
 }
 
 
