@@ -41,6 +41,7 @@
     void term_setsize(int h, int w);
     int  term_getw();
     int  term_geth();
+    void term_allowinput(bool val);
     bool term_isusingcurses();
     void term_end();
 

@@ -123,7 +123,6 @@ void term_initialize()
         }
         else
            getmaxyx(local_terminal, h, w);
-
         curs_set(FALSE);
 
         // Initialize signal if using Linux
@@ -590,4 +589,9 @@ int term_getw()
 int term_geth()
 {
     return getmaxy(local_terminal);
+}
+
+void term_allowinput(bool val)
+{
+    local_allowinput = val;
 }

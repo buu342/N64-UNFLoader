@@ -80,12 +80,13 @@ int main(int argc, char* argv[])
     if (!local_debugmode && !local_listenmode && device_getrom() == NULL)
     {
         #ifndef LINUX
-            int w = term_getw() < 40 ? 40 : term_getw();
-            int h = term_geth() < 80 ? 80 : term_geth();
-            term_setsize(w , h)
+            int w = term_getw() < 80 ? 80 : term_getw();
+            int h = term_geth() < 40 ? 40 : term_geth();
+            term_setsize(h, w);
         #endif
-        show_args();
         term_hideinput(true);
+        term_allowinput(false);
+        show_args();
         terminate(NULL);
     }
 
