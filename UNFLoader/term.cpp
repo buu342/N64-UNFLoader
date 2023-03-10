@@ -13,7 +13,6 @@ Handles terminal I/O, both with and without curses.
     #include "Include/panel.h"
 #else
     #include <curses.h>
-    #include <termios.h>
 #endif
 #include <string.h>
 #include <locale.h>
@@ -85,6 +84,7 @@ static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 
 // Input window globals
 static bool     local_allowinput = true;
+static bool     local_showinput = true;
 static char     local_input[255];
 static int      local_inputcount = 0;
 static bool     local_showcurs   = true;
@@ -268,63 +268,6 @@ void __log_output(const short color, const char* str, ...)
 }
 
 
-/*==============================
-    terminate
-    Stops the program and prints "Press any key to continue..."
-    @param A string to print
-    @param Variadic arguments to print as well
-==============================*/
-
-void terminate(const char* reason, ...)
-{
-    va_list args;
-    va_start(args, reason);
-
-    // Print why we're ending
-    if (reason != NULL && strcmp(reason, ""))
-    {
-        char temp[255];
-        vsprintf(temp, reason, args);
-        log_colored("Error: %s", CRDEF_ERROR, temp);
-    }
-    log_colored("\n\n", CRDEF_ERROR);
-    va_end(args);
-
-    // Close output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        fclose(global_debugoutptr);
-        global_debugoutptr = NULL;
-    }
-
-    // Pause the program
-    log_colored("Press any key to continue...\n", CRDEF_INPUT);
-    if (local_terminal == NULL)
-    {
-        #ifndef LINUX
-            system("pause > nul");
-        #else
-            struct termios info, orig;
-            tcgetattr(0, &info);
-            tcgetattr(0, &orig);
-            info.c_lflag &= ~(ICANON | ECHO);
-            info.c_cc[VMIN] = 1;
-            info.c_cc[VTIME] = 0;
-            tcsetattr(0, TCSANOW, &info);
-            getchar();
-            tcsetattr(0, TCSANOW, &orig);
-        #endif
-    }
-    else
-        getch();
-
-    // End
-    global_progstate = Terminating;
-    term_end();
-    exit(-1);
-}
-
-
 #ifdef LINUX
     /*==============================
         handle_resize
@@ -482,16 +425,19 @@ static void handle_input()
     if (wrotein)
     {
         wclear(local_inputwin);
-        wprintw(local_inputwin, "%s", local_input);
-
-        // Cursor rendering
-        if (local_showcurs)
+        if (local_showinput)
         {
-            #ifndef LINUX
-                wprintw(local_inputwin, "%c", 219);
-            #else
-                wprintw(local_inputwin, "\xe2\x96\x88\n");
-            #endif
+            wprintw(local_inputwin, "%s", local_input);
+
+            // Cursor rendering
+            if (local_showcurs)
+            {
+                #ifndef LINUX
+                    wprintw(local_inputwin, "%c", 219);
+                #else
+                    wprintw(local_inputwin, "\xe2\x96\x88\n");
+                #endif
+            }
         }
 
         // Refresh the input pad to show changes
@@ -544,7 +490,7 @@ void term_sethistorysize(int val)
 
 /*==============================
     term_usecurses
-    Enables/disable the use of curses
+    Enables/disables the use of curses
     @param Whether to enable/disable curses
 ==============================*/
 
@@ -564,4 +510,16 @@ void term_usecurses(bool val)
 bool term_isusingcurses()
 {
     return local_usecurses;
+}
+
+
+/*==============================
+    term_hideinput
+    Enables/disables hiding the input bar
+    @param Whether to enable/disable curses
+==============================*/
+
+void term_hideinput(bool val)
+{
+    local_showinput = !val;
 }

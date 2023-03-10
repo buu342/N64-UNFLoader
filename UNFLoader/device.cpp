@@ -57,7 +57,7 @@ void device_setcic(CICType cic)
     @param The savetype to set
 ==============================*/
 
-void device_setcic(SaveType save)
+void device_setsave(SaveType save)
 {
     local_savetype = save;
 }

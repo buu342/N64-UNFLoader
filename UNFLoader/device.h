@@ -32,5 +32,8 @@
     } SaveType;
 
 	void device_setrom(char* path);
+    void device_setcart(CartType cart);
+    void device_setcic(CICType cic);
+    void device_setsave(SaveType save);
 
 #endif

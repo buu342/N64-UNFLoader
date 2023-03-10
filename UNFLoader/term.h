@@ -36,6 +36,7 @@
     void term_initialize();
     void term_sethistorysize(int val);
     void term_usecurses(bool val);
+    void term_hideinput(bool val);
     bool term_isusingcurses();
     void term_end();
 
@@ -43,8 +44,5 @@
     #include "term_internal.h"
     #define log_simple(string, ...) __log_output(CRDEF_PROGRAM, string, ##__VA_ARGS__)
     #define log_colored(string, color, ...) __log_output(color, string, ##__VA_ARGS__)
-
-    // Other
-    void terminate(const char* reason, ...);
 
 #endif
