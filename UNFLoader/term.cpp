@@ -521,6 +521,19 @@ bool term_isusingcurses()
 
 
 /*==============================
+    term_allowinput
+    Enables/disables input reading
+    @param Whether to enable/disable 
+           input reading
+==============================*/
+
+void term_allowinput(bool val)
+{
+    local_allowinput = val;
+}
+
+
+/*==============================
     term_hideinput
     Enables/disables hiding the input bar
     @param Whether to enable/disable curses
@@ -534,7 +547,10 @@ void term_hideinput(bool val)
 
 /*==============================
     term_initsize
-    TODO
+    Forces the terminal to initialize with
+    the given size.
+    @param The initial height
+    @param The initial width
 ==============================*/
 
 void term_initsize(int h, int w)
@@ -572,7 +588,8 @@ void term_setsize(int h, int w)
 
 /*==============================
     term_getw
-    TODO
+    Gets the terminal's width
+    @return The terminal's width
 ==============================*/
 
 int term_getw()
@@ -583,15 +600,11 @@ int term_getw()
 
 /*==============================
     term_geth
-    TODO
+    Gets the terminal's height
+    @return The terminal's height
 ==============================*/
 
 int term_geth()
 {
     return getmaxy(local_terminal);
-}
-
-void term_allowinput(bool val)
-{
-    local_allowinput = val;
 }

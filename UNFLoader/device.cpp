@@ -70,7 +70,9 @@ void device_setsave(SaveType save)
 
 /*==============================
     device_getrom
-    TODO
+    Gets the path of the ROM to load
+    @return A string with the file path
+            of the ROM.
 ==============================*/
 
 char* device_getrom()

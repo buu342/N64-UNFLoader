@@ -333,7 +333,7 @@ void show_args()
     log_simple("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n");
     log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n");                                                   // Done
     log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");                                                 //
-    log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");                                                  // Not quite working?
+    log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");                                                  // Done
     log_simple("  -h <int>\t\t   Max window history (default %d).\n", DEFAULT_HISTORYSIZE);                                             // Done
     log_simple("  -m \t\t\t   Always show duplicate prints in debug mode.\n");
     log_simple("  -b\t\t\t   Disable ncurses.\n");                                                                                      // Done
