@@ -45,5 +45,6 @@
     void device_setcart(CartType cart);
     void device_setcic(CICType cic);
     void device_setsave(SaveType save);
+    char* device_getrom();
 
 #endif

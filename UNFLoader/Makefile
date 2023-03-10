@@ -16,7 +16,7 @@ else
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3
+CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -g
 
 default: $(APP)
 

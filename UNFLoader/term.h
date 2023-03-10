@@ -37,7 +37,10 @@
     void term_sethistorysize(int val);
     void term_usecurses(bool val);
     void term_hideinput(bool val);
+    void term_initsize(int h, int w);
     void term_setsize(int h, int w);
+    int  term_getw();
+    int  term_geth();
     bool term_isusingcurses();
     void term_end();
 

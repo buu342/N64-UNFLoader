@@ -10,6 +10,8 @@ UNFLoader Entrypoint
 #include "device.h"
 #include <stdlib.h>
 #include <string.h>
+#include <list>
+#include <iterator>
 
 /*********************************
               Macros
@@ -24,12 +26,12 @@ UNFLoader Entrypoint
         Function Prototypes
 *********************************/
 
-void parse_args_priority(int argc, char* argv[]);
-void parse_args(int argc, char* argv[]);
+void parse_args_priority(std::list<char*>* args);
+void parse_args(std::list<char*>* args);
 void show_title();
 void show_args();
 void show_help();
-#define nextarg_isvalid() ((++i)<argc && argv[i][0] != '-')
+#define nextarg_isvalid(a, b) (((++a) != b->end()) && (*a)[0] != '-')
 
 
 /*********************************
@@ -42,10 +44,11 @@ std::atomic<progState> global_progstate (Initializing);
 std::atomic<bool> global_escpressed (false);
 
 // Local globals
-static bool local_debugmode = false;
-static bool local_listenmode = false;
+static bool  local_debugmode = false;
+static bool  local_listenmode = false;
 static char* local_debugoutfilepath = NULL; // MOVE THIS OVER TO debug.cpp LATER
 static char* local_binaryoutfolderpath = NULL; // MOVE THIS OVER TO debug.cpp LATER
+static std::list<char*> local_args;
 
 
 /*==============================
@@ -59,33 +62,42 @@ static char* local_binaryoutfolderpath = NULL; // MOVE THIS OVER TO debug.cpp LA
 #include <chrono>
 int main(int argc, char* argv[])
 {
+    // Put the arguments in a list to make life easier
+    for (int i=1; i<argc; i++)
+        local_args.push_back(argv[i]);
+
     // Parse priority arguments
-    parse_args_priority(argc, argv);
+    parse_args_priority(&local_args);
 
     // Initialize the program
     term_initialize();
     show_title();
 
     // Read program arguments
-    parse_args(argc, argv);
+    parse_args(&local_args);
 
-    // Show the program arguments if no args were given
-    if (global_progstate == ShowingArgs)
+    // Show the program arguments if the program can't do much else
+    if (!local_debugmode && !local_listenmode && device_getrom() == NULL)
     {
+        #ifndef LINUX
+            int w = term_getw() < 40 ? 40 : term_getw();
+            int h = term_geth() < 80 ? 80 : term_geth();
+            term_setsize(w , h)
+        #endif
         show_args();
+        term_hideinput(true);
         terminate(NULL);
     }
 
     // Loop forever
     do 
     {
-        /*
+        ///*
         static int i = 0;   
         log_colored("Hello %d\n", CRDEF_PRINT, i++);
-        */
+        //*/
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    while ((local_debugmode || local_listenmode) && !global_escpressed);
     while ((local_debugmode || local_listenmode) && !global_escpressed);
 
     // End the program
@@ -97,26 +109,60 @@ int main(int argc, char* argv[])
 /*==============================
     parse_args_priority
     Parses priority arguments
-    @param The number of extra arguments
-    @param An array with the arguments
+    @param A list of arguments
 ==============================*/
 
-void parse_args_priority(int argc, char* argv[])
+void parse_args_priority(std::list<char*>* args)
 {
-    // Check if curses should be enabled
-    for (int i=1; i<argc; i++) 
+    std::list<char*>::iterator it;
+
+    // Check if curses should be disabled
+    for (it = args->begin(); it != args->end(); ++it)
     {
-        if (!strcmp(argv[i], "-b"))
+        char* command = (*it);
+        if (!strcmp(command, "-b"))
         {
             term_usecurses(false);
             break;
         }
     }
 
-    // Check if the help argument was requested
-    for (int i=1; i<argc; i++) 
+    // Check for the forced terminal size
+    if (term_isusingcurses())
     {
-        if (!strcmp(argv[i], "-help"))
+        for (it = args->begin(); it != args->end(); ++it)
+        {
+            char* command = (*it);
+            if (!strcmp(command, "-w"))
+            {
+                if (nextarg_isvalid(it, args))
+                {
+                    int h = atoi((*it));
+                    if (nextarg_isvalid(it, args))
+                    {
+                        int w = atoi((*it));
+                        term_initsize(h, w);
+                        it = args->erase(it);
+                        --it;
+                        it = args->erase(it);
+                        --it;
+                        args->erase(it);
+                    }
+                    else
+                        terminate("Missing parameter(s) for command '%s'.", command);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+                break;
+            }
+        }
+}
+
+    // Check if the help argument was requested
+    for (it = args->begin(); it != args->end(); ++it)
+    {
+        char* command = (*it);
+        if (!strcmp(command, "-help"))
         {
             term_initialize();
             show_title();
@@ -135,48 +181,43 @@ void parse_args_priority(int argc, char* argv[])
     @param An array with the arguments
 ==============================*/
 
-void parse_args(int argc, char* argv[])
+void parse_args(std::list<char*>* args)
 {
-    // If no arguments were given, print the args
-    if (argc == 1) 
-    {
-        global_progstate = ShowingArgs;
+    std::list<char*>::iterator it;
+
+    // If the list is empty, nothing left to parse
+    if (args->empty())
         return;
-    }
 
     // If the first character is not a dash, assume a ROM path
-    if (argv[1][0] != '-')
+    if (args->front()[0] != '-')
     {
-        device_setrom(argv[1]);
+        device_setrom(args->front());
         return;
     }
 
     // Handle the rest of the program arguments
-    for (int i=1; i<argc; i++) 
+    for (it = args->begin(); it != args->end(); ++it)
     {
-        char* command = argv[i];
-
-        // Skip priority arguments (because we already parsed them)
-        if (!strcmp(argv[i], "-help") || !strcmp(argv[i], "-b"))
-            continue;
+        char* command = (*it);
 
         // Only allow valid command formats
-        if (argv[i][0] != '-' || argv[i][2] != '\0')
+        if (command[0] != '-' || command[1] == '\0')
             terminate("Unknown command '%s'", command);
 
         // Handle the rest of the commands
-        switch(argv[i][1])
+        switch(command[1])
         {
             case 'r': // ROM to upload
-                if (nextarg_isvalid())
-                    device_setrom(argv[i]);
+                if (nextarg_isvalid(it, args))
+                    device_setrom(*it);
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
             case 'f': // Set flashcart
-                if (nextarg_isvalid())
+                if (nextarg_isvalid(it, args))
                 {
-                    CartType cart = cart_strtotype(argv[i]);
+                    CartType cart = cart_strtotype(*it);
                     device_setcart(cart);
                     log_simple("Flashcart forced to '%s'\n", cart_typetostr(cart));
                 }
@@ -184,9 +225,9 @@ void parse_args(int argc, char* argv[])
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
             case 'c': // Set CIC
-                if (nextarg_isvalid())
+                if (nextarg_isvalid(it, args))
                 {
-                    CICType cic = cic_strtotype(argv[i]);
+                    CICType cic = cic_strtotype(*it);
                     device_setcic(cic);
                     log_simple("CIC forced to '%s'\n", cic_typetostr(cic));
                 }
@@ -194,9 +235,9 @@ void parse_args(int argc, char* argv[])
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
             case 's': // Set save type
-                if (nextarg_isvalid())
+                if (nextarg_isvalid(it, args))
                 {
-                    SaveType save = save_strtotype(argv[i]);
+                    SaveType save = save_strtotype(*it);
                     device_setsave(save);
                     log_simple("Save type set to '%s'\n", save_typetostr(save));
                 }
@@ -205,36 +246,23 @@ void parse_args(int argc, char* argv[])
                 break;
             case 'd': // Set debug mode
                 local_debugmode = true;
-                if (nextarg_isvalid())
+                if (nextarg_isvalid(it, args))
                 {
-                    local_debugoutfilepath = argv[i];
+                    local_debugoutfilepath = *it;
                     log_simple("Debug logging to file '%s'", local_debugoutfilepath);
                 }
+                else
+                    --it;
                 break;
             case 'l': // Set listen mode
                 local_listenmode = true;
                 break;
             case 'e': // File export directory
-                local_binaryoutfolderpath = argv[i];
+                local_binaryoutfolderpath = *it;
                 log_simple("File export path set to '%s'", local_binaryoutfolderpath);
                 break;
-            case 'w': // Window size
-                if (nextarg_isvalid())
-                {
-                    int h = atoi(argv[i]);
-                    if (nextarg_isvalid())
-                    {
-                        int w = atoi(argv[i]);
-                        term_setsize(h, w);
-                    }
-                    else
-                        terminate("Missing parameter(s) for command '%s'.", command);
-                }
-                else
-                    terminate("Missing parameter(s) for command '%s'.", command);
-                break;
             case 'h': // Set history size
-                if (nextarg_isvalid())
+                if (nextarg_isvalid(it, args))
                     term_sethistorysize(atoi(command));
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);

@@ -66,3 +66,14 @@ void device_setsave(SaveType save)
 {
     local_savetype = save;
 }
+
+
+/*==============================
+    device_getrom
+    TODO
+==============================*/
+
+char* device_getrom()
+{
+    return local_rompath;
+}

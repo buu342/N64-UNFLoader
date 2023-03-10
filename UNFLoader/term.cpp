@@ -73,6 +73,8 @@ WINDOW* local_terminal      = NULL;
 WINDOW* local_inputwin      = NULL;
 WINDOW* local_outputwin     = NULL;
 WINDOW* local_scrolltextwin = NULL;
+int     local_termwforced   = -1;
+int     local_termhforced   = -1;
 static std::atomic<bool> local_resizesignal (false);
 
 // Output window globals
@@ -114,7 +116,14 @@ void term_initialize()
         use_default_colors();
         noecho();
         keypad(stdscr, TRUE);
-        getmaxyx(local_terminal, h, w);
+        if (local_termwforced > 0 || local_termwforced > -1)
+        {
+            w = local_termwforced;
+            h = local_termhforced;
+        }
+        else
+           getmaxyx(local_terminal, h, w);
+
         curs_set(FALSE);
 
         // Initialize signal if using Linux
@@ -525,6 +534,20 @@ void term_hideinput(bool val)
 
 
 /*==============================
+    term_initsize
+    TODO
+==============================*/
+
+void term_initsize(int h, int w)
+{
+    if (!local_usecurses)
+        return;
+    local_termwforced = w;
+    local_termhforced = h;
+}
+
+
+/*==============================
     term_setsize
     Forces the terminal to a specific size
     @param The number of rows
@@ -533,5 +556,38 @@ void term_hideinput(bool val)
 
 void term_setsize(int h, int w)
 {
+    if (!local_usecurses)
+        return;
     resize_term(h, w);
+    wresize(local_terminal, h, w);
+    wresize(local_outputwin, h + local_historysize, w);
+    wresize(local_inputwin, 1, w);
+    mvwin(local_inputwin, h-1, 0);
+    wrefresh(local_terminal);
+    wrefresh(local_inputwin);
+    local_padbottom = -1;
+    local_scrolly = 0;
+    local_resizesignal = true;
+}
+
+
+/*==============================
+    term_getw
+    TODO
+==============================*/
+
+int term_getw()
+{
+    return getmaxx(local_terminal);
+}
+
+
+/*==============================
+    term_geth
+    TODO
+==============================*/
+
+int term_geth()
+{
+    return getmaxy(local_terminal);
 }
