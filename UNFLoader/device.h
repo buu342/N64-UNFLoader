@@ -1,6 +1,9 @@
 #ifndef __DEVICE_HEADER
 #define __DEVICE_HEADER
 
+    #include "Include/ftd2xx.h"
+    #include <stdint.h>
+
 
     /*********************************
                Enumerations
@@ -36,10 +39,46 @@
         SAVE_FLASHRAMPKMN = 6,
     } SaveType;
 
+    typedef enum {
+        DEVICEERR_OK = 0,
+        DEVICEERR_NOTCART,
+        DEVICEERR_USBBUSY,
+        DEVICEERR_NODEVICES,
+        DEVICEERR_CARTFINDFAIL,
+        DEVICEERR_CANTOPEN,
+        DEVICEERR_RESETFAIL,
+        DEVICEERR_TIMEOUTSETFAIL,
+        DEVICEERR_PURGEFAIL,
+        DEVICEERR_READFAIL,
+        DEVICEERR_WRITEFAIL,
+        DEVICEERR_CLOSEFAIL,
+    } DeviceError;
+
+
+    /*********************************
+                 Typedefs
+    *********************************/
+
+    typedef struct {
+        CartType                  carttype;
+        CICType                   cictype;
+        CICType                   savetype;
+        uint32_t                  device_count;
+        uint32_t                  device_index;
+        FT_DEVICE_LIST_INFO_NODE* device_info;
+        FT_STATUS                 status;
+        FT_HANDLE                 handle;
+        uint32_t                  synchronous; // For 64Drive
+        uint32_t                  bytes_written;
+        uint32_t                  bytes_read;
+    } FTDIDevice;
+
 
     /*********************************
             Function Prototypes
     *********************************/
+
+    DeviceError device_find();
 
 	void device_setrom(char* path);
     void device_setcart(CartType cart);
