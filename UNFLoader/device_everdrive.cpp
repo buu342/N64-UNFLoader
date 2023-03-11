@@ -47,9 +47,9 @@ DeviceError device_test_everdrive(FTDIDevice* cart, uint32_t index)
             return DEVICEERR_PURGEFAIL;
 
         // Send the test command
-        if (FT_Write(cart->handle, send_buff, 16, &cart->bytes_written) != FT_OK)
+        if (FT_Write(cart->handle, send_buff, 16, (LPDWORD)(&cart->bytes_written)) != FT_OK)
             return DEVICEERR_WRITEFAIL;
-        if (FT_Read(cart->handle, recv_buff, 16, &cart->bytes_read) != FT_OK)
+        if (FT_Read(cart->handle, recv_buff, 16, (LPDWORD)(&cart->bytes_read)) != FT_OK)
             return DEVICEERR_READFAIL;
         if (FT_Close(cart->handle) != FT_OK)
             return DEVICEERR_CLOSEFAIL;

@@ -8,6 +8,9 @@
       <Filter>Include</Filter>
     </ClCompile>
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="device_64drive.cpp" />
+    <ClCompile Include="device_everdrive.cpp" />
+    <ClCompile Include="device_sc64.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helper.h" />
@@ -29,6 +32,9 @@
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="device.h" />
+    <ClInclude Include="device_64drive.h" />
+    <ClInclude Include="device_everdrive.h" />
+    <ClInclude Include="device_sc64.h" />
     <ClInclude Include="term_internal.h" />
   </ItemGroup>
   <ItemGroup>

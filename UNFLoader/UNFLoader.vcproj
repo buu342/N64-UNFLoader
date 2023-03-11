@@ -181,6 +181,38 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
             <File
+                RelativePath=".\device.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\device.h"
+                >
+            </File>
+            <File
+                RelativePath=".\device_64drive.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\device_64drive.h"
+                >
+            </File>
+            <File
+                RelativePath=".\device_everdrive.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\device_everdrive.h"
+                >
+            </File>
+            <File
+                RelativePath=".\device_sc64.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\device_sc64.h"
+                >
+            </File>
+            <File
                 RelativePath=".\helper.cpp"
                 >
             </File>
