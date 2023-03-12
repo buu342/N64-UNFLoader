@@ -19,7 +19,7 @@ else
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -g -std=c++11
+CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -g
 
 default: $(APP)
 

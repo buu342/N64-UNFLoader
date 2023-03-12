@@ -7,7 +7,6 @@ https://github.com/Polprzewodnikowy/SummerCollection
 
 #include "device_sc64.h"
 #include <string.h>
-#include <tuple>
 #include <thread>
 #include <chrono>
 
@@ -32,11 +31,21 @@ https://github.com/Polprzewodnikowy/SummerCollection
 
 
 /*********************************
+             Typedefs
+*********************************/
+
+typedef struct {
+    DeviceError err;
+    uint32_t    val;
+} DevTuple;
+
+
+/*********************************
         Function Prototypes
 *********************************/
 
-static DeviceError                       device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t arg1, uint32_t arg2);
-static std::tuple<DeviceError, uint32_t> device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd);
+static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t arg1, uint32_t arg2);
+static DevTuple    device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd);
 
 
 /*==============================
@@ -80,7 +89,7 @@ static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t 
              and packet data size
 ==============================*/
 
-static std::tuple<DeviceError, uint32_t> device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd)
+static DevTuple device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd)
 {
     uint8_t buff[4];
     DWORD read;
@@ -127,9 +136,8 @@ DeviceError device_open_sc64(FTDIDevice* cart)
 {
     ULONG modem_status;
     uint32_t version;
-    uint32_t packet_size;
     DeviceError err;
-    std::tuple<DeviceError, uint32_t> retval;
+    DevTuple retval;
 
     // Open the cart
     cart->status = FT_Open(cart->device_index, &cart->handle);
@@ -179,13 +187,11 @@ DeviceError device_open_sc64(FTDIDevice* cart)
     if (err != DEVICEERR_OK)
         return err;
     retval = device_check_reply_sc64(cart, CMD_VERSION_GET);
-    err = std::get<0>(retval);
-    packet_size = std::get<1>(retval);
-    if (err != DEVICEERR_OK)
-        return err;
+    if (retval.err != DEVICEERR_OK)
+        return retval.err;
     if (FT_Read(cart->handle, &version, 4, &cart->bytes_read) != FT_OK)
         return DEVICEERR_SC64_FIRMWARECHECKFAIL;
-    if (packet_size != 4 || cart->bytes_read != 4 || version != VERSION_V2)
+    if (retval.val != 4 || cart->bytes_read != 4 || version != VERSION_V2)
         return DEVICEERR_SC64_FIRMWAREUNKNOWN;
 
     // Ok
