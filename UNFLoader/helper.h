@@ -11,6 +11,7 @@
     // Useful
     void        terminate(const char* reason, ...);
     uint64_t    time_miliseconds();
+    void        handle_deviceerror(DeviceError err);
     
     // Program configuration
     CICType     cic_strtotype(const char* cicstring);

@@ -51,61 +51,61 @@ static FTDIDevice local_cart;
 
 DeviceError device_find()
 {
-    FTDIDevice *cart = &local_cart;
     memset(&local_cart, 0, sizeof(FTDIDevice));
 
     // Initialize FTD
-    if (FT_CreateDeviceInfoList((LPDWORD)(&cart->device_count)) != FT_OK)
+    if (FT_CreateDeviceInfoList(&local_cart.device_count) != FT_OK)
         return DEVICEERR_USBBUSY;
 
     // Check if the device exists
-    if (cart->device_count == 0)
+    if (local_cart.device_count == 0)
         return DEVICEERR_NODEVICES;
 
     // Allocate storage and get device info list
-    cart->device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*cart->device_count);
-    FT_GetDeviceInfoList(cart->device_info, (LPDWORD)(&cart->device_count));
+    local_cart.device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*local_cart.device_count);
+    FT_GetDeviceInfoList(local_cart.device_info, &local_cart.device_count);
 
     // Search the devices
-    for (uint32_t i=0; i<cart->device_count; i++)
+    for (uint32_t i=0; i<local_cart.device_count; i++)
     {
         // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
-        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE1) && device_test_64drive1(cart, i))
+        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE1) && device_test_64drive1(&local_cart, i))
         {
-            device_set_64drive1(cart, i);
+            device_set_64drive1(&local_cart, i);
             break;
         }
 
         // Look for 64drive HW2 (FT232H Synchronous FIFO mode)
-        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE2) && device_test_64drive2(cart, i))
+        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE2) && device_test_64drive2(&local_cart, i))
         {
-            device_set_64drive2(cart, i);
+            device_set_64drive2(&local_cart, i);
             break;
         }
 
         // Look for an EverDrive
         if ((local_carttype == CART_NONE || local_carttype == CART_EVERDRIVE))
         {
-            DeviceError deverr = device_test_everdrive(cart, i);
+            DeviceError deverr = device_test_everdrive(&local_cart, i);
             if (deverr == DEVICEERR_OK)
-                device_set_everdrive(cart, i);
+                device_set_everdrive(&local_cart, i);
             else if (deverr != DEVICEERR_NOTCART)
                 return deverr;
             break;
         }
 
         // Look for SC64
-        if ((local_carttype == CART_NONE || local_carttype == CART_SC64) && device_test_sc64(cart, i))
+        if ((local_carttype == CART_NONE || local_carttype == CART_SC64) && device_test_sc64(&local_cart, i))
         {
-            device_set_sc64(cart, i);
+            device_set_sc64(&local_cart, i);
             break;
         }
     }
 
     // Finish
-    free(cart->device_info);
-    if (cart->carttype == CART_NONE)
+    free(local_cart.device_info);
+    if (local_cart.carttype == CART_NONE)
         return DEVICEERR_CARTFINDFAIL;
+    local_carttype = local_cart.carttype;
     return DEVICEERR_OK;
 }
 
@@ -260,4 +260,16 @@ void device_setsave(SaveType save)
 char* device_getrom()
 {
     return local_rompath;
+}
+
+
+/*==============================
+    device_getcart
+    Gets the current flashcart
+    @return The connected cart type
+==============================*/
+
+CartType device_getcart()
+{
+    return local_carttype;
 }

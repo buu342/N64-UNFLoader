@@ -84,8 +84,8 @@ static std::queue<Output*> local_mesgqueue;
 static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 
 // Input window globals
-static bool     local_allowinput = true;
-static bool     local_showinput = true;
+static std::atomic<bool> local_allowinput(true);
+static std::atomic<bool> local_showinput(true);
 static char     local_input[255];
 static int      local_inputcount = 0;
 static bool     local_showcurs   = true;

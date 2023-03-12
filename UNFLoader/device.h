@@ -63,14 +63,14 @@
         CartType                  carttype;
         CICType                   cictype;
         CICType                   savetype;
-        uint32_t                  device_count;
+        DWORD                     device_count;
         uint32_t                  device_index;
         FT_DEVICE_LIST_INFO_NODE* device_info;
         FT_STATUS                 status;
         FT_HANDLE                 handle;
         uint32_t                  synchronous; // For 64Drive
-        uint32_t                  bytes_written;
-        uint32_t                  bytes_read;
+        DWORD                     bytes_written;
+        DWORD                     bytes_read;
     } FTDIDevice;
 
 
@@ -80,10 +80,11 @@
 
     DeviceError device_find();
 
-	void device_setrom(char* path);
-    void device_setcart(CartType cart);
-    void device_setcic(CICType cic);
-    void device_setsave(SaveType save);
-    char* device_getrom();
+	void     device_setrom(char* path);
+    void     device_setcart(CartType cart);
+    void     device_setcic(CICType cic);
+    void     device_setsave(SaveType save);
+    char*    device_getrom();
+    CartType device_getcart();
 
 #endif

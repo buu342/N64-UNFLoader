@@ -12,6 +12,8 @@ UNFLoader Entrypoint
 #include <string.h>
 #include <list>
 #include <iterator>
+#include <thread>
+#include <chrono>
 
 /*********************************
               Macros
@@ -28,6 +30,7 @@ UNFLoader Entrypoint
 
 void parse_args_priority(std::list<char*>* args);
 void parse_args(std::list<char*>* args);
+void program_loop();
 void show_title();
 void show_args();
 void show_help();
@@ -58,8 +61,6 @@ static std::list<char*> local_args;
     @param An array with the arguments
 ==============================*/
 
-#include <thread>
-#include <chrono>
 int main(int argc, char* argv[])
 {
     // Put the arguments in a list to make life easier
@@ -79,27 +80,12 @@ int main(int argc, char* argv[])
     // Show the program arguments if the program can't do much else
     if (!local_debugmode && !local_listenmode && device_getrom() == NULL)
     {
-        #ifndef LINUX
-            int w = term_getw() < 80 ? 80 : term_getw();
-            int h = term_geth() < 40 ? 40 : term_geth();
-            term_setsize(h, w);
-        #endif
-        term_hideinput(true);
-        term_allowinput(false);
         show_args();
         terminate(NULL);
     }
 
-    // Loop forever
-    do 
-    {
-        ///*
-        static int i = 0;   
-        log_colored("Hello %d\n", CRDEF_PRINT, i++);
-        //*/
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    while ((local_debugmode || local_listenmode) && !global_escpressed);
+    // Do the program loop
+    program_loop();
 
     // End the program
     terminate(NULL);
@@ -157,7 +143,7 @@ void parse_args_priority(std::list<char*>* args)
                 break;
             }
         }
-}
+    }
 
     // Check if the help argument was requested
     for (it = args->begin(); it != args->end(); ++it)
@@ -167,7 +153,6 @@ void parse_args_priority(std::list<char*>* args)
         {
             term_initialize();
             show_title();
-            term_hideinput(true);
             show_help();
             terminate(NULL);
         }
@@ -304,12 +289,68 @@ void show_title()
 
 
 /*==============================
+    program_loop
+    The main UNFLoader program 
+    flow
+==============================*/
+
+void program_loop()
+{
+    bool autocart = (device_getcart() == CART_NONE);
+
+    // Check if we have a flashcart
+    if (autocart)
+        log_simple("Attempting flashcart autodetection\n");
+    handle_deviceerror(device_find());
+    if (autocart)
+        log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
+
+    // Open the flashcart
+
+    // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
+    do 
+    {
+        // If we have a ROM, upload it. 
+        // Try multiple times because sometimes it might not work the first time in Listen mode
+
+        // This is also a reminder to implement file logging, ya numbskull
+
+        // Keep track of the ROM timestamp if listen mode is enabled
+
+        // Open the debug server, and enable terminal input
+
+        /*
+        static int i = 0;   
+        log_colored("Hello %d\n", CRDEF_PRINT, i++);
+        */
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    while ((local_debugmode || local_listenmode) && !global_escpressed);
+
+    // Close the flashcart
+    // IMPORTANT, DO THAT IF TERMINATION HAPPENS TOO!
+}
+
+
+/*==============================
     show_args
     Prints the arguments of the program
 ==============================*/
 
 void show_args()
 {
+    if (term_isusingcurses())
+    {
+        #ifndef LINUX
+            int w = term_getw() < 80 ? 80 : term_getw();
+            int h = term_geth() < 40 ? 40 : term_geth();
+            term_setsize(h, w);
+        #endif
+        term_hideinput(true);
+        //term_allowinput(false);
+    }
+
+    // Print the program arguments
     log_simple("Parameters: <required> [optional]\n");
     log_simple("  -help\t\t\t   Learn how to use this tool.\n");                                                                        // Done
     log_simple("  -r <file>\t\t   Upload ROM.\n");                                                                                      // Done
@@ -348,6 +389,18 @@ void show_args()
 void show_help()
 {
     int category = 0;
+
+    // Make the screen nicer
+    if (term_isusingcurses())
+    {
+        #ifndef LINUX
+            int w = term_getw() < 80 ? 80 : term_getw();
+            int h = term_geth() < 40 ? 40 : term_geth();
+            term_setsize(h, w);
+        #endif
+        term_hideinput(true);
+        //term_allowinput(false);
+    }
 
     // Print the introductory message
     log_simple("Welcome to the %s!\n", PROGRAM_NAME_LONG);

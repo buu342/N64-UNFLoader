@@ -1,6 +1,7 @@
 #include "main.h"
 #include "helper.h"
 #include "term.h"
+#include "device.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -231,4 +232,60 @@ SaveType save_strtotype(const char* savestring)
 const char* save_typetostr(SaveType saveenum)
 {
     return save_strings[(int)saveenum-1];
+}
+
+
+/*==============================
+    handle_deviceerror
+    Stops the program with a useful
+    error message if the deive encounters
+    an error
+==============================*/
+
+void handle_deviceerror(DeviceError err)
+{
+    switch(err)
+    {
+        case DEVICEERR_USBBUSY:
+            terminate("USB Device not ready.");
+            break;
+        case DEVICEERR_NODEVICES:
+            terminate("No FTDI USB devices found.");
+            break;
+        case DEVICEERR_CARTFINDFAIL:
+            if (device_getcart() == CART_NONE)
+            {
+                #ifndef LINUX
+                    terminate("No flashcart detected");
+                #else
+                    terminate("No flashcart detected. Are you running sudo?");
+                #endif
+            }
+            else
+                terminate("Requested flashcart not detected.");
+            break;
+        case DEVICEERR_CANTOPEN:
+            terminate("Could not open USB device.");
+            break;
+        case DEVICEERR_RESETFAIL:
+            terminate("Unable to reset USB device.");
+            break;
+        case DEVICEERR_TIMEOUTSETFAIL:
+            terminate("Unable to set flashcart timeouts.");
+            break;
+        case DEVICEERR_PURGEFAIL:
+            terminate("Unable to purge USB contents.");
+            break;
+        case DEVICEERR_READFAIL:
+            terminate("Unable to read from flashcart.");
+            break;
+        case DEVICEERR_WRITEFAIL:
+            terminate("Unable to write to flashcart.");
+            break;
+        case DEVICEERR_CLOSEFAIL:
+            terminate("Unable to close flashcart.");
+            break;
+        default:
+            return;
+    }
 }
