@@ -18,11 +18,11 @@ Passes flashcart communication to more specific functions
         Function Pointers
 *********************************/
 
-void (*funcPointer_open)(FTDIDevice*);
-void (*funcPointer_sendrom)(FTDIDevice*, FILE *file, uint32_t size);
-bool (*funcPointer_testdebug)(FTDIDevice*);
-void (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
-void (*funcPointer_close)(FTDIDevice*);
+DeviceError (*funcPointer_open)(FTDIDevice*);
+void        (*funcPointer_sendrom)(FTDIDevice*, FILE *file, uint32_t size);
+bool        (*funcPointer_testdebug)(FTDIDevice*);
+void        (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
+DeviceError (*funcPointer_close)(FTDIDevice*);
 
 static void device_set_64drive1(FTDIDevice* cart, uint32_t index);
 static void device_set_64drive2(FTDIDevice* cart, uint32_t index);
@@ -125,13 +125,13 @@ static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
     cart->carttype = CART_64DRIVE1;
 
     // Set function pointers
-    /*
     funcPointer_open = &device_open_64drive;
+    /*
     funcPointer_sendrom = &device_sendrom_64drive;
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
-    funcPointer_close = &device_close_64drive;
     */
+    funcPointer_close = &device_close_64drive;
 }
 
 
@@ -167,13 +167,13 @@ static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
     cart->carttype = CART_EVERDRIVE;
 
     // Set function pointers
-    /*
     funcPointer_open = &device_open_everdrive;
+    /*
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
-    funcPointer_close = &device_close_everdrive;
     */
+    funcPointer_close = &device_close_everdrive;
 }
 
 
@@ -191,15 +191,72 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index)
     cart->carttype = CART_SC64;
 
     // Set function pointers
-    /*
     funcPointer_open = &device_open_sc64;
+    /*
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
     funcPointer_senddata = &device_senddata_sc64;
-    funcPointer_close = &device_close_sc64;
     */
+    funcPointer_close = &device_close_sc64;
 }
 
+
+/*==============================
+    device_open
+    Calls the function to open the flashcart
+    @param The device error, or OK
+==============================*/
+
+DeviceError device_open()
+{
+    return funcPointer_open(&local_cart);
+}
+
+
+/*==============================
+    device_isopen
+    Checks if the device is open
+    @returns Whether the device is open
+==============================*/
+
+bool device_isopen()
+{
+    return (local_cart.handle != NULL);
+}
+
+
+/*==============================
+    device_testdebug
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns true if this cart can use debug mode, false otherwise
+==============================*/
+/*
+bool device_testdebug()
+{
+    return funcPointer_testdebug(&local_cart);
+}
+*/
+
+/*==============================
+    device_close
+    Calls the function to close the flashcart
+    @param The device error, or OK
+==============================*/
+
+DeviceError device_close()
+{
+    DeviceError err;
+
+    // Should never happen, but just in case...
+    if (local_cart.handle == NULL)
+        return DEVICEERR_OK;
+
+    // Close the device
+    err = funcPointer_close(&local_cart);
+    local_cart.handle = NULL;
+    return err;
+}
 
 
 /*==============================
@@ -272,4 +329,20 @@ char* device_getrom()
 CartType device_getcart()
 {
     return local_carttype;
+}
+
+
+/*==============================
+    swap_endian
+    Swaps the endianess of the data
+    @param  The data to swap the endianess of
+    @return The data with endianess swapped
+==============================*/
+
+uint32_t swap_endian(uint32_t val)
+{
+    return ((val << 24)) | 
+           ((val << 8) & 0x00ff0000) |
+           ((val >> 8) & 0x0000ff00) | 
+           ((val >> 24));
 }

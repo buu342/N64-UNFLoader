@@ -110,6 +110,7 @@ void parse_args_priority(std::list<char*>* args)
         if (!strcmp(command, "-b"))
         {
             term_usecurses(false);
+            args->erase(it);
             break;
         }
     }
@@ -306,6 +307,8 @@ void program_loop()
         log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
 
     // Open the flashcart
+    device_open();
+    log_simple("USB connection opened.\n");
 
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
@@ -328,7 +331,8 @@ void program_loop()
     while ((local_debugmode || local_listenmode) && !global_escpressed);
 
     // Close the flashcart
-    // IMPORTANT, DO THAT IF TERMINATION HAPPENS TOO!
+    device_close();
+    log_simple("USB connection closed.\n");
 }
 
 

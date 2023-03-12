@@ -3,6 +3,7 @@
 
     #include "Include/ftd2xx.h"
     #include <stdint.h>
+    #include <stdbool.h>
 
 
     /*********************************
@@ -52,6 +53,20 @@
         DEVICEERR_READFAIL,
         DEVICEERR_WRITEFAIL,
         DEVICEERR_CLOSEFAIL,
+        DEVICEERR_BITMODEFAIL_RESET,
+        DEVICEERR_BITMODEFAIL_SYNCFIFO,
+        DEVICEERR_SETDTRFAIL,
+        DEVICEERR_CLEARDTRFAIL,
+        DEVICEERR_GETMODEMSTATUSFAIL,
+        DEVICEERR_TXREPLYMISMATCH,
+        DEVICEERR_READCOMPSIGFAIL,
+        DEVICEERR_NOCOMPSIG,
+        DEVICEERR_READPACKSIZEFAIL,
+        DEVICEERR_BADPACKSIZE,
+        DEVICEERR_SC64_CTRLRESETFAIL,
+        DEVICEERR_SC64_CTRLRELEASEFAIL,
+        DEVICEERR_SC64_FIRMWARECHECKFAIL,
+        DEVICEERR_SC64_FIRMWAREUNKNOWN,
     } DeviceError;
 
 
@@ -79,6 +94,9 @@
     *********************************/
 
     DeviceError device_find();
+    DeviceError device_open();
+    bool        device_isopen();
+    DeviceError device_close();
 
 	void     device_setrom(char* path);
     void     device_setcart(CartType cart);
@@ -86,5 +104,7 @@
     void     device_setsave(SaveType save);
     char*    device_getrom();
     CartType device_getcart();
+    
+    uint32_t swap_endian(uint32_t val);
 
 #endif

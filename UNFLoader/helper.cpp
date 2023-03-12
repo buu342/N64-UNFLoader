@@ -58,6 +58,10 @@ void terminate(const char* reason, ...)
         global_debugoutptr = NULL;
     }
 
+    // Close the flashcart if it's open
+    if (device_isopen())
+        device_close();
+
     // Pause the program
     log_colored("Press any key to continue...\n", CRDEF_INPUT);
     if (!term_isusingcurses())
@@ -284,6 +288,45 @@ void handle_deviceerror(DeviceError err)
             break;
         case DEVICEERR_CLOSEFAIL:
             terminate("Unable to close flashcart.");
+            break;
+        case DEVICEERR_BITMODEFAIL_RESET:
+            terminate("Unable to set bitmode %d.", FT_BITMODE_RESET);
+            break;
+        case DEVICEERR_BITMODEFAIL_SYNCFIFO:
+            terminate("Unable to set bitmode %d.", FT_BITMODE_SYNC_FIFO);
+            break;
+        case DEVICEERR_SETDTRFAIL:
+            terminate("Unable to set DTR line.");
+            break;
+        case DEVICEERR_CLEARDTRFAIL:
+            terminate("Unable to clear DTR line.");
+            break;
+        case DEVICEERR_TXREPLYMISMATCH:
+            terminate("Actual bytes written amount is different than desired.");
+            break;
+        case DEVICEERR_READCOMPSIGFAIL:
+            terminate("Unable to read completion signal.");
+            break;
+        case DEVICEERR_NOCOMPSIG:
+            terminate("Did not receive completion signal.");
+            break;
+        case DEVICEERR_READPACKSIZEFAIL:
+            terminate("Unable to read packet size.");
+            break;
+        case DEVICEERR_BADPACKSIZE:
+            terminate("Wrong read packet size.");
+            break;
+        case DEVICEERR_SC64_CTRLRESETFAIL:
+            terminate("Couldn't perform SC64 controller reset.");
+            break;
+        case DEVICEERR_SC64_CTRLRELEASEFAIL:
+            terminate("Couldn't release SC64 controller reset.");
+            break;
+        case DEVICEERR_SC64_FIRMWARECHECKFAIL:
+            terminate("Couldn't get SC64 firmware version.");
+            break;
+        case DEVICEERR_SC64_FIRMWAREUNKNOWN:
+            terminate("Unknown SC64 firmware version.");
             break;
         default:
             return;

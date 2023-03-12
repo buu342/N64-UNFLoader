@@ -13,9 +13,9 @@ http://krikzz.com/pub/support/everdrive-64/x-series/dev/
 /*==============================
     device_test_everdrive
     Checks whether the device passed as an argument is EverDrive
-    @param A pointer to the cart context
-    @param The index of the cart
-    @returns The device error during the testing process
+    @param  A pointer to the cart context
+    @param  The index of the cart
+    @return The device error during the testing process
 ==============================*/
 
 DeviceError device_test_everdrive(FTDIDevice* cart, uint32_t index)
@@ -53,11 +53,53 @@ DeviceError device_test_everdrive(FTDIDevice* cart, uint32_t index)
             return DEVICEERR_READFAIL;
         if (FT_Close(cart->handle) != FT_OK)
             return DEVICEERR_CLOSEFAIL;
-        cart->handle = 0;
+        cart->handle = NULL;
 
         // Check if the EverDrive responded correctly
         if (recv_buff[3] == 'r')
             return DEVICEERR_OK;
     }
     return DEVICEERR_NOTCART;
+}
+
+
+/*==============================
+    device_open_everdrive
+    Opens the USB pipe
+    @param  A pointer to the cart context
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_open_everdrive(FTDIDevice* cart)
+{
+    // Open the cart
+    cart->status = FT_Open(cart->device_index, &cart->handle);
+    if (cart->status != FT_OK || cart->handle == NULL)
+        return DEVICEERR_CANTOPEN;
+
+    // Reset the cart
+    if (FT_ResetDevice(cart->handle) != FT_OK)
+        return DEVICEERR_RESETFAIL;
+    if (FT_SetTimeouts(cart->handle, 500, 500) != FT_OK)
+        return DEVICEERR_TIMEOUTSETFAIL;
+    if (FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+        return DEVICEERR_PURGEFAIL;
+
+    // Ok
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_close_everdrive
+    Closes the USB pipe
+    @param  A pointer to the cart context
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_close_everdrive(FTDIDevice* cart)
+{
+    if (FT_Close(cart->handle) != FT_OK)
+        return DEVICEERR_CLOSEFAIL;
+    return DEVICEERR_OK;
 }

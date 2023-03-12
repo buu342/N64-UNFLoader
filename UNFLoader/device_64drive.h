@@ -34,14 +34,14 @@
             Function Prototypes
     *********************************/
 
-    bool device_test_64drive1(FTDIDevice* cart, uint32_t index);
-    bool device_test_64drive2(FTDIDevice* cart, uint32_t index);
+    bool        device_test_64drive1(FTDIDevice* cart, uint32_t index);
+    bool        device_test_64drive2(FTDIDevice* cart, uint32_t index);
+    DeviceError device_open_64drive(FTDIDevice* cart);
     /*
-    void device_open_64drive(FTDIDevice* cart);
-    void device_sendrom_64drive(FTDIDevice* cart, FILE *file, uint32_t size);
-    bool device_testdebug_64drive(FTDIDevice* cart);
-    void device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);
-    void device_close_64drive(FTDIDevice* cart);
+    void        device_sendrom_64drive(FTDIDevice* cart, FILE *file, uint32_t size);
+    bool        device_testdebug_64drive(FTDIDevice* cart);
+    void        device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);
     */
+    DeviceError device_close_64drive(FTDIDevice* cart);
 
 #endif
