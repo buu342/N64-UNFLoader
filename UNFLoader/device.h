@@ -3,6 +3,8 @@
 
     #include "Include/ftd2xx.h"
     #include <stdint.h>
+    #include <stdlib.h>
+    #include <stdio.h>
     #include <stdbool.h>
 
 
@@ -27,7 +29,8 @@
         CIC_X103 = 4,
         CIC_X105 = 5,
         CIC_X106 = 6,
-        CIC_5101 = 7
+        CIC_5101 = 7,
+        CIC_8303 = 8
     } CICType;
 
     typedef enum {
@@ -52,6 +55,7 @@
         DEVICEERR_PURGEFAIL,
         DEVICEERR_READFAIL,
         DEVICEERR_WRITEFAIL,
+        DEVICEERR_WRITEZERO,
         DEVICEERR_CLOSEFAIL,
         DEVICEERR_BITMODEFAIL_RESET,
         DEVICEERR_BITMODEFAIL_SYNCFIFO,
@@ -63,6 +67,8 @@
         DEVICEERR_NOCOMPSIG,
         DEVICEERR_READPACKSIZEFAIL,
         DEVICEERR_BADPACKSIZE,
+        DEVICEERR_MALLOCFAIL,
+        DEVICEERR_64D_8303USB,
         DEVICEERR_SC64_CTRLRESETFAIL,
         DEVICEERR_SC64_CTRLRELEASEFAIL,
         DEVICEERR_SC64_FIRMWARECHECKFAIL,
@@ -77,13 +83,13 @@
     typedef struct {
         CartType                  carttype;
         CICType                   cictype;
-        CICType                   savetype;
+        SaveType                  savetype;
         DWORD                     device_count;
         uint32_t                  device_index;
         FT_DEVICE_LIST_INFO_NODE* device_info;
         FT_STATUS                 status;
         FT_HANDLE                 handle;
-        uint32_t                  synchronous; // For 64Drive
+        bool                      synchronous; // For 64Drive
         DWORD                     bytes_written;
         DWORD                     bytes_read;
     } FTDIDevice;
@@ -93,18 +99,27 @@
             Function Prototypes
     *********************************/
 
+    // Main device functions
     DeviceError device_find();
     DeviceError device_open();
+    uint32_t    device_getmaxromsize();
+    DeviceError device_sendrom(FILE* rom, uint32_t filesize);
     bool        device_isopen();
     DeviceError device_close();
 
-	void     device_setrom(char* path);
+    // Device configuration
+	bool     device_setrom(char* path);
     void     device_setcart(CartType cart);
     void     device_setcic(CICType cic);
     void     device_setsave(SaveType save);
     char*    device_getrom();
     CartType device_getcart();
     
+    // Helper functions
+    #define  SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
     uint32_t swap_endian(uint32_t val);
+    uint32_t calc_padsize(uint32_t size);
+    uint32_t romhash(uint8_t *buff, uint32_t len);
+    CICType  cic_from_hash(uint32_t hash);
 
 #endif

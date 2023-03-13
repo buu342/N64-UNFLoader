@@ -10,6 +10,7 @@ UNFLoader Entrypoint
 #include "device.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <list>
 #include <iterator>
 #include <thread>
@@ -179,7 +180,8 @@ void parse_args(std::list<char*>* args)
     // If the first character is not a dash, assume a ROM path
     if (args->front()[0] != '-')
     {
-        device_setrom(args->front());
+        if (!device_setrom(args->front()))
+            terminate("'%s' is not a file.");
         return;
     }
 
@@ -197,7 +199,10 @@ void parse_args(std::list<char*>* args)
         {
             case 'r': // ROM to upload
                 if (nextarg_isvalid(it, args))
-                    device_setrom(*it);
+                {
+                    if (!device_setrom(*it))
+                        terminate("'%s' is not a file.");
+                }
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
@@ -297,7 +302,9 @@ void show_title()
 
 void program_loop()
 {
+    bool firstupload = true;
     bool autocart = (device_getcart() == CART_NONE);
+    time_t lastmodtime = 0;
 
     // Check if we have a flashcart
     if (autocart)
@@ -313,20 +320,61 @@ void program_loop()
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
     {
-        // If we have a ROM, upload it. 
-        // Try multiple times because sometimes it might not work the first time in Listen mode
+        time_t newmodtime;
+        if (device_getrom() != NULL)
+            newmodtime = file_lastmodtime(device_getrom());
+
+        // If we have a ROM, upload it
+        if (device_getrom() != NULL && (firstupload || (local_listenmode && lastmodtime != newmodtime)))
+        {
+            FILE* fp;
+            uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
+            firstupload = false;
+
+            // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
+            for (int i=0; i<5; i++) 
+            {
+                fp = fopen(device_getrom(), "rb");
+                if (fp != NULL)
+                    break;
+                else
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+            if (fp == NULL)
+                terminate("Unable to open file '%s'", device_getrom());
+            
+            // Get the filesize and reset the seek position
+            // Workaround for https://stackoverflow.com/questions/32452777/visual-c-2015-express-stat-not-working-on-windows-xp
+            fseek(fp, 0, SEEK_END);
+            filesize = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+
+            // File size checks
+            if (filesize < 1*1024*1024)
+                log_simple("ROM is smaller than 1MB, it might not boot properly.\n");
+            if (filesize > device_getmaxromsize())
+                terminate("The %s only supports ROMs up to %d bytes.", cart_typetostr(device_getcart()), device_getmaxromsize());
+
+            // Handle CIC
+
+            // Upload the ROM
+            handle_deviceerror(device_sendrom(fp, filesize));
+
+            // Cleanup
+            lastmodtime = newmodtime;
+            fclose(fp);
+        }
 
         // This is also a reminder to implement file logging, ya numbskull
-
-        // Keep track of the ROM timestamp if listen mode is enabled
 
         // Open the debug server, and enable terminal input
 
         /*
-        static int i = 0;   
+        static int i = 0;
         log_colored("Hello %d\n", CRDEF_PRINT, i++);
         */
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        if (local_listenmode || local_debugmode)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     while ((local_debugmode || local_listenmode) && !global_escpressed);
 

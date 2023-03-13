@@ -11,6 +11,7 @@
     // Useful
     void     terminate(const char* reason, ...);
     uint64_t time_miliseconds();
+    time_t   file_lastmodtime(const char* path);
     void     handle_deviceerror(DeviceError err);
     
     // Program configuration

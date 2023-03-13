@@ -37,10 +37,12 @@
     bool        device_test_64drive1(FTDIDevice* cart, uint32_t index);
     bool        device_test_64drive2(FTDIDevice* cart, uint32_t index);
     DeviceError device_open_64drive(FTDIDevice* cart);
+    DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size);
+    uint32_t    device_maxromsize_64drive();
+    bool        device_shouldpadrom_64drive();
     /*
-    void        device_sendrom_64drive(FTDIDevice* cart, FILE *file, uint32_t size);
     bool        device_testdebug_64drive(FTDIDevice* cart);
-    void        device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);
+    DeviceError device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);
     */
     DeviceError device_close_64drive(FTDIDevice* cart);
 

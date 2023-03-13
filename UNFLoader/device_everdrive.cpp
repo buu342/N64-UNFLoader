@@ -64,6 +64,34 @@ DeviceError device_test_everdrive(FTDIDevice* cart, uint32_t index)
 
 
 /*==============================
+    device_maxromsize_everdrive
+    Gets the max ROM size that 
+    the EverDrive supports
+    @return The max ROM size
+==============================*/
+
+uint32_t device_maxromsize_everdrive()
+{
+    return 64*1024*1024;
+}
+
+
+/*==============================
+    device_shouldpadrom_everdrive
+    Checks if the ROM should be
+    padded before uploading on the
+    EverDrive.
+    @return Whether or not to pad
+            the ROM.
+==============================*/
+
+bool device_shouldpadrom_everdrive()
+{
+    return false;
+}
+
+
+/*==============================
     device_open_everdrive
     Opens the USB pipe
     @param  A pointer to the cart context

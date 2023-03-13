@@ -9,8 +9,8 @@ Passes flashcart communication to more specific functions
 #include "device_everdrive.h"
 #include "device_sc64.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -19,9 +19,11 @@ Passes flashcart communication to more specific functions
 *********************************/
 
 DeviceError (*funcPointer_open)(FTDIDevice*);
-void        (*funcPointer_sendrom)(FTDIDevice*, FILE *file, uint32_t size);
+DeviceError (*funcPointer_sendrom)(FTDIDevice*, uint8_t* rom, uint32_t size);
 bool        (*funcPointer_testdebug)(FTDIDevice*);
-void        (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
+bool        (*funcPointer_shouldpadrom)();
+uint32_t    (*funcPointer_maxromsize)();
+DeviceError (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
 DeviceError (*funcPointer_close)(FTDIDevice*);
 
 static void device_set_64drive1(FTDIDevice* cart, uint32_t index);
@@ -34,12 +36,11 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index);
              Globals
 *********************************/
 
+// File
 static char*    local_rompath  = NULL;
-static bool     local_isz64    = false;
-static CartType local_carttype = CART_NONE;
-static CICType  local_cictype  = CIC_NONE;
-static SaveType local_savetype = SAVE_NONE;
 
+// Cart
+static CartType local_carttype = CART_NONE;
 static FTDIDevice local_cart;
 
 
@@ -121,13 +122,15 @@ static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
 {
     // Set cart settings
     cart->device_index = index;
-    cart->synchronous = 0;
+    cart->synchronous = false;
     cart->carttype = CART_64DRIVE1;
 
     // Set function pointers
     funcPointer_open = &device_open_64drive;
-    /*
+    funcPointer_maxromsize = &device_maxromsize_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
+    funcPointer_shouldpadrom = &device_shouldpadrom_64drive;
+    /*
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
     */
@@ -148,7 +151,7 @@ static void device_set_64drive2(FTDIDevice* cart, uint32_t index)
     device_set_64drive1(cart, index);
 
     // But modify the important cart settings
-    cart->synchronous = 1;
+    cart->synchronous = true;
     cart->carttype = CART_64DRIVE2;
 }
 
@@ -168,6 +171,8 @@ static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
 
     // Set function pointers
     funcPointer_open = &device_open_everdrive;
+    funcPointer_maxromsize = &device_maxromsize_everdrive;
+    funcPointer_shouldpadrom = &device_shouldpadrom_everdrive;
     /*
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
@@ -192,6 +197,8 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index)
 
     // Set function pointers
     funcPointer_open = &device_open_sc64;
+    funcPointer_maxromsize = &device_maxromsize_sc64;
+    funcPointer_shouldpadrom = &device_shouldpadrom_sc64;
     /*
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
@@ -222,6 +229,61 @@ DeviceError device_open()
 bool device_isopen()
 {
     return (local_cart.handle != NULL);
+}
+
+
+/*==============================
+    device_maxromsize
+    Gets the max ROM size that 
+    the flashcart supports
+    @return The max ROM size
+==============================*/
+
+uint32_t device_getmaxromsize()
+{
+    return funcPointer_maxromsize();
+}
+
+
+/*==============================
+    device_sendrom
+    Opens the ROM and calls the function to send it to the flashcart
+    @param The ROM FILE pointer
+    @param The size of the ROM in bytes
+==============================*/
+
+DeviceError device_sendrom(FILE* rom, uint32_t filesize)
+{
+    bool is_z64 = false;
+    uint8_t* rom_buffer;
+    DeviceError err;
+
+    // Pad the ROM if necessary
+    if (funcPointer_shouldpadrom())
+        filesize = calc_padsize(filesize/(1024*1024))*1024*1024;
+
+    // Check we managed to malloc
+    rom_buffer = (uint8_t*) malloc(sizeof(uint8_t)*filesize);
+    if (rom_buffer == NULL)
+        return DEVICEERR_MALLOCFAIL;
+
+    // Read the ROM into a buffer
+    fread(rom_buffer, 1, filesize, rom);
+
+    // Check if we have a Z64 ROM
+    if (!(rom_buffer[0] == 0x80 && rom_buffer[1] == 0x37 && rom_buffer[2] == 0x12 && rom_buffer[3] == 0x40))
+        is_z64 = true;
+    fseek(rom, 0, SEEK_SET);
+
+    // Byteswap if it's a Z64 ROM
+    if (is_z64)
+        for (uint32_t i=0; i<filesize; i+=2)
+            SWAP(rom_buffer[i], rom_buffer[i+1]);
+
+    // Upload the ROM
+    err = funcPointer_sendrom(&local_cart, rom_buffer, filesize);
+    free(rom_buffer);
+    return err;
 }
 
 
@@ -262,12 +324,18 @@ DeviceError device_close()
 /*==============================
     device_setrom
     Sets the path of the ROM to load
-    @param The path to the ROM
+    @param  The path to the ROM
+    @return True if successful, false otherwise
 ==============================*/
 
-void device_setrom(char* path)
+bool device_setrom(char* path)
 {
+    struct stat path_stat;
+    stat(path, &path_stat);
+    if (!S_ISREG(path_stat.st_mode))
+        return false;
     local_rompath = path;
+    return true;
 }
 
 
@@ -291,7 +359,7 @@ void device_setcart(CartType cart)
 
 void device_setcic(CICType cic)
 {
-    local_cictype = cic;
+    local_cart.cictype = cic;
 }
 
 
@@ -303,7 +371,7 @@ void device_setcic(CICType cic)
 
 void device_setsave(SaveType save)
 {
-    local_savetype = save;
+    local_cart.savetype = save;
 }
 
 
@@ -345,4 +413,66 @@ uint32_t swap_endian(uint32_t val)
            ((val << 8) & 0x00ff0000) |
            ((val >> 8) & 0x0000ff00) | 
            ((val >> 24));
+}
+
+
+/*==============================
+    calc_padsize
+    Returns the correct size a ROM should be. Code taken from:
+    https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+    @param  The current ROM filesize
+    @return The correct ROM filesize
+==============================*/
+
+uint32_t calc_padsize(uint32_t size)
+{
+    size--;
+    size |= size >> 1;
+    size |= size >> 2;
+    size |= size >> 4;
+    size |= size >> 8;
+    size |= size >> 16;
+    size++;
+    return size;
+}
+
+
+/*==============================
+    romhash
+    Returns an int with a simple hash of the inputted data
+    @param  The data to hash
+    @param  The size of the data
+    @return The hash number
+==============================*/
+
+uint32_t romhash(uint8_t *buff, uint32_t len) 
+{
+    uint32_t i;
+    uint32_t hash=0;
+    for (i=0; i<len; i++)
+        hash += buff[i];
+    return hash;
+}
+
+/*==============================
+    cic_from_hash
+    Returns a CIC value from the hash number
+    @param  The hash number
+    @return The global_cictype value
+==============================*/
+
+CICType cic_from_hash(uint32_t hash)
+{
+    switch (hash)
+    {
+        case 0x033A27: return CIC_6101;
+        case 0x034044: return CIC_6102;
+        case 0x03421E: return CIC_7102;
+        case 0x0357D0: return CIC_X103;
+        case 0x047A81: return CIC_X105;
+        case 0x0371CC: return CIC_X106;
+        case 0x02ABB7: return CIC_5101;
+        case 0x04F90E: return CIC_8303;
+    }
+    return CIC_NONE;
 }

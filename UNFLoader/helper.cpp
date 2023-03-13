@@ -11,6 +11,7 @@
     #include "Include/panel.h"
 #else
     #include <curses.h>
+    #include <sys/stat.h>
     #include <sys/time.h>
     #include <termios.h>
 #endif
@@ -240,6 +241,34 @@ const char* save_typetostr(SaveType saveenum)
 
 
 /*==============================
+    file_lastmodtime
+    Gets the last modification time of
+    a file. This is usually done via stat,
+    but it is broken on WinXP:
+    https://stackoverflow.com/questions/32452777/visual-c-2015-express-stat-not-working-on-windows-xp
+    @param  Path to the file to check the 
+            timestamp of
+    @return The file modification time
+==============================*/
+
+time_t file_lastmodtime(const char* path)
+{
+    struct stat finfo;
+    #ifndef LINUX
+        LARGE_INTEGER lt;
+        WIN32_FILE_ATTRIBUTE_DATA fdata;
+        GetFileAttributesExA(path, GetFileExInfoStandard, &fdata);
+        lt.LowPart = fdata.ftLastWriteTime.dwLowDateTime;
+        lt.HighPart = (long)fdata.ftLastWriteTime.dwHighDateTime;
+        finfo.st_mtime = (time_t)(lt.QuadPart*1e-7);
+    #else
+        stat(path, &finfo);
+    #endif
+    return finfo.st_mtime;
+}
+
+
+/*==============================
     handle_deviceerror
     Stops the program with a useful
     error message if the deive encounters
@@ -286,6 +315,9 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_WRITEFAIL:
             terminate("Unable to write to flashcart.");
             break;
+        case DEVICEERR_WRITEZERO:
+            terminate("Zero bytes were written to flashcart.");
+            break;
         case DEVICEERR_CLOSEFAIL:
             terminate("Unable to close flashcart.");
             break;
@@ -315,6 +347,12 @@ void handle_deviceerror(DeviceError err)
             break;
         case DEVICEERR_BADPACKSIZE:
             terminate("Wrong read packet size.");
+            break;
+        case DEVICEERR_MALLOCFAIL:
+            terminate("Malloc failure.");
+            return;
+        case DEVICEERR_64D_8303USB:
+            terminate("The 8303 CIC is not supported through USB.");
             break;
         case DEVICEERR_SC64_CTRLRESETFAIL:
             terminate("Couldn't perform SC64 controller reset.");

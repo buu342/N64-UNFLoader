@@ -2,7 +2,6 @@
 #define __DEVICE_SC64_HEADER
 
     #include "device.h"
-    #include <stdbool.h>
 
 
     /*********************************
@@ -11,8 +10,10 @@
 
     bool device_test_sc64(FTDIDevice* cart, uint32_t index);
     DeviceError device_open_sc64(FTDIDevice* cart);
+    uint32_t    device_maxromsize_sc64();
+    bool        device_shouldpadrom_sc64();
     /*
-    void        device_sendrom_sc64(FTDIDevice* cart, FILE *file, uint32_t size);
+    void        device_sendrom_sc64(FTDIDevice* cart, uint8_t* rom, uint32_t size);
     bool        device_testdebug_sc64(FTDIDevice* cart);
     void        device_senddata_sc64(FTDIDevice* cart, int datatype, char* data, uint32_t size);
     */
