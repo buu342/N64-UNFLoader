@@ -32,6 +32,7 @@ UNFLoader Entrypoint
 void parse_args_priority(std::list<char*>* args);
 void parse_args(std::list<char*>* args);
 void program_loop();
+void progressthread();
 void show_title();
 void show_args();
 void show_help();
@@ -363,15 +364,14 @@ void program_loop()
             if (device_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
                 log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
 
-            // Upload the ROM in a separate thread
-            log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
+            // Start the progress bar thread 
+            std::thread t(progressthread);
+
+            // Upload the ROM
             handle_deviceerror(device_sendrom(fp, filesize));
 
-            // Wait for the upload to finish
-            while(device_getuploadprogress() < 100 && !device_uploadcancelled())
-                ;
-
             // Cleanup
+            t.join();
             log_simple("ROM successfully uploaded in %.02lf seconds!\n", ((double)(time_miliseconds()-uploadtime))/1000.0f);
             if (cic != device_getcic())
                 log_simple("Note: CIC was auto detected to be '%s'\n", cic_typetostr(device_getcic()));
@@ -394,6 +394,22 @@ void program_loop()
     // Close the flashcart
     device_close();
     log_simple("USB connection closed.\n");
+}
+
+
+/*==============================
+    progressthread
+    Draws the upload progress bar
+    in a separate thread
+==============================*/
+
+void progressthread()
+{
+    log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
+
+    // Wait for the upload to finish
+    while(device_getuploadprogress() < 100 && !device_uploadcancelled())
+        ;
 }
 
 

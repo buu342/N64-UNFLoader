@@ -267,7 +267,10 @@ uint32_t device_getmaxromsize()
 
 /*==============================
     device_shouldpadrom
-    TODO
+    Checks whether the flashcart requires
+    that the ROM be padded to the nearest
+    power of two.
+    @param Whether to pad the ROM or not.
 ==============================*/
 
 bool device_shouldpadrom()
@@ -454,7 +457,7 @@ CICType device_getcic()
 
 /*==============================
     device_cancelupload
-    TODO
+    Enables the cancel upload flag
 ==============================*/
 
 void device_cancelupload()
@@ -465,7 +468,9 @@ void device_cancelupload()
 
 /*==============================
     device_uploadcancelled
-    TODO
+    Checks whether the cancel upload flag
+    has been set
+    @return Whether the upload was cancelled
 ==============================*/
 
 bool device_uploadcancelled()
@@ -476,7 +481,9 @@ bool device_uploadcancelled()
 
 /*==============================
     device_setuploadprogress
-    TODO
+    Sets the upload progress
+    @param The upload progress: a value
+           from 0 to 100.
 ==============================*/
 
 void device_setuploadprogress(float progress)
@@ -487,7 +494,9 @@ void device_setuploadprogress(float progress)
 
 /*==============================
     device_getuploadprogress
-    TODO
+    Returns the current upload progress
+    @return The upload progress from 0
+            to 100.
 ==============================*/
 
 float device_getuploadprogress()

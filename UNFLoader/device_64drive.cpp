@@ -74,6 +74,11 @@ uint32_t device_maxromsize_64drive()
 
 bool device_shouldpadrom_64drive()
 {
+    // While the 64Drive does not need ROMs to be padded,
+    // there is a firmware bug which causes the last few
+    // bytes to get corrupted. This was not fun to debug...
+    // Since the 64Drive is super fast at uploading, it 
+    // doesn't hurt to pad the ROM.
     return true;
 }
 
@@ -236,7 +241,7 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
             if (err != DEVICEERR_OK)
                 return err;
         }
-        device_setcic(cic);
+        device_setcic(cic); // Set the CIC so the user knows it was autodetected
 
         // Free used memory
         free(bootcode);
