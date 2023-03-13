@@ -7,6 +7,7 @@ Handles terminal I/O, both with and without curses.
 #include "main.h"
 #include "helper.h"
 #include "term.h"
+#include "debug.h"
 #ifndef LINUX
     #include "Include/curses.h"
     #include "Include/curspriv.h"
@@ -266,10 +267,10 @@ void __log_output(const short color, const char* str, ...)
     va_end(args);
 
     // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
+    if (debug_getdebugout() != NULL)
     {
         va_start(args, str);
-        vfprintf(global_debugoutptr, str, args);
+        vfprintf(debug_getdebugout(), str, args);
         va_end(args);
     }
 }

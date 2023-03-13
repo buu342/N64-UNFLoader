@@ -2,6 +2,7 @@
 #include "helper.h"
 #include "term.h"
 #include "device.h"
+#include "debug.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,11 +54,8 @@ void terminate(const char* reason, ...)
     va_end(args);
 
     // Close output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        fclose(global_debugoutptr);
-        global_debugoutptr = NULL;
-    }
+    if (debug_getdebugout() != NULL)
+        debug_closedebugout();
 
     // Close the flashcart if it's open
     if (device_isopen())

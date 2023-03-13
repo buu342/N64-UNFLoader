@@ -8,6 +8,7 @@ UNFLoader Entrypoint
 #include "helper.h"
 #include "term.h"
 #include "device.h"
+#include "debug.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -51,8 +52,6 @@ std::atomic<bool> global_escpressed (false);
 // Local globals
 static bool  local_debugmode = false;
 static bool  local_listenmode = false;
-static char* local_debugoutfilepath = NULL; // MOVE THIS OVER TO debug.cpp LATER
-static char* local_binaryoutfolderpath = NULL; // MOVE THIS OVER TO debug.cpp LATER
 static std::list<char*> local_args;
 
 /*==============================
@@ -245,8 +244,8 @@ void parse_args(std::list<char*>* args)
                 local_debugmode = true;
                 if (nextarg_isvalid(it, args))
                 {
-                    local_debugoutfilepath = *it;
-                    log_simple("Debug logging to file '%s'", local_debugoutfilepath);
+                    debug_setdebugout(*it);
+                    log_simple("Debug logging to file '%s'\n", *it);
                 }
                 else
                     --it;
@@ -255,8 +254,8 @@ void parse_args(std::list<char*>* args)
                 local_listenmode = true;
                 break;
             case 'e': // File export directory
-                local_binaryoutfolderpath = *it;
-                log_simple("File export path set to '%s'", local_binaryoutfolderpath);
+                debug_setdebugout(*it);
+                log_simple("File export path set to '%s'\n", *it);
                 break;
             case 'h': // Set history size
                 if (nextarg_isvalid(it, args))

@@ -103,6 +103,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="debug.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="device_64drive.cpp" />
     <ClCompile Include="device_everdrive.cpp" />
@@ -113,6 +114,7 @@
     <ClCompile Include="term.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="debug.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="device_64drive.h" />
     <ClInclude Include="device_everdrive.h" />

@@ -1,4 +1,3 @@
-Logging to a file
 Progress bar drawing
 Canceling upload via ESC
 ED Header autodetection (and program argument to cancel)
