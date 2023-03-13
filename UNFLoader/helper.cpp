@@ -5,13 +5,13 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #ifndef LINUX
     #include "Include/curses.h"
     #include "Include/curspriv.h"
     #include "Include/panel.h"
 #else
     #include <curses.h>
-    #include <sys/stat.h>
     #include <sys/time.h>
     #include <termios.h>
 #endif

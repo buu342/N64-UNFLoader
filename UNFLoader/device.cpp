@@ -11,6 +11,9 @@ Passes flashcart communication to more specific functions
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
+#ifndef LINUX
+    #include <shlwapi.h>
+#endif
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -330,10 +333,15 @@ DeviceError device_close()
 
 bool device_setrom(char* path)
 {
-    struct stat path_stat;
-    stat(path, &path_stat);
-    if (!S_ISREG(path_stat.st_mode))
-        return false;
+    #ifndef LINUX
+        if (PathIsDirectoryA(path))
+            return false;
+    #else
+        struct stat path_stat;
+        stat(path, &path_stat);
+        if (!S_ISREG(path_stat.st_mode))
+            return false;
+    #endif
     local_rompath = path;
     return true;
 }
