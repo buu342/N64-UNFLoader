@@ -88,6 +88,45 @@ void terminate(const char* reason, ...)
     exit(-1);
 }
 
+/*==============================
+    progressbar_draw
+    Draws a fancy progress bar
+    @param The text to print before the progress bar
+    @param The color to draw the progress bar with
+    @param The percentage of completion, from 0 to 1
+==============================*/
+
+void progressbar_draw(const char* text, short color, float percent)
+{
+    int i;
+    int prog_size = 16;
+    int blocks_done = (int)(percent*prog_size);
+
+    // Print the head of the progress bar
+    log_replace("%s [", color, text);
+
+    // Draw the progress bar itself
+    for(i=0; i<blocks_done; i++) 
+    {
+        #ifndef LINUX
+            log_colored("%c", color, 219);
+        #else
+            log_colored("\xe2\x96\x88", color);
+        #endif
+    }
+    for(; i<prog_size; i++) 
+    {
+        #ifndef LINUX
+            log_colored("%c", color, 176);
+        #else
+            log_colored("\xe2\x96\x91", color);
+        #endif
+    }
+
+    // Print the butt of the progress bar
+    log_colored("] %.02f%%\n", color, percent*100.0f);
+}
+
 
 /*==============================
     time_miliseconds

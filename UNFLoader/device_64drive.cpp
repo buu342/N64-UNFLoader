@@ -316,10 +316,10 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
         cart->status = FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
 
         // Keep track of how many bytes were uploaded
-        device_setuploadprogress(((float)bytes_left)/((float)size));
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
         ram_addr += bytes_do;
+        device_setuploadprogress((((float)bytes_done)/((float)size))*100.0f);
     }
 
     // Wait for the CMP signal

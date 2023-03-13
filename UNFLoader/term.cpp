@@ -42,8 +42,9 @@ Handles terminal I/O, both with and without curses.
 *********************************/
 
 typedef struct {
-    char* str;
-    short col;
+    char*   str;
+    short   col;
+    int32_t y;
 } Output;
 
 
@@ -209,6 +210,15 @@ static void termthread()
             if (msg->col != CR_NONE)
                 wattron(local_outputwin, COLOR_PAIR(msg->col));
 
+            // If a y offset is given, then perform a replacement
+            if (msg->y != 0)
+            {
+                int y, x;
+                getyx(local_outputwin, y, x);
+                wmove(local_outputwin, y-msg->y, x);
+                refresh_output();
+            }
+
             // Print the string and its args
             wprintw(local_outputwin, "%s", msg->str);
             wroteout = true;
@@ -241,11 +251,12 @@ static void termthread()
     Fancy prints stuff to the output
     pad
     @param The color to use
+    @param The Y offset to replace
     @param The string to print
     @param Variable arguments to print
 ==============================*/
 
-void __log_output(const short color, const char* str, ...)
+void __log_output(const short color, const int32_t y, const char* str, ...)
 {
     va_list args;
     va_start(args, str);
@@ -255,6 +266,7 @@ void __log_output(const short color, const char* str, ...)
     {
         Output* mesg = (Output*)malloc(sizeof(Output));
         mesg->col = color;
+        mesg->y = y;
         mesg->str = (char*)malloc(vsnprintf(NULL, 0, str, args) + 1);
         va_end(args); 
 
@@ -443,7 +455,7 @@ static void handle_input()
                 #ifndef LINUX
                     wprintw(local_inputwin, "%c", 219);
                 #else
-                    wprintw(local_inputwin, "\xe2\x96\x88\n");
+                    wprintw(local_inputwin, "\xe2\x96\x88");
                 #endif
             }
         }

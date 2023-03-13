@@ -321,6 +321,8 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
     // Upload the ROM
     err = funcPointer_sendrom(&local_cart, rom_buffer, filesize);
     free(rom_buffer);
+    if (err != DEVICEERR_OK)
+        device_cancelupload();
     return err;
 }
 

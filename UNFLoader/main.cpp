@@ -325,8 +325,7 @@ void program_loop()
     do 
     {
         CICType cic = device_getcic();
-        time_t newmodtime;
-        uint64_t uploadtime = time_miliseconds();
+        time_t newmodtime = 0;
         if (device_getrom() != NULL)
             newmodtime = file_lastmodtime(device_getrom());
 
@@ -371,14 +370,11 @@ void program_loop()
 
             // Cleanup
             t.join();
-            log_simple("ROM successfully uploaded in %.02lf seconds!\n", ((double)(time_miliseconds()-uploadtime))/1000.0f);
             if (cic != device_getcic())
                 log_simple("Note: CIC was auto detected to be '%s'\n", cic_typetostr(device_getcic()));
             lastmodtime = newmodtime;
             fclose(fp);
         }
-
-        // This is also a reminder to implement file logging, ya numbskull
 
         // Open the debug server if it isn't already, and enable terminal input
 
@@ -404,11 +400,17 @@ void program_loop()
 
 void progressthread()
 {
+    uint64_t uploadtime = time_miliseconds();
     log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
 
     // Wait for the upload to finish
-    while(device_getuploadprogress() < 100 && !device_uploadcancelled())
-        ;
+    while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
+    {
+        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress()/100.0f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (!device_uploadcancelled())
+    log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
 }
 
 
