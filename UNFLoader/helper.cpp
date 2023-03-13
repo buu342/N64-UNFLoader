@@ -169,7 +169,9 @@ CICType cic_strtotype(const char* cicstring)
 {
     // If the CIC string is a single number, then it's pretty easy to get the CIC enum
     if (cicstring[0] >= ('0'+((int)CIC_6101)) && cicstring[0] <= ('0'+((int)CIC_5101)) && cicstring[1] == '\0')
+    {
         return (CICType)(cicstring[0]-'0');
+    }
 
     // Check if the user, for some reason, wrote the entire CIC string out
     for (int i=0; i<cic_strcount; i++)
@@ -303,6 +305,9 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_RESETFAIL:
             terminate("Unable to reset USB device.");
             break;
+        case DEVICEERR_RESETPORTFAIL:
+            terminate("Unable to reset USB port.");
+            break;
         case DEVICEERR_TIMEOUTSETFAIL:
             terminate("Unable to set flashcart timeouts.");
             break;
@@ -351,8 +356,17 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_MALLOCFAIL:
             terminate("Malloc failure.");
             return;
+        case DEVICEERR_UPLOADCANCELLED:
+            log_simple("Upload cancelled by the user.\n");
+            return;
+        case DEVICEERR_TIMEOUT:
+            terminate("Flashcart timed out.");
+            break;
         case DEVICEERR_64D_8303USB:
             terminate("The 8303 CIC is not supported through USB.");
+            break;
+        case DEVICEERR_64D_BADCMP:
+            terminate("Received bad CMP signal.");
             break;
         case DEVICEERR_SC64_CTRLRESETFAIL:
             terminate("Couldn't perform SC64 controller reset.");

@@ -54,7 +54,6 @@ static char* local_debugoutfilepath = NULL; // MOVE THIS OVER TO debug.cpp LATER
 static char* local_binaryoutfolderpath = NULL; // MOVE THIS OVER TO debug.cpp LATER
 static std::list<char*> local_args;
 
-
 /*==============================
     main
     Program entrypoint
@@ -72,6 +71,7 @@ int main(int argc, char* argv[])
     parse_args_priority(&local_args);
 
     // Initialize the program
+    device_initialize();
     term_initialize();
     show_title();
 
@@ -84,6 +84,10 @@ int main(int argc, char* argv[])
         show_args();
         terminate(NULL);
     }
+
+    // Can't use listen mode if there's no ROM to listen to
+    if (local_listenmode && device_getrom() == NULL)
+        terminate("Cannot use listen mode if no ROM is given.");
 
     // Do the program loop
     program_loop();
@@ -320,7 +324,9 @@ void program_loop()
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
     {
+        CICType cic = device_getcic();
         time_t newmodtime;
+        uint64_t uploadtime = time_miliseconds();
         if (device_getrom() != NULL)
             newmodtime = file_lastmodtime(device_getrom());
 
@@ -354,26 +360,33 @@ void program_loop()
                 log_simple("ROM is smaller than 1MB, it might not boot properly.\n");
             if (filesize > device_getmaxromsize())
                 terminate("The %s only supports ROMs up to %d bytes.", cart_typetostr(device_getcart()), device_getmaxromsize());
+            if (device_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
+                log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
 
-            // Handle CIC
-
-            // Upload the ROM
+            // Upload the ROM in a separate thread
+            log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
             handle_deviceerror(device_sendrom(fp, filesize));
 
+            // Wait for the upload to finish
+            while(device_getuploadprogress() < 100 && !device_uploadcancelled())
+                ;
+
             // Cleanup
+            log_simple("ROM successfully uploaded in %.02lf seconds!\n", ((double)(time_miliseconds()-uploadtime))/1000.0f);
+            if (cic != device_getcic())
+                log_simple("Note: CIC was auto detected to be '%s'\n", cic_typetostr(device_getcic()));
             lastmodtime = newmodtime;
             fclose(fp);
         }
 
         // This is also a reminder to implement file logging, ya numbskull
 
-        // Open the debug server, and enable terminal input
+        // Open the debug server if it isn't already, and enable terminal input
 
-        /*
-        static int i = 0;
-        log_colored("Hello %d\n", CRDEF_PRINT, i++);
-        */
-        if (local_listenmode || local_debugmode)
+        // Sleep to be kind to the CPU
+        if (local_debugmode)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        else if (local_listenmode)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     while ((local_debugmode || local_listenmode) && !global_escpressed);

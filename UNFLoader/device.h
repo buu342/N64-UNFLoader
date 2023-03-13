@@ -51,6 +51,7 @@
         DEVICEERR_CARTFINDFAIL,
         DEVICEERR_CANTOPEN,
         DEVICEERR_RESETFAIL,
+        DEVICEERR_RESETPORTFAIL,
         DEVICEERR_TIMEOUTSETFAIL,
         DEVICEERR_PURGEFAIL,
         DEVICEERR_READFAIL,
@@ -68,6 +69,9 @@
         DEVICEERR_READPACKSIZEFAIL,
         DEVICEERR_BADPACKSIZE,
         DEVICEERR_MALLOCFAIL,
+        DEVICEERR_UPLOADCANCELLED,
+        DEVICEERR_TIMEOUT,
+        DEVICEERR_64D_BADCMP,
         DEVICEERR_64D_8303USB,
         DEVICEERR_SC64_CTRLRESETFAIL,
         DEVICEERR_SC64_CTRLRELEASEFAIL,
@@ -100,11 +104,14 @@
     *********************************/
 
     // Main device functions
+    void        device_initialize();
     DeviceError device_find();
     DeviceError device_open();
     uint32_t    device_getmaxromsize();
-    DeviceError device_sendrom(FILE* rom, uint32_t filesize);
+    bool        device_shouldpadrom();
     bool        device_isopen();
+    bool        device_testdebug();
+    DeviceError device_sendrom(FILE* rom, uint32_t filesize);
     DeviceError device_close();
 
     // Device configuration
@@ -114,6 +121,13 @@
     void     device_setsave(SaveType save);
     char*    device_getrom();
     CartType device_getcart();
+    CICType  device_getcic();
+
+    // Upload related
+    void  device_cancelupload();
+    bool  device_uploadcancelled();
+    void  device_setuploadprogress(float progress);
+    float device_getuploadprogress();
     
     // Helper functions
     #define  SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR

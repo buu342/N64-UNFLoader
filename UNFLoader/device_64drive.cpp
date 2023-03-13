@@ -10,6 +10,8 @@ http://64drive.retroactive.be/support.php
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <thread>
+#include <chrono>
 
 
 /*********************************
@@ -206,15 +208,16 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
     uint32_t bytes_do;
     uint32_t chunk = 0;
     DWORD    cmps;
+    uint8_t  cmpbuff[4];
 
     // Start by setting the CIC
     if (cart->cictype != CIC_NONE)
     {
-        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cart->cictype, 0);
+        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
             return err;
     }
-    else
+    else // Autodetect CIC from the IPL hash
     {
         CICType cic;
         DeviceError err;
@@ -229,10 +232,11 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
         cic = cic_from_hash(romhash(bootcode, 4032));
         if (cic != CIC_NONE)
         {
-            err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cic, 0);
+            err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cic), 0);
             if (err != DEVICEERR_OK)
                 return err;
         }
+        device_setcic(cic);
 
         // Free used memory
         free(bootcode);
@@ -241,25 +245,23 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
     // Then, set the save type
     if (cart->savetype != SAVE_NONE)
     {
-        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, cart->savetype, 0);
+        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, (uint32_t)cart->savetype, 0);
         if (err != DEVICEERR_OK)
             return err;
     }
 
-    // Decide a better, more optimized chunk size
+    // Decide a better, more optimized chunk size for sending
     if (size > 16*1024*1024)
         chunk = 32;
-    else if ( size > 2*1024*1024)
+    else if (size > 2*1024*1024)
         chunk = 16;
     else
         chunk = 4;
     chunk *= 128*1024; // Convert to megabytes
 
-    /*
-    for ( ; ; )
+    // Upload the ROM in a loop
+    while (1)
     {
-        int i, ch;
-
         // Decide how many bytes to send
         if (bytes_left >= chunk)
             bytes_do = chunk;
@@ -274,35 +276,27 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
         if (bytes_do <= 0)
             break;
         
-        // Check if ESC was pressed
-        ch = getch();
-        if (ch == CH_ESCAPE)
-        {
-            pdprint_replace("ROM upload canceled by the user\n", CRDEF_PROGRAM);
-            free(rom_buffer);
-            return;
-        }
+        // Check if the upload was cancelled
+        if (device_uploadcancelled())
+            return DEVICEERR_UPLOADCANCELLED;
 
         // Try to send chunks
-        for (i=0; i<2; i++)
+        for (int i=0; i<2; i++)
         {
-            int j;
-
             // If we failed the first time, clear the USB and try again
             if (i == 1)
             {
-                FT_ResetPort(cart->handle);
-                FT_ResetDevice(cart->handle);
-                FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX);
+                if (FT_ResetPort(cart->handle) != FT_OK)
+                    return DEVICEERR_RESETPORTFAIL;
+                if (FT_ResetDevice(cart->handle) != FT_OK)
+                    return DEVICEERR_RESETFAIL;
+                if (FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+                    return DEVICEERR_PURGEFAIL;
             }
 
-            // Send the chunk to RAM
+            // Send the chunk to cartridge RAM
             device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-            fread(rom_buffer, bytes_do, 1, file);
-            if (global_z64)
-                for (j=0; j<bytes_do; j+=2)
-                    SWAP(rom_buffer[j], rom_buffer[j+1]);
-            FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
+            FT_Write(cart->handle, rom+bytes_done, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
             if (cart->bytes_written)
@@ -311,49 +305,37 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
 
         // Check for a timeout
         if (cart->bytes_written == 0)
-        {
-            free(rom_buffer);
-            terminate("64Drive timed out.");
-        }
+            return DEVICEERR_TIMEOUT;
 
         // Ignore the success response
-        cart->status = FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        cart->status = FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
 
         // Keep track of how many bytes were uploaded
+        device_setuploadprogress(((float)bytes_left)/((float)size));
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
         ram_addr += bytes_do;
     }
 
     // Wait for the CMP signal
-    #ifndef LINUX
-        Sleep(50);
-    #else
-        usleep(50);
-    #endif
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     // Read the incoming CMP signals to ensure everything's fine
     FT_GetQueueStatus(cart->handle, &cmps);
     while (cmps > 0)
     {
         // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
-            terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != 0x20)
+            return DEVICEERR_64D_BADCMP;
 
         // Wait a little bit before reading the next CMP signal
-        #ifndef LINUX
-            Sleep(50);
-        #else
-            usleep(50);
-        #endif
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         FT_GetQueueStatus(cart->handle, &cmps);
     }
 
-    // Print that we've finished
-    pdprint_replace("ROM successfully uploaded in %.2f seconds!\n", CRDEF_PROGRAM, ((double)(clock()-upload_time))/CLOCKS_PER_SEC);
-    */
-
+    // Success
+    device_setuploadprogress(100.0f);
     return DEVICEERR_OK;
 }
 

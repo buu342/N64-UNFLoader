@@ -14,6 +14,7 @@ Passes flashcart communication to more specific functions
 #ifndef LINUX
     #include <shlwapi.h>
 #endif
+#include <atomic>
 #pragma comment(lib, "Include/FTD2XX.lib")
 
 
@@ -40,11 +41,29 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index);
 *********************************/
 
 // File
-static char*    local_rompath  = NULL;
+static char* local_rompath  = NULL;
 
 // Cart
 static CartType local_carttype = CART_NONE;
 static FTDIDevice local_cart;
+
+// Upload
+std::atomic<bool> local_uploadcancelled (false);
+std::atomic<float> local_uploadprogress (0.0f);
+
+
+/*==============================
+    device_initialize
+    Initializes the device data structures
+==============================*/
+
+void device_initialize()
+{
+    memset(&local_cart, 0, sizeof(FTDIDevice));
+    local_cart.carttype = CART_NONE;
+    local_cart.cictype  = CIC_NONE;
+    local_cart.savetype = SAVE_NONE;
+}
 
 
 /*==============================
@@ -55,8 +74,6 @@ static FTDIDevice local_cart;
 
 DeviceError device_find()
 {
-    memset(&local_cart, 0, sizeof(FTDIDevice));
-
     // Initialize FTD
     if (FT_CreateDeviceInfoList(&local_cart.device_count) != FT_OK)
         return DEVICEERR_USBBUSY;
@@ -249,6 +266,17 @@ uint32_t device_getmaxromsize()
 
 
 /*==============================
+    device_shouldpadrom
+    TODO
+==============================*/
+
+bool device_shouldpadrom()
+{
+    return funcPointer_shouldpadrom();
+}
+
+
+/*==============================
     device_sendrom
     Opens the ROM and calls the function to send it to the flashcart
     @param The ROM FILE pointer
@@ -257,12 +285,16 @@ uint32_t device_getmaxromsize()
 
 DeviceError device_sendrom(FILE* rom, uint32_t filesize)
 {
-    bool is_z64 = false;
+    bool is_v64 = false;
     uint8_t* rom_buffer;
     DeviceError err;
 
+    // Initialize upload checker globals
+    local_uploadcancelled = false;
+    local_uploadprogress = 0.0f;
+
     // Pad the ROM if necessary
-    if (funcPointer_shouldpadrom())
+    if (funcPointer_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
         filesize = calc_padsize(filesize/(1024*1024))*1024*1024;
 
     // Check we managed to malloc
@@ -272,14 +304,14 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
 
     // Read the ROM into a buffer
     fread(rom_buffer, 1, filesize, rom);
-
-    // Check if we have a Z64 ROM
-    if (!(rom_buffer[0] == 0x80 && rom_buffer[1] == 0x37 && rom_buffer[2] == 0x12 && rom_buffer[3] == 0x40))
-        is_z64 = true;
     fseek(rom, 0, SEEK_SET);
 
-    // Byteswap if it's a Z64 ROM
-    if (is_z64)
+    // Check if we have a V64 ROM
+    if (!(rom_buffer[0] == 0x80 && rom_buffer[1] == 0x37 && rom_buffer[2] == 0x12 && rom_buffer[3] == 0x40))
+        is_v64 = true;
+
+    // Byteswap if it's a V64 ROM
+    if (is_v64)
         for (uint32_t i=0; i<filesize; i+=2)
             SWAP(rom_buffer[i], rom_buffer[i+1]);
 
@@ -296,12 +328,12 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
     @param A pointer to the cart context
     @returns true if this cart can use debug mode, false otherwise
 ==============================*/
-/*
+
 bool device_testdebug()
 {
     return funcPointer_testdebug(&local_cart);
 }
-*/
+
 
 /*==============================
     device_close
@@ -405,6 +437,62 @@ char* device_getrom()
 CartType device_getcart()
 {
     return local_carttype;
+}
+
+
+/*==============================
+    device_getcic
+    Gets the current CIC
+    @param The configured CIC
+==============================*/
+
+CICType device_getcic()
+{
+    return local_cart.cictype;
+}
+
+
+/*==============================
+    device_cancelupload
+    TODO
+==============================*/
+
+void device_cancelupload()
+{
+    local_uploadcancelled = true;
+}
+
+
+/*==============================
+    device_uploadcancelled
+    TODO
+==============================*/
+
+bool device_uploadcancelled()
+{
+    return local_uploadcancelled.load();
+}
+
+
+/*==============================
+    device_setuploadprogress
+    TODO
+==============================*/
+
+void device_setuploadprogress(float progress)
+{
+    local_uploadprogress = progress;
+}
+
+
+/*==============================
+    device_getuploadprogress
+    TODO
+==============================*/
+
+float device_getuploadprogress()
+{
+    return local_uploadprogress.load();
 }
 
 
