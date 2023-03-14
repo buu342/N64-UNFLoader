@@ -44,7 +44,10 @@
     } SaveType;
 
     typedef enum {
-        DATATYPE_TEXT = 0x01,
+        DATATYPE_TEXT       = 0x01,
+        DATATYPE_RAWBINARY  = 0x02,
+        DATATYPE_HEADER     = 0x03,
+        DATATYPE_SCREENSHOT = 0x04
     } USBDataType;
 
     typedef enum {

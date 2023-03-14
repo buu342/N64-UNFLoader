@@ -308,6 +308,45 @@ time_t file_lastmodtime(const char* path)
 
 
 /*==============================
+    gen_filename
+    Generates a unique ending for a filename
+    Remember to free the memory when finished!
+    @returns The unique string
+==============================*/
+
+#define DATESIZE 64//7*2+1
+char* gen_filename()
+{
+    static int increment = 0;
+    static int lasttime = 0;
+    char* str = (char*) malloc(DATESIZE);
+    int curtime = 0;
+    time_t t = time(NULL);
+    struct tm tm;
+    struct tm* tmp = &tm;
+
+    // Get the time
+    tm = *localtime(&t);
+    curtime = tmp->tm_hour*60*60+tmp->tm_min*60+tmp->tm_sec;
+
+    // Increment the last value if two files were created at the same second
+    if (lasttime != curtime)
+    {
+        increment = 0;
+        lasttime = curtime;
+    }
+    else
+        increment++;
+
+    // Generate the string and return it
+    sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
+                 (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
+    return str;
+}
+
+
+
+/*==============================
     handle_deviceerror
     Stops the program with a useful
     error message if the deive encounters

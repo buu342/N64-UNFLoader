@@ -10,10 +10,17 @@
 
 
 /*********************************
+              Macros
+*********************************/
+#define PATH_SIZE 512
+
+
+/*********************************
         Function Prototypes
 *********************************/
 
 void debug_handle_text(uint32_t size, byte* buffer);
+void debug_handle_rawbinary(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -50,10 +57,10 @@ void debug_main()
             switch (command)
             {
                 case DATATYPE_TEXT:       debug_handle_text(size, outbuff); break;
+                case DATATYPE_RAWBINARY:  debug_handle_rawbinary(size, outbuff); break;
                 /*
-                case DATATYPE_RAWBINARY:  debug_handle_rawbinary(cart, size, buffer, read); break;
-                case DATATYPE_HEADER:     debug_handle_header(cart, size, buffer, read); break;
-                case DATATYPE_SCREENSHOT: debug_handle_screenshot(cart, size, buffer, read); break;
+                case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
+                case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
                 */
                 default:                  terminate("Unknown data type.");
             }
@@ -71,7 +78,7 @@ void debug_main()
     debug_handle_text
     Handles DATATYPE_TEXT
     @param The size of the incoming data
-    @param The buffer to use
+    @param The buffer to read from
 ==============================*/
 
 void debug_handle_text(uint32_t size, byte* buffer)
@@ -84,6 +91,56 @@ void debug_handle_text(uint32_t size, byte* buffer)
     strncpy(text, (char*)buffer, size);
     log_colored("%s", CRDEF_PRINT, text);
     free(text);
+}
+
+
+/*==============================
+    debug_handle_rawbinary
+    Handles DATATYPE_RAWBINARY
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_rawbinary(uint32_t size, byte* buffer)
+{
+    char* filename = NULL;
+    char* extraname = gen_filename();
+    FILE* fp = NULL;
+
+    // Ensure we malloced successfully
+    if (extraname == NULL)
+        terminate("Unable to allocate memory for binary file path.");
+
+    // Create the binary file to save data to
+    if (local_binaryoutfolderpath != NULL)
+    {
+        filename = (char*)calloc(snprintf(NULL, 0, "%sbinaryout-%s.bin", local_binaryoutfolderpath, extraname) + 1, 1);
+        if (filename == NULL)
+            terminate("Unable to allocate memory for binary file path.");
+        sprintf(filename, "%sbinaryout-%s.bin", local_binaryoutfolderpath, extraname);
+    }
+    else
+    {
+        filename = (char*)calloc(snprintf(NULL, 0, "binaryout-%s.bin", extraname) + 1, 1);
+        if (filename == NULL)
+            terminate("Unable to allocate memory for binary file path.");
+        sprintf(filename, "binaryout-%s.bin", extraname);
+    }
+    fp = fopen(filename, "wb+");
+
+    // Ensure the file was created
+    if (fp == NULL)
+        terminate("Unable to create binary file.");
+
+    // Write the data to the file
+    fwrite(buffer, 1, size, fp);
+    log_colored("Wrote %d bytes to '%s'.\n", CRDEF_INFO, size, filename);
+    // TODO: Clear term console stack
+
+    // Cleanup
+    fclose(fp);
+    free(filename);
+    free(extraname);
 }
 
 
