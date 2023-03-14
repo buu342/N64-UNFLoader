@@ -417,7 +417,7 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint
     TODO
 ==============================*/
 
-DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, uint8_t* buff)
+DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, uint8_t** buff)
 {
     uint32_t size;
 
@@ -443,8 +443,8 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
 
         // Read the data into the buffer, in 512 byte chunks
         size = (*dataheader) & 0xFFFFFF;
-        buff = (uint8_t*)malloc(size);
-        if (buff == NULL)
+        (*buff) = (uint8_t*)malloc(size);
+        if ((*buff) == NULL)
             return DEVICEERR_MALLOCFAIL;
 
         // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
@@ -454,7 +454,7 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
             uint32_t readamount = size-read;
             if (readamount > 512)
                 readamount = 512;
-            if (FT_Read(cart->handle, buff+read, readamount, &cart->bytes_read) != FT_OK)
+            if (FT_Read(cart->handle, (*buff)+read, readamount, &cart->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
             read += cart->bytes_read;
             device_setuploadprogress((((float)read)/((float)size))*100.0f);
@@ -470,7 +470,7 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
     else
     {
         (*dataheader) = 0;
-        buff = NULL;
+        (*buff) = NULL;
     }
 
     // All's good

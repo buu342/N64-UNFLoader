@@ -29,7 +29,7 @@ bool        (*funcPointer_shouldpadrom)();
 bool        (*funcPointer_explicitcic)(uint8_t* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
 DeviceError (*funcPointer_senddata)(FTDIDevice*, USBDataType datatype, uint8_t* data, uint32_t size);
-DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, uint8_t* buff);
+DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, uint8_t** buff);
 DeviceError (*funcPointer_close)(FTDIDevice*);
 
 
@@ -401,7 +401,7 @@ DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size)
     @returns The device error, or OK
 ==============================*/
 
-DeviceError device_receivedata(uint32_t* dataheader, uint8_t* buff)
+DeviceError device_receivedata(uint32_t* dataheader, uint8_t** buff)
 {
     return funcPointer_receivedata(&local_cart, dataheader, buff);
 }

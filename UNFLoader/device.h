@@ -120,7 +120,7 @@
     DeviceError device_testdebug();
     DeviceError device_sendrom(FILE* rom, uint32_t filesize);
     DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size);
-    DeviceError device_receivedata(uint32_t* dataheader, uint8_t* buff);
+    DeviceError device_receivedata(uint32_t* dataheader, uint8_t** buff);
     DeviceError device_close();
 
     // Device configuration
@@ -143,7 +143,7 @@
     #define  SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
     uint32_t swap_endian(uint32_t val);
     uint32_t calc_padsize(uint32_t size);
-    uint32_t romhash(uint8_t *buff, uint32_t len);
+    uint32_t romhash(uint8_t* buff, uint32_t len);
     CICType  cic_from_hash(uint32_t hash);
 
 #endif

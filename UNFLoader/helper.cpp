@@ -424,6 +424,8 @@ void handle_deviceerror(DeviceError err)
             terminate("Unknown SC64 firmware version.");
             break;
         default:
+            if (err != DEVICEERR_OK && err != DEVICEERR_NOTCART)
+                log_colored("Unhandled device error '%d'.\n", CRDEF_ERROR, err);
             return;
     }
 }

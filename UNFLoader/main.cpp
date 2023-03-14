@@ -325,10 +325,6 @@ void program_loop()
     if (autocart)
         log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
 
-    // Check if debug mode is possible
-    if (local_debugmode)
-        handle_deviceerror(device_testdebug());
-
     // Explicit CIC checking
     if (device_getrom() != NULL && device_explicitcic())
         log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
@@ -336,6 +332,10 @@ void program_loop()
     // Open the flashcart
     device_open();
     log_simple("USB connection opened.\n");
+
+    // Check if debug mode is possible
+    if (local_debugmode)
+        handle_deviceerror(device_testdebug());
 
     // If listen or debug mode is enabled, increment escape level so that
     // The user must press esc to exit
@@ -416,7 +416,7 @@ void program_loop()
                 log_simple("\n");
                 if (local_listenmode)
                     log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
-                log_colored("Press ESC to exit.\n", CRDEF_INPUT);
+                log_colored("Press ESC to exit.\n\n", CRDEF_INPUT);
             }
             firstupload = false;
         }

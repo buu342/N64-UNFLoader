@@ -34,12 +34,13 @@ void debug_main()
 {
     uint8_t* outbuff = NULL;
     uint32_t dataheader = 0;
+
     // Send data to USB if it exists
 
     // Read from USB
     do
     {
-        handle_deviceerror(device_receivedata(&dataheader, outbuff));
+        handle_deviceerror(device_receivedata(&dataheader, &outbuff));
         if (dataheader != 0 && outbuff != NULL)
         {
             uint32_t size = dataheader & 0xFFFFFF;
