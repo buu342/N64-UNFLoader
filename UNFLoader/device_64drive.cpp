@@ -422,7 +422,7 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
     uint32_t size;
 
     // First, check if we have data to read
-    FT_GetQueueStatus(cart->handle, &size);
+    FT_GetQueueStatus(cart->handle, (DWORD*)&size);
 
     // If we do
     if (size > 0)
