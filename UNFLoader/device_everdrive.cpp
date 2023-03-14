@@ -92,6 +92,22 @@ bool device_shouldpadrom_everdrive()
 
 
 /*==============================
+    device_explicitcic_everdrive
+    Checks if the EverDrive requires
+    explicitly stating the CIC, and
+    auto sets it based on the IPL if
+    so
+    @param  The 4KB bootcode
+    @return Whether the CIC was changed
+==============================*/
+
+bool device_explicitcic_everdrive(uint8_t* bootcode)
+{
+    return false;
+}
+
+
+/*==============================
     device_open_everdrive
     Opens the USB pipe
     @param  A pointer to the cart context

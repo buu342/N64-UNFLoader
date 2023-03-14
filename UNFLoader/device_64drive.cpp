@@ -84,6 +84,23 @@ bool device_shouldpadrom_64drive()
 
 
 /*==============================
+    device_explicitcic_64drive
+    Checks if the 64Drive requires
+    explicitly stating the CIC, and
+    auto sets it based on the IPL if
+    so
+    @param  The 4KB bootcode
+    @return Whether the CIC was changed
+==============================*/
+
+bool device_explicitcic_64drive(uint8_t* bootcode)
+{
+    device_setcic(cic_from_hash(romhash(bootcode, 4032)));
+    return true;
+}
+
+
+/*==============================
     device_sendcmd_64drive
     Opens the USB pipe
     @param  A pointer to the cart context
@@ -221,30 +238,6 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
         DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
             return err;
-    }
-    else // Autodetect CIC from the IPL hash
-    {
-        CICType cic;
-        DeviceError err;
-        uint8_t* bootcode = (uint8_t*)malloc(4032);
-        if (bootcode == NULL)
-            return DEVICEERR_MALLOCFAIL;
-
-        // Read the bootcode and store it
-        memcpy(bootcode, rom+0x40, 4032);
-
-        // Pick the CIC from the bootcode
-        cic = cic_from_hash(romhash(bootcode, 4032));
-        if (cic != CIC_NONE)
-        {
-            err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cic), 0);
-            if (err != DEVICEERR_OK)
-                return err;
-        }
-        device_setcic(cic); // Set the CIC so the user knows it was autodetected
-
-        // Free used memory
-        free(bootcode);
     }
     
     // Then, set the save type

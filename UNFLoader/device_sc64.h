@@ -12,6 +12,7 @@
     DeviceError device_open_sc64(FTDIDevice* cart);
     uint32_t    device_maxromsize_sc64();
     bool        device_shouldpadrom_sc64();
+    bool        device_explicitcic_sc64(uint8_t* bootcode);
     /*
     void        device_sendrom_sc64(FTDIDevice* cart, uint8_t* rom, uint32_t size);
     bool        device_testdebug_sc64(FTDIDevice* cart);

@@ -26,6 +26,7 @@ DeviceError (*funcPointer_open)(FTDIDevice*);
 DeviceError (*funcPointer_sendrom)(FTDIDevice*, uint8_t* rom, uint32_t size);
 bool        (*funcPointer_testdebug)(FTDIDevice*);
 bool        (*funcPointer_shouldpadrom)();
+bool        (*funcPointer_explicitcic)(uint8_t* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
 DeviceError (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
 DeviceError (*funcPointer_close)(FTDIDevice*);
@@ -148,8 +149,9 @@ static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
     // Set function pointers
     funcPointer_open = &device_open_64drive;
     funcPointer_maxromsize = &device_maxromsize_64drive;
-    funcPointer_sendrom = &device_sendrom_64drive;
     funcPointer_shouldpadrom = &device_shouldpadrom_64drive;
+    funcPointer_explicitcic = &device_explicitcic_64drive;
+    funcPointer_sendrom = &device_sendrom_64drive;
     /*
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
@@ -193,6 +195,7 @@ static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
     funcPointer_open = &device_open_everdrive;
     funcPointer_maxromsize = &device_maxromsize_everdrive;
     funcPointer_shouldpadrom = &device_shouldpadrom_everdrive;
+    funcPointer_explicitcic = &device_explicitcic_everdrive;
     /*
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
@@ -219,6 +222,7 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index)
     funcPointer_open = &device_open_sc64;
     funcPointer_maxromsize = &device_maxromsize_sc64;
     funcPointer_shouldpadrom = &device_shouldpadrom_sc64;
+    funcPointer_explicitcic = &device_explicitcic_sc64;
     /*
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
@@ -278,6 +282,36 @@ bool device_shouldpadrom()
     return funcPointer_shouldpadrom();
 }
 
+
+/*==============================
+    device_explicitcic
+    Checks whether the flashcart requires
+    that the CIC be set explicitly, and sets
+    it if so.
+    @param Whether the CIC was changed.
+==============================*/
+
+bool device_explicitcic()
+{
+    CICType oldcic = local_cart.cictype;
+    FILE* fp = fopen(local_rompath, "rb");
+    uint8_t* bootcode = (uint8_t*) malloc(4032);
+
+    // Check malloc worked
+    if (bootcode == NULL)
+        return false;
+
+    // Read the bootcode
+    fseek(fp, 0x40, SEEK_SET);
+    fread(bootcode, 1, 4032, fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // Check the CIC
+    funcPointer_explicitcic(bootcode);
+    free(bootcode);
+    fclose(fp);
+    return oldcic != local_cart.cictype;
+}
 
 /*==============================
     device_sendrom

@@ -154,6 +154,22 @@ bool device_shouldpadrom_sc64()
 
 
 /*==============================
+    device_explicitcic_sc64
+    Checks if the SC64 requires
+    explicitly stating the CIC, and
+    auto sets it based on the IPL if
+    so
+    @param  The 4KB bootcode
+    @return Whether the CIC was changed
+==============================*/
+
+bool device_explicitcic_sc64(uint8_t* bootcode)
+{
+    return false;
+}
+
+
+/*==============================
     device_open_sc64
     Opens the USB pipe
     @param  A pointer to the cart context

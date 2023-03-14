@@ -40,6 +40,7 @@
     DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size);
     uint32_t    device_maxromsize_64drive();
     bool        device_shouldpadrom_64drive();
+    bool        device_explicitcic_64drive(uint8_t* bootcode);
     /*
     bool        device_testdebug_64drive(FTDIDevice* cart);
     DeviceError device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);

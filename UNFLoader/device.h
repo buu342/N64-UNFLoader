@@ -109,6 +109,7 @@
     DeviceError device_open();
     uint32_t    device_getmaxromsize();
     bool        device_shouldpadrom();
+    bool        device_explicitcic();
     bool        device_isopen();
     bool        device_testdebug();
     DeviceError device_sendrom(FILE* rom, uint32_t filesize);

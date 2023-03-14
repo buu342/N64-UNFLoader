@@ -1,6 +1,4 @@
-Move "Note: CIC autodetected" before the upload
 ED Header autodetection (and program argument to cancel)
-Input hiding properly before debug mode starts
 Debug mode
 Duplicate message detecting (and program argument to cancel)
 Program timeout

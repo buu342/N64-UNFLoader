@@ -12,6 +12,7 @@
     DeviceError device_open_everdrive(FTDIDevice* cart);
     uint32_t    device_maxromsize_everdrive();
     bool        device_shouldpadrom_everdrive();
+    bool        device_explicitcic_everdrive(uint8_t* bootcode);
     /*
     void        device_sendrom_everdrive(FTDIDevice* cart, uint8_t* rom, uint32_t size);
     bool        device_testdebug_everdrive(FTDIDevice* cart);

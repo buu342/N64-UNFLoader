@@ -320,6 +320,13 @@ void program_loop()
     if (autocart)
         log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
 
+    // Explicit CIC checking
+    if (device_getrom() != NULL && device_explicitcic())
+    {
+        log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
+    }
+
+
     // Open the flashcart
     device_open();
     log_simple("USB connection opened.\n");
@@ -420,14 +427,15 @@ void progressthread(int esclevel)
     while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
     {
         progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress()/100.0f);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         // Handle upload cancelling
         if (local_esclevel < esclevel)
         {
             device_cancelupload();
+            log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
             break;
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     if (!device_uploadcancelled())
         log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
