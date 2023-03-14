@@ -23,13 +23,13 @@ Passes flashcart communication to more specific functions
 *********************************/
 
 DeviceError (*funcPointer_open)(FTDIDevice*);
-DeviceError (*funcPointer_sendrom)(FTDIDevice*, uint8_t* rom, uint32_t size);
+DeviceError (*funcPointer_sendrom)(FTDIDevice*, byte* rom, uint32_t size);
 DeviceError (*funcPointer_testdebug)(FTDIDevice*);
 bool        (*funcPointer_shouldpadrom)();
-bool        (*funcPointer_explicitcic)(uint8_t* bootcode);
+bool        (*funcPointer_explicitcic)(byte* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
-DeviceError (*funcPointer_senddata)(FTDIDevice*, USBDataType datatype, uint8_t* data, uint32_t size);
-DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, uint8_t** buff);
+DeviceError (*funcPointer_senddata)(FTDIDevice*, USBDataType datatype, byte* data, uint32_t size);
+DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, byte** buff);
 DeviceError (*funcPointer_close)(FTDIDevice*);
 
 
@@ -302,7 +302,7 @@ bool device_explicitcic()
 {
     CICType oldcic = local_cart.cictype;
     FILE* fp = fopen(local_rompath, "rb");
-    uint8_t* bootcode = (uint8_t*) malloc(4032);
+    byte* bootcode = (byte*) malloc(4032);
 
     // Check fopen/malloc worked
     if (fp == NULL || bootcode == NULL)
@@ -331,7 +331,7 @@ bool device_explicitcic()
 DeviceError device_sendrom(FILE* rom, uint32_t filesize)
 {
     bool is_v64 = false;
-    uint8_t* rom_buffer;
+    byte* rom_buffer;
     DeviceError err;
 
     // Initialize upload checker globals
@@ -343,7 +343,7 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
         filesize = calc_padsize(filesize/(1024*1024))*1024*1024;
 
     // Check we managed to malloc
-    rom_buffer = (uint8_t*) malloc(sizeof(uint8_t)*filesize);
+    rom_buffer = (byte*) malloc(sizeof(byte)*filesize);
     if (rom_buffer == NULL)
         return DEVICEERR_MALLOCFAIL;
 
@@ -373,8 +373,7 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
 /*==============================
     device_testdebug
     Checks whether this cart can use debug mode
-    @param A pointer to the cart context
-    @returns The device error, or OK
+    @return The device error, or OK
 ==============================*/
 
 DeviceError device_testdebug()
@@ -385,11 +384,14 @@ DeviceError device_testdebug()
 
 /*==============================
     device_senddata
-    TODO
-    @returns The device error, or OK
+    Sends data to the connected flashcart
+    @param  The datatype that is being sent
+    @param  A buffer containing said data
+    @param  The size of the data
+    @return The device error, or OK
 ==============================*/
 
-DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size)
+DeviceError device_senddata(USBDataType datatype, byte* data, uint32_t size)
 {
     return funcPointer_senddata(&local_cart, datatype, data, size);
 }
@@ -397,11 +399,16 @@ DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size)
 
 /*==============================
     device_receivedata
-    TODO
-    @returns The device error, or OK
+    Receives data from the connected flashcart
+    @param  A pointer to an 32-bit value where
+            the received data header will be
+            stored.
+    @param  A pointer to a byte buffer pointer
+            where the data will be malloc'ed into.
+    @return The device error, or OK
 ==============================*/
 
-DeviceError device_receivedata(uint32_t* dataheader, uint8_t** buff)
+DeviceError device_receivedata(uint32_t* dataheader, byte** buff)
 {
     return funcPointer_receivedata(&local_cart, dataheader, buff);
 }
@@ -631,7 +638,7 @@ uint32_t calc_padsize(uint32_t size)
     @return The hash number
 ==============================*/
 
-uint32_t romhash(uint8_t *buff, uint32_t len) 
+uint32_t romhash(byte *buff, uint32_t len) 
 {
     uint32_t i;
     uint32_t hash=0;

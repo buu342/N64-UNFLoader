@@ -15,9 +15,10 @@
 
 
     /*********************************
-                  Macros
+           Macros and Typedefs
     *********************************/
 
+    typedef uint8_t byte;
     #ifndef false
         #define false 0
     #endif

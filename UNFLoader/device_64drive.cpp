@@ -93,7 +93,7 @@ bool device_shouldpadrom_64drive()
     @return Whether the CIC was changed
 ==============================*/
 
-bool device_explicitcic_64drive(uint8_t* bootcode)
+bool device_explicitcic_64drive(byte* bootcode)
 {
     device_setcic(cic_from_hash(romhash(bootcode, 4032)));
     return true;
@@ -137,12 +137,12 @@ DeviceError device_testdebug_64drive(FTDIDevice* cart)
 
 DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
 {
-    uint8_t  send_buff[32];
+    byte     send_buff[32];
     uint32_t recv_buff[32];
     va_list  params;
 
     // Clear the buffers
-    memset(send_buff, 0, 32*sizeof(uint8_t));
+    memset(send_buff, 0, 32*sizeof(byte));
     memset(recv_buff, 0, 32*sizeof(uint32_t));
 
     // Setup the command to send
@@ -247,7 +247,7 @@ DeviceError device_open_64drive(FTDIDevice* cart)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size)
+DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
 {
     uint32_t ram_addr = 0x0;
     uint32_t bytes_left = size;
@@ -255,7 +255,7 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
     uint32_t bytes_do;
     uint32_t chunk = 0;
     DWORD    cmps;
-    uint8_t  cmpbuff[4];
+    byte     cmpbuff[4];
 
     // Start by setting the CIC
     if (cart->cictype != CIC_NONE)
@@ -365,15 +365,20 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
 
 /*==============================
     device_senddata_64drive
-    TODO
+    Sends data to the 64Drive
+    @param  A pointer to the cart context
+    @param  The datatype that is being sent
+    @param  A buffer containing said data
+    @param  The size of the data
+    @return The device error, or OK
 ==============================*/
 
-DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint8_t* data, uint32_t size)
+DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte* data, uint32_t size)
 {
-    uint8_t buf[4];
+    byte     buf[4];
     uint32_t cmp_magic;
     uint32_t newsize = 0;
-    uint8_t* datacopy = NULL;
+    byte*    datacopy = NULL;
     DeviceError err;
 
     // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
@@ -385,7 +390,7 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint
         newsize = size;
 
     // Copy the data onto a temp variable
-    datacopy = (uint8_t*) calloc(newsize, 1);
+    datacopy = (byte*) calloc(newsize, 1);
     if (datacopy == NULL)
         return DEVICEERR_MALLOCFAIL;
     memcpy(datacopy, data, size);
@@ -414,10 +419,17 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint
 
 /*==============================
     device_receivedata_64drive
-    TODO
+    Receives data from the 64Drive
+    @param  A pointer to the cart context
+    @param  A pointer to an 32-bit value where
+            the received data header will be
+            stored.
+    @param  A pointer to a byte buffer pointer
+            where the data will be malloc'ed into.
+    @return The device error, or OK
 ==============================*/
 
-DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, uint8_t** buff)
+DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, byte** buff)
 {
     uint32_t size;
 
@@ -428,7 +440,7 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
     if (size > 0)
     {
         uint32_t read = 0;
-        uint8_t temp[4];
+        byte     temp[4];
 
         // Ensure we have valid data by reading the header
         if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
@@ -443,7 +455,7 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, u
 
         // Read the data into the buffer, in 512 byte chunks
         size = (*dataheader) & 0xFFFFFF;
-        (*buff) = (uint8_t*)malloc(size);
+        (*buff) = (byte*)malloc(size);
         if ((*buff) == NULL)
             return DEVICEERR_MALLOCFAIL;
 

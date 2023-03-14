@@ -60,13 +60,13 @@ static DevTuple    device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd);
 
 static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t arg1, uint32_t arg2)
 {
-    uint8_t buff[12];
+    byte buff[12];
     DWORD bytes_processed;
 
     // Prepare command
-    buff[0] = (uint8_t)'C';
-    buff[1] = (uint8_t)'M';
-    buff[2] = (uint8_t)'D';
+    buff[0] = (byte)'C';
+    buff[1] = (byte)'M';
+    buff[2] = (byte)'D';
     buff[3] = cmd;
     *(uint32_t *)(&buff[4]) = swap_endian(arg1);
     *(uint32_t *)(&buff[8]) = swap_endian(arg2);
@@ -91,7 +91,7 @@ static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t 
 
 static DevTuple device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd)
 {
-    uint8_t buff[4];
+    byte buff[4];
     DWORD read;
     uint32_t packet_size;
 
@@ -163,8 +163,9 @@ bool device_shouldpadrom_sc64()
     @return Whether the CIC was changed
 ==============================*/
 
-bool device_explicitcic_sc64(uint8_t* bootcode)
+bool device_explicitcic_sc64(byte* bootcode)
 {
+    (void)(bootcode); // Ignore unused paramater warning
     return false;
 }
 

@@ -504,12 +504,12 @@ void program_event(ProgEvent key)
 void autodetect_romheader()
 {
     FILE* fp;
-    uint8_t* buff;
+    byte* buff;
     if (!local_autodetect || device_getsave() != SAVE_NONE || device_getrom() == NULL)
         return;
 
     // Open the file
-    buff = (uint8_t*) malloc(0x40);
+    buff = (byte*) malloc(0x40);
     fp = fopen(device_getrom(), "rb");
     if (buff == NULL || fp == NULL)
         terminate("Unable to open file '%s'.\n", device_getrom());

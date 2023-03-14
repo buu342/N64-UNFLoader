@@ -101,8 +101,9 @@ bool device_shouldpadrom_everdrive()
     @return Whether the CIC was changed
 ==============================*/
 
-bool device_explicitcic_everdrive(uint8_t* bootcode)
+bool device_explicitcic_everdrive(byte* bootcode)
 {
+    (void)(bootcode); // Ignore unused paramater warning
     return false;
 }
 

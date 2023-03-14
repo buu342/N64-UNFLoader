@@ -13,7 +13,7 @@
         Function Prototypes
 *********************************/
 
-void debug_handle_text(uint32_t size, uint8_t* buffer);
+void debug_handle_text(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -27,12 +27,12 @@ static char* local_binaryoutfolderpath = NULL;
 
 /*==============================
     debug_main
-    TODO
+    Handles debug I/O
 ==============================*/
 
 void debug_main()
 {
-    uint8_t* outbuff = NULL;
+    byte*    outbuff = NULL;
     uint32_t dataheader = 0;
 
     // Send data to USB if it exists
@@ -74,7 +74,7 @@ void debug_main()
     @param The buffer to use
 ==============================*/
 
-void debug_handle_text(uint32_t size, uint8_t* buffer)
+void debug_handle_text(uint32_t size, byte* buffer)
 {
     char* text;
     text = (char*)malloc(size+1);
