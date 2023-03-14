@@ -312,15 +312,18 @@ time_t file_lastmodtime(const char* path)
     gen_filename
     Generates a unique ending for a filename
     Remember to free the memory when finished!
-    @returns The unique string
+    @param  The filename
+    @param  The file extension
+    @return The unique string
 ==============================*/
 
 #define DATESIZE 64//7*2+1
-char* gen_filename()
+char* gen_filename(const char* filename, const char* fileext)
 {
     static int increment = 0;
     static int lasttime = 0;
-    char* str = (char*) malloc(DATESIZE);
+    char* finalname = NULL;
+    char* extraname = NULL;
     int curtime = 0;
     time_t t = time(NULL);
     struct tm tm;
@@ -339,10 +342,30 @@ char* gen_filename()
     else
         increment++;
 
-    // Generate the string and return it
-    sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
+    // Generate the unique string
+    extraname = (char*)malloc(DATESIZE);
+    if (extraname == NULL)
+        return NULL;
+    sprintf(extraname, "%02d%02d%02d%02d%02d%02d%02d", 
                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
-    return str;
+
+    // Generate the final name
+    if (debug_getbinaryout() != NULL)
+    {
+        finalname = (char*)calloc(snprintf(NULL, 0, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext) + 1, 1);
+        if (finalname == NULL)
+            return NULL;
+        sprintf(finalname, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext);
+    }
+    else
+    {
+        finalname = (char*)calloc(snprintf(NULL, 0, "%s-%s.%s", filename, extraname, fileext) + 1, 1);
+        if (finalname == NULL)
+            return NULL;
+        sprintf(finalname, "%s-%s.%s", filename, extraname, fileext);
+    }
+    free(extraname);
+    return finalname;
 }
 
 

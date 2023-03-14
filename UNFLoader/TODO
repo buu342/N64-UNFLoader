@@ -1,7 +1,9 @@
-Debug mode
+Debug mode sending data
 Duplicate message detecting (and program argument to cancel)
+    TODO: Clear term console stack
 Program timeout
 Non-Curses mode proper input detection
 Listen mode reupload shortcut
 EverDrive stuff
 SC64 stuff
+Properly test debug mode stuff
