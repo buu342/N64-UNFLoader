@@ -1,6 +1,9 @@
 #include "debug.h"
 #include "term.h"
 #include "helper.h"
+#pragma warning(push, 0)
+    #include "Include/lodepng.h"
+#pragma warning(pop)
 #include <string.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -12,6 +15,8 @@
 /*********************************
               Macros
 *********************************/
+
+#define HEADER_SIZE 16
 #define PATH_SIZE 512
 
 
@@ -21,6 +26,8 @@
 
 void debug_handle_text(uint32_t size, byte* buffer);
 void debug_handle_rawbinary(uint32_t size, byte* buffer);
+void debug_handle_header(uint32_t size, byte* buffer);
+void debug_handle_screenshot(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -30,6 +37,9 @@ void debug_handle_rawbinary(uint32_t size, byte* buffer);
 // Output file paths
 static FILE* local_debugoutfile = NULL;
 static char* local_binaryoutfolderpath = NULL;
+
+// Other
+static int debug_headerdata[HEADER_SIZE];
 
 
 /*==============================
@@ -58,10 +68,8 @@ void debug_main()
             {
                 case DATATYPE_TEXT:       debug_handle_text(size, outbuff); break;
                 case DATATYPE_RAWBINARY:  debug_handle_rawbinary(size, outbuff); break;
-                /*
                 case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
                 case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
-                */
                 default:                  terminate("Unknown data type.");
             }
 
@@ -141,6 +149,127 @@ void debug_handle_rawbinary(uint32_t size, byte* buffer)
     fclose(fp);
     free(filename);
     free(extraname);
+}
+
+
+/*==============================
+    debug_handle_header
+    Handles DATATYPE_HEADER
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_header(uint32_t size, byte* buffer)
+{
+    // Ensure the data fits within our buffer
+    if (size > HEADER_SIZE)
+        size = HEADER_SIZE;
+
+    // Read bytes until we finished
+    for (uint32_t i=0; i<size; i+=4)
+        debug_headerdata[i/4] = swap_endian(buffer[i + 3] << 24 | buffer[i + 2] << 16 | buffer[i + 1] << 8 | buffer[i]);
+}
+
+
+/*==============================
+    debug_handle_screenshot
+    Handles DATATYPE_SCREENSHOT
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_screenshot(uint32_t size, byte* buffer)
+{
+    /*
+    int total = 0;
+    int left = size;
+    int j=0;
+    u8* image;
+    int w = debug_headerdata[2], h = debug_headerdata[3];
+    char* filename = (char*) malloc(PATH_SIZE);
+    char* extraname = gen_filename();
+
+    // Ensure we got a data header of type screenshot
+    if (debug_headerdata[0] != DATATYPE_SCREENSHOT)
+        terminate("Unexpected data header for screenshot.");
+
+    // Allocate space for the image
+    image = (u8*) malloc(4*w*h);
+
+    // Ensure we malloced successfully
+    if (filename == NULL || extraname == NULL || image == NULL)
+        terminate("Unable to allocate memory for binary file.");
+
+    // Create the binary file to save data to
+    memset(filename, 0, PATH_SIZE);
+    #ifndef LINUX
+        if (global_exportpath != NULL)
+            strcat_s(filename, PATH_SIZE, global_exportpath);
+        strcat_s(filename, PATH_SIZE, "screenshot-");
+        strcat_s(filename, PATH_SIZE, extraname);
+        strcat_s(filename, PATH_SIZE, ".png");
+    #else
+        if (global_exportpath != NULL)
+            strcat(filename, global_exportpath);
+        strcat(filename, "screenshot-");
+        strcat(filename, extraname);
+        strcat(filename, ".png");
+    #endif
+
+    // Ensure the data fits within our buffer
+    if (left > BUFFER_SIZE)
+        left = BUFFER_SIZE;
+
+    // Read bytes until we finished
+    while (left != 0)
+    {
+        // Read from the USB and save it to our binary file
+        FT_Read(cart->handle, buffer, left, &cart->bytes_read);
+        for (int i=0; i<(int)cart->bytes_read; i+=4)
+        {
+            int texel = swap_endian((buffer[i+3]<<24)&0xFF000000 | (buffer[i+2]<<16)&0xFF0000 | (buffer[i+1]<<8)&0xFF00 | buffer[i]&0xFF);
+            if (debug_headerdata[1] == 2) 
+            {
+                short pixel1 = (texel&0xFFFF0000)>>16;
+                short pixel2 = (texel&0x0000FFFF);
+                image[j++] = 0x08*((pixel1>>11) & 0x001F); // R1
+                image[j++] = 0x08*((pixel1>>6) & 0x001F);  // G1
+                image[j++] = 0x08*((pixel1>>1) & 0x001F);  // B1
+                image[j++] = 0xFF;
+
+                image[j++] = 0x08*((pixel2>>11) & 0x001F); // R2
+                image[j++] = 0x08*((pixel2>>6) & 0x001F);  // G2
+                image[j++] = 0x08*((pixel2>>1) & 0x001F);  // B2
+                image[j++] = 0xFF;
+            }
+            else
+            {
+                // TODO: Test this because I sure as hell didn't >:V
+                image[j++] = (texel>>24) & 0xFF; // R
+                image[j++] = (texel>>16) & 0xFF; // G
+                image[j++] = (texel>>8)  & 0xFF; // B
+                image[j++] = (texel>>0)  & 0xFF; // Alpha
+            }
+        }
+
+        // Store the amount of bytes read
+        (*read) += cart->bytes_read;
+        total += cart->bytes_read;
+
+        // Ensure the data fits within our buffer
+        left = size - total;
+        if (left > BUFFER_SIZE)
+            left = BUFFER_SIZE;
+    }
+
+    // Close the file and free the dynamic memory used
+    lodepng_encode32_file(filename, image, w, h);
+    pdprint("Wrote %dx%d pixels to %s.\n", CRDEF_INFO, w, h, filename);
+    debug_clearconsolestack();
+    free(image);
+    free(filename);
+    free(extraname);
+    */
 }
 
 
