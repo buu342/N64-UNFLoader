@@ -83,7 +83,7 @@ void terminate(const char* reason, ...)
         getch();
 
     // End
-    global_progstate = Terminating;
+    global_terminating = true;
     term_end();
     exit(-1);
 }
@@ -394,7 +394,7 @@ void handle_deviceerror(DeviceError err)
             terminate("Malloc failure.");
             return;
         case DEVICEERR_UPLOADCANCELLED:
-            log_simple("Upload cancelled by the user.\n");
+            log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
             return;
         case DEVICEERR_TIMEOUT:
             terminate("Flashcart timed out.");

@@ -193,7 +193,7 @@ void term_end()
 
 static void termthread()
 {
-    while (global_progstate != Terminating)
+    while (!global_terminating)
     {
         bool wroteout = false;
 
@@ -399,7 +399,7 @@ static void handle_input()
         case KEY_END: scroll_output(-local_padbottom); break;
         case CH_ESCAPE: 
             scroll_output(-local_padbottom); 
-            global_escpressed = true; 
+            program_event(PEV_ESCAPE);
             local_allowinput = false;
             // Intentional fallthrough
         case '\r':

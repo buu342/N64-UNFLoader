@@ -31,11 +31,9 @@
     *********************************/
     
     typedef enum {
-        Initializing, 
-        ShowingArgs, 
-        ShowingHelp, 
-        Terminating, 
-    } progState;
+        PEV_ESCAPE,
+        PEV_REUPLOAD
+    } ProgEvent;
 
 
     /*********************************
@@ -43,7 +41,13 @@
     *********************************/
 
     extern FILE*   global_debugoutptr;
-    extern std::atomic<progState> global_progstate;
-    extern std::atomic<bool> global_escpressed;
+    extern std::atomic<bool> global_terminating;
+
+
+    /*********************************
+            Function Prototypes
+    *********************************/
+
+    void program_event(ProgEvent key);
 
 #endif

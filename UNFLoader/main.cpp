@@ -33,7 +33,7 @@ UNFLoader Entrypoint
 void parse_args_priority(std::list<char*>* args);
 void parse_args(std::list<char*>* args);
 void program_loop();
-void progressthread();
+void progressthread(int esclevel);
 void show_title();
 void show_args();
 void show_help();
@@ -46,13 +46,15 @@ void show_help();
 
 // Program globals
 FILE* global_debugoutptr = NULL;
-std::atomic<progState> global_progstate (Initializing);
-std::atomic<bool> global_escpressed (false);
+std::atomic<bool> global_terminating (false);
 
 // Local globals
 static bool  local_debugmode = false;
 static bool  local_listenmode = false;
-static std::list<char*> local_args;
+static std::list<char*>  local_args;
+static std::atomic<int>  local_esclevel (0);
+static std::atomic<bool> local_reupload (false);
+
 
 /*==============================
     main
@@ -73,6 +75,7 @@ int main(int argc, char* argv[])
     // Initialize the program
     device_initialize();
     term_initialize();
+    term_hideinput(true);
     show_title();
 
     // Read program arguments
@@ -321,6 +324,11 @@ void program_loop()
     device_open();
     log_simple("USB connection opened.\n");
 
+    // If listen or debug mode is enabled, increment escape level so that
+    // The user must press esc to exit
+    if (local_listenmode || local_debugmode)
+        local_esclevel++;
+
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
     {
@@ -330,11 +338,12 @@ void program_loop()
             newmodtime = file_lastmodtime(device_getrom());
 
         // If we have a ROM, upload it
-        if (device_getrom() != NULL && (firstupload || (local_listenmode && lastmodtime != newmodtime)))
+        if (device_getrom() != NULL && (firstupload || (local_listenmode && lastmodtime != newmodtime) || local_reupload))
         {
             FILE* fp;
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
             firstupload = false;
+            local_reupload = false;
 
             // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
             for (int i=0; i<5; i++) 
@@ -362,8 +371,9 @@ void program_loop()
             if (device_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
                 log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
 
-            // Start the progress bar thread 
-            std::thread t(progressthread);
+            // Start the progress bar thread
+            local_esclevel++;
+            std::thread t(progressthread, local_esclevel.load());
 
             // Upload the ROM
             handle_deviceerror(device_sendrom(fp, filesize));
@@ -373,6 +383,7 @@ void program_loop()
             if (cic != device_getcic())
                 log_simple("Note: CIC was auto detected to be '%s'\n", cic_typetostr(device_getcic()));
             lastmodtime = newmodtime;
+            local_esclevel--;
             fclose(fp);
         }
 
@@ -384,7 +395,7 @@ void program_loop()
         else if (local_listenmode)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-    while ((local_debugmode || local_listenmode) && !global_escpressed);
+    while ((local_debugmode || local_listenmode) && local_esclevel > 0);
 
     // Close the flashcart
     device_close();
@@ -396,9 +407,11 @@ void program_loop()
     progressthread
     Draws the upload progress bar
     in a separate thread
+    @param The escape level, to check
+           when cancelling happens
 ==============================*/
 
-void progressthread()
+void progressthread(int esclevel)
 {
     uint64_t uploadtime = time_miliseconds();
     log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
@@ -408,9 +421,29 @@ void progressthread()
     {
         progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress()/100.0f);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // Handle upload cancelling
+        if (local_esclevel < esclevel)
+        {
+            device_cancelupload();
+            break;
+        }
     }
     if (!device_uploadcancelled())
-    log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
+        log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
+}
+
+void program_event(ProgEvent key)
+{
+    switch (key)
+    {
+        case PEV_ESCAPE:
+            local_esclevel--;
+            break;
+        case PEV_REUPLOAD:
+            local_reupload = true;
+            break;
+    }
 }
 
 
@@ -428,7 +461,6 @@ void show_args()
             int h = term_geth() < 40 ? 40 : term_geth();
             term_setsize(h, w);
         #endif
-        term_hideinput(true);
         //term_allowinput(false);
     }
 
@@ -480,7 +512,6 @@ void show_help()
             int h = term_geth() < 40 ? 40 : term_geth();
             term_setsize(h, w);
         #endif
-        term_hideinput(true);
         //term_allowinput(false);
     }
 
