@@ -322,9 +322,7 @@ void program_loop()
 
     // Explicit CIC checking
     if (device_getrom() != NULL && device_explicitcic())
-    {
         log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
-    }
 
 
     // Open the flashcart
@@ -435,11 +433,21 @@ void progressthread(int esclevel)
             log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
             break;
         }
+
+        // Sleep for a bit to be kind to the CPU
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+
+    // Success?
     if (!device_uploadcancelled())
         log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
 }
+
+
+/*==============================
+    program_event
+    TODO
+==============================*/
 
 void program_event(ProgEvent key)
 {

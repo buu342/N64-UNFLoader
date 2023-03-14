@@ -303,7 +303,8 @@ bool device_explicitcic()
 
     // Read the bootcode
     fseek(fp, 0x40, SEEK_SET);
-    fread(bootcode, 1, 4032, fp);
+    if (fread(bootcode, 1, 4032, fp) != 4032)
+        return false;
     fseek(fp, 0, SEEK_SET);
 
     // Check the CIC
@@ -340,7 +341,8 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
         return DEVICEERR_MALLOCFAIL;
 
     // Read the ROM into a buffer
-    fread(rom_buffer, 1, filesize, rom);
+    if (fread(rom_buffer, 1, filesize, rom) == 0)
+        return DEVICEERR_MALLOCFAIL;
     fseek(rom, 0, SEEK_SET);
 
     // Check if we have a V64 ROM
