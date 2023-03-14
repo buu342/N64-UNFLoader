@@ -101,6 +101,29 @@ bool device_explicitcic_64drive(uint8_t* bootcode)
 
 
 /*==============================
+    device_testdebug_64drive
+    Checks whether the 64Drive can use debug mode
+    @param A pointer to the cart context
+    @returns True if the firmware version is higher than 2.04
+==============================*/
+
+DeviceError device_testdebug_64drive(FTDIDevice* cart)
+{
+    uint32_t result;
+    DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_GETVER, true, &result, 0);
+    if (err != DEVICEERR_OK)
+        return err;
+
+    // Firmware must be 2.05 or higher for USB stuff
+    if ((result & 0x0000FFFF) < 205)
+        return DEVICEERR_64D_CANTDEBUG;
+
+    // Otherwise, we can use debug mode.
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
     device_sendcmd_64drive
     Opens the USB pipe
     @param  A pointer to the cart context
@@ -171,6 +194,8 @@ DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply
         if (memcmp(recv_buff, &expected, 4) != 0)
             return DEVICEERR_NOCOMPSIG;
     }
+
+    // Success
     return DEVICEERR_OK;
 }
 
@@ -334,6 +359,121 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, uint8_t* rom, uint32_t size
 
     // Success
     device_setuploadprogress(100.0f);
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_senddata_64drive
+    TODO
+==============================*/
+
+DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint8_t* data, uint32_t size)
+{
+    uint8_t buf[4];
+    uint32_t cmp_magic;
+    uint32_t newsize = 0;
+    uint8_t* datacopy = NULL;
+    DeviceError err;
+
+    // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
+    if (size > 512 && (size%512) != 0)
+        newsize = (size-(size%512))+512;
+    else if (size % 4 != 0)
+        newsize = (size & ~3) + 4;
+    else
+        newsize = size;
+
+    // Copy the data onto a temp variable
+    datacopy = (uint8_t*) calloc(newsize, 1);
+    if (datacopy == NULL)
+        return DEVICEERR_MALLOCFAIL;
+    memcpy(datacopy, data, size);
+
+    // Send this block of data
+    device_setuploadprogress(0.0f);
+    err = device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, NULL, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
+    if (err != DEVICEERR_OK)
+        return err;
+    if (FT_Write(cart->handle, datacopy, newsize, &cart->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
+
+    // Read the CMP signal
+    if (FT_Read(cart->handle, buf, 4, &cart->bytes_read) != FT_OK)
+        return DEVICEERR_READFAIL;
+    cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
+    if (cmp_magic != 0x434D5040)
+        return DEVICEERR_64D_BADCMP;
+
+    // Free used up resources
+    device_setuploadprogress(100.0f);
+    free(datacopy);
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_receivedata_64drive
+    TODO
+==============================*/
+
+DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, uint8_t* buff)
+{
+    uint32_t size;
+
+    // First, check if we have data to read
+    FT_GetQueueStatus(cart->handle, &size);
+
+    // If we do
+    if (size > 0)
+    {
+        uint32_t read = 0;
+        uint8_t temp[4];
+
+        // Ensure we have valid data by reading the header
+        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
+            return DEVICEERR_64D_BADDMA;
+
+        // Get information about the incoming data and store it in dataheader
+        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
+
+        // Read the data into the buffer, in 512 byte chunks
+        size = (*dataheader) & 0xFFFFFF;
+        buff = (uint8_t*)malloc(size);
+        if (buff == NULL)
+            return DEVICEERR_MALLOCFAIL;
+
+        // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
+        device_setuploadprogress(0.0f);
+        while (read < size)
+        {
+            uint32_t readamount = size-read;
+            if (readamount > 512)
+                readamount = 512;
+            if (FT_Read(cart->handle, buff+read, readamount, &cart->bytes_read) != FT_OK)
+                return DEVICEERR_READFAIL;
+            read += cart->bytes_read;
+            device_setuploadprogress((((float)read)/((float)size))*100.0f);
+        }
+
+        // Read the completion signal
+        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
+            return DEVICEERR_64D_BADCMP;
+        device_setuploadprogress(100.0f);
+    }
+    else
+    {
+        (*dataheader) = 0;
+        buff = NULL;
+    }
+
+    // All's good
     return DEVICEERR_OK;
 }
 

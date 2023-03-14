@@ -41,10 +41,9 @@
     uint32_t    device_maxromsize_64drive();
     bool        device_shouldpadrom_64drive();
     bool        device_explicitcic_64drive(uint8_t* bootcode);
-    /*
-    bool        device_testdebug_64drive(FTDIDevice* cart);
-    DeviceError device_senddata_64drive(FTDIDevice* cart, int datatype, char* data, uint32_t size);
-    */
+    DeviceError device_testdebug_64drive(FTDIDevice* cart);
+    DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, uint8_t* data, uint32_t size);
+    DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, uint8_t* buff);
     DeviceError device_close_64drive(FTDIDevice* cart);
 
 #endif

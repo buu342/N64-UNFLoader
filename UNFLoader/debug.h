@@ -10,7 +10,7 @@
     #define DATATYPE_HEADER     0x03
     #define DATATYPE_SCREENSHOT 0x04
 
-    void  debug_main(FTDIDevice *cart);
+    void  debug_main();
     void  debug_setdebugout(char* path);
     void  debug_setbinaryout(char* path);
     FILE* debug_getdebugout();

@@ -405,6 +405,12 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_64D_BADCMP:
             terminate("Received bad CMP signal.");
             break;
+        case DEVICEERR_64D_CANTDEBUG:
+            terminate("Please upgrade to firmware 2.05 or higher to access USB debugging.");
+            break;
+        case DEVICEERR_64D_BADDMA:
+            terminate("Unexpected DMA header.");
+            break;
         case DEVICEERR_SC64_CTRLRESETFAIL:
             terminate("Couldn't perform SC64 controller reset.");
             break;

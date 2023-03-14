@@ -24,12 +24,18 @@ Passes flashcart communication to more specific functions
 
 DeviceError (*funcPointer_open)(FTDIDevice*);
 DeviceError (*funcPointer_sendrom)(FTDIDevice*, uint8_t* rom, uint32_t size);
-bool        (*funcPointer_testdebug)(FTDIDevice*);
+DeviceError (*funcPointer_testdebug)(FTDIDevice*);
 bool        (*funcPointer_shouldpadrom)();
 bool        (*funcPointer_explicitcic)(uint8_t* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
-DeviceError (*funcPointer_senddata)(FTDIDevice*, int datatype, char *data, uint32_t size);
+DeviceError (*funcPointer_senddata)(FTDIDevice*, USBDataType datatype, uint8_t* data, uint32_t size);
+DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, uint8_t* buff);
 DeviceError (*funcPointer_close)(FTDIDevice*);
+
+
+/*********************************
+        Function Prototypes
+*********************************/
 
 static void device_set_64drive1(FTDIDevice* cart, uint32_t index);
 static void device_set_64drive2(FTDIDevice* cart, uint32_t index);
@@ -152,10 +158,9 @@ static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
     funcPointer_shouldpadrom = &device_shouldpadrom_64drive;
     funcPointer_explicitcic = &device_explicitcic_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
-    /*
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
-    */
+    funcPointer_receivedata = &device_receivedata_64drive;
     funcPointer_close = &device_close_64drive;
 }
 
@@ -200,6 +205,7 @@ static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
+    funcPointer_receivedata = &device_receivedata_everdrive;
     */
     funcPointer_close = &device_close_everdrive;
 }
@@ -227,6 +233,7 @@ static void device_set_sc64(FTDIDevice* cart, uint32_t index)
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
     funcPointer_senddata = &device_senddata_sc64;
+    funcPointer_receivedata = &device_receivedata_sc64;
     */
     funcPointer_close = &device_close_sc64;
 }
@@ -367,12 +374,36 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
     device_testdebug
     Checks whether this cart can use debug mode
     @param A pointer to the cart context
-    @returns true if this cart can use debug mode, false otherwise
+    @returns The device error, or OK
 ==============================*/
 
-bool device_testdebug()
+DeviceError device_testdebug()
 {
     return funcPointer_testdebug(&local_cart);
+}
+
+
+/*==============================
+    device_senddata
+    TODO
+    @returns The device error, or OK
+==============================*/
+
+DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size)
+{
+    return funcPointer_senddata(&local_cart, datatype, data, size);
+}
+
+
+/*==============================
+    device_receivedata
+    TODO
+    @returns The device error, or OK
+==============================*/
+
+DeviceError device_receivedata(uint32_t* dataheader, uint8_t* buff)
+{
+    return funcPointer_receivedata(&local_cart, dataheader, buff);
 }
 
 

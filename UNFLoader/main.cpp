@@ -325,10 +325,13 @@ void program_loop()
     if (autocart)
         log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
 
+    // Check if debug mode is possible
+    if (local_debugmode)
+        handle_deviceerror(device_testdebug());
+
     // Explicit CIC checking
     if (device_getrom() != NULL && device_explicitcic())
         log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
-
 
     // Open the flashcart
     device_open();
@@ -393,7 +396,7 @@ void program_loop()
             fclose(fp);
         }
 
-        // Print input commands
+        // If this was the first run through the loop, initialize some stuff
         if (firstupload == true)
         {
             bool printed = false;
@@ -401,6 +404,7 @@ void program_loop()
             {
                 log_simple("Debug mode started. ");
                 printed = true;
+                term_hideinput(false);
             }
             if (local_listenmode)
             {
@@ -417,7 +421,8 @@ void program_loop()
             firstupload = false;
         }
 
-        // Open the debug server if it isn't already, and enable terminal input
+        // Handle debug mode
+        debug_main();
 
         // Sleep to be kind to the CPU
         if (local_debugmode)

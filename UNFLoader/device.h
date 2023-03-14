@@ -44,6 +44,10 @@
     } SaveType;
 
     typedef enum {
+        DATATYPE_TEXT = 0x01,
+    } USBDataType;
+
+    typedef enum {
         DEVICEERR_OK = 0,
         DEVICEERR_NOTCART,
         DEVICEERR_USBBUSY,
@@ -73,6 +77,8 @@
         DEVICEERR_TIMEOUT,
         DEVICEERR_64D_BADCMP,
         DEVICEERR_64D_8303USB,
+        DEVICEERR_64D_CANTDEBUG,
+        DEVICEERR_64D_BADDMA,
         DEVICEERR_SC64_CTRLRESETFAIL,
         DEVICEERR_SC64_CTRLRELEASEFAIL,
         DEVICEERR_SC64_FIRMWARECHECKFAIL,
@@ -111,8 +117,10 @@
     bool        device_shouldpadrom();
     bool        device_explicitcic();
     bool        device_isopen();
-    bool        device_testdebug();
+    DeviceError device_testdebug();
     DeviceError device_sendrom(FILE* rom, uint32_t filesize);
+    DeviceError device_senddata(USBDataType datatype, uint8_t* data, uint32_t size);
+    DeviceError device_receivedata(uint32_t* dataheader, uint8_t* buff);
     DeviceError device_close();
 
     // Device configuration
