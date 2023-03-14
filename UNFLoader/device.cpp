@@ -297,8 +297,8 @@ bool device_explicitcic()
     FILE* fp = fopen(local_rompath, "rb");
     uint8_t* bootcode = (uint8_t*) malloc(4032);
 
-    // Check malloc worked
-    if (bootcode == NULL)
+    // Check fopen/malloc worked
+    if (fp == NULL || bootcode == NULL)
         return false;
 
     // Read the bootcode
@@ -490,6 +490,18 @@ CartType device_getcart()
 CICType device_getcic()
 {
     return local_cart.cictype;
+}
+
+
+/*==============================
+    device_getsave
+    Gets the current save type
+    @param The configured save type
+==============================*/
+
+SaveType device_getsave()
+{
+    return local_cart.savetype;
 }
 
 

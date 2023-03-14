@@ -26,7 +26,9 @@ void debug_main(FTDIDevice *cart)
 
 /*==============================
     debug_setdebugout
-    TODO
+    Sets the file where debug logs are
+    written to.
+    @param The path to the debug log file
 ==============================*/
 
 void debug_setdebugout(char* path)
@@ -37,7 +39,9 @@ void debug_setdebugout(char* path)
 
 /*==============================
     debug_setbinaryout
-    TODO
+    Sets the folder where debug files are
+    written to.
+    @param The path for debug files
 ==============================*/
 
 void debug_setbinaryout(char* path)
@@ -48,7 +52,9 @@ void debug_setbinaryout(char* path)
 
 /*==============================
     debug_getdebugout
-    TODO
+    Gets the file where debug logs are
+    written to.
+    @param The file pointer to the debug log file
 ==============================*/
 
 FILE* debug_getdebugout()
@@ -59,7 +65,9 @@ FILE* debug_getdebugout()
 
 /*==============================
     debug_getbinaryout
-    TODO
+    Gets the folder where debug files are
+    written to.
+    @return The path for debug files
 ==============================*/
 
 char* debug_getbinaryout()
@@ -70,7 +78,7 @@ char* debug_getbinaryout()
 
 /*==============================
     debug_closedebugout
-    TODO
+    Closes the debug log file
 ==============================*/
 
 void debug_closedebugout()

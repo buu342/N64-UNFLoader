@@ -34,6 +34,7 @@ void parse_args_priority(std::list<char*>* args);
 void parse_args(std::list<char*>* args);
 void program_loop();
 void progressthread(int esclevel);
+void autodetect_romheader();
 void show_title();
 void show_args();
 void show_help();
@@ -49,7 +50,8 @@ FILE* global_debugoutptr = NULL;
 std::atomic<bool> global_terminating (false);
 
 // Local globals
-static bool  local_debugmode = false;
+static bool  local_autodetect = true;
+static bool  local_debugmode  = false;
 static bool  local_listenmode = false;
 static std::list<char*>  local_args;
 static std::atomic<int>  local_esclevel (0);
@@ -256,6 +258,9 @@ void parse_args(std::list<char*>* args)
             case 'l': // Set listen mode
                 local_listenmode = true;
                 break;
+            case 'a': // Disable ED ROM header autodetection
+                local_autodetect = false;
+                break;
             case 'e': // File export directory
                 debug_setdebugout(*it);
                 log_simple("File export path set to '%s'\n", *it);
@@ -337,7 +342,6 @@ void program_loop()
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
     {
-        CICType cic = device_getcic();
         time_t newmodtime = 0;
         if (device_getrom() != NULL)
             newmodtime = file_lastmodtime(device_getrom());
@@ -347,7 +351,6 @@ void program_loop()
         {
             FILE* fp;
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
-            firstupload = false;
             local_reupload = false;
 
             // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
@@ -385,11 +388,33 @@ void program_loop()
 
             // Cleanup
             t.join();
-            if (cic != device_getcic())
-                log_simple("Note: CIC was auto detected to be '%s'\n", cic_typetostr(device_getcic()));
             lastmodtime = newmodtime;
             local_esclevel--;
             fclose(fp);
+        }
+
+        // Print input commands
+        if (firstupload == true)
+        {
+            bool printed = false;
+            if (local_debugmode)
+            {
+                log_simple("Debug mode started. ");
+                printed = true;
+            }
+            if (local_listenmode)
+            {
+                log_simple("Listening for file changes.");
+                printed = true;
+            }
+            if (printed)
+            {
+                log_simple("\n");
+                if (local_listenmode)
+                    log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
+                log_colored("Press ESC to exit.\n", CRDEF_INPUT);
+            }
+            firstupload = false;
         }
 
         // Open the debug server if it isn't already, and enable terminal input
@@ -446,7 +471,9 @@ void progressthread(int esclevel)
 
 /*==============================
     program_event
-    TODO
+    Sends important events to the
+    program loop
+    @param The program event
 ==============================*/
 
 void program_event(ProgEvent key)
@@ -460,6 +487,50 @@ void program_event(ProgEvent key)
             local_reupload = true;
             break;
     }
+}
+
+
+/*==============================
+    autodetect_romheader
+    Reads the ROM header and sets the save/RTC value
+    using the ED format.
+==============================*/
+
+void autodetect_romheader()
+{
+    FILE* fp;
+    uint8_t* buff;
+    if (!local_autodetect || device_getsave() != SAVE_NONE || device_getrom() == NULL)
+        return;
+
+    // Open the file
+    buff = (uint8_t*) malloc(0x40);
+    fp = fopen(device_getrom(), "rb");
+    if (buff == NULL || fp == NULL)
+        terminate("Unable to open file '%s'.\n", device_getrom());
+
+    // Check for a valid header
+    if (fread(buff, 1, 0x40, fp) != 0x40)
+        return;
+    if (buff[0x3C] != 'E' || buff[0x3D] != 'D')
+        return;
+    fseek(fp, 0, SEEK_SET);
+
+    // If the savetype hasn't been forced
+    switch (buff[0x3F])
+    {
+        case 0x10: device_setsave(SAVE_EEPROM4K); break;
+        case 0x20: device_setsave(SAVE_EEPROM16K); break;
+        case 0x30: device_setsave(SAVE_SRAM256); break;
+        case 0x50: device_setsave(SAVE_FLASHRAM); break;
+        case 0x40: device_setsave(SAVE_SRAM768); break;
+        case 0x60: device_setsave(SAVE_FLASHRAMPKMN); break;
+    }
+    if (device_getsave() != SAVE_NONE)
+        log_simple("Auto set save type to '%s' from ED header.\n", save_typetostr(device_getsave()));
+
+    // Cleanup
+    free(buff);
 }
 
 

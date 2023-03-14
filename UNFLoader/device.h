@@ -123,6 +123,7 @@
     char*    device_getrom();
     CartType device_getcart();
     CICType  device_getcic();
+    SaveType device_getsave();
 
     // Upload related
     void  device_cancelupload();
