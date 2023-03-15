@@ -10,6 +10,7 @@
 #ifndef LINUX
     #include <shlwapi.h>
 #endif
+#include <queue>
 
 
 /*********************************
@@ -21,13 +22,24 @@
 
 
 /*********************************
+            Structures
+*********************************/
+
+typedef struct {
+    byte*       data;
+    USBDataType type;
+    int32_t     size;
+} SendData;
+
+
+/*********************************
         Function Prototypes
 *********************************/
 
-void debug_handle_text(uint32_t size, byte* buffer);
-void debug_handle_rawbinary(uint32_t size, byte* buffer);
-void debug_handle_header(uint32_t size, byte* buffer);
-void debug_handle_screenshot(uint32_t size, byte* buffer);
+static void debug_handle_text(uint32_t size, byte* buffer);
+static void debug_handle_rawbinary(uint32_t size, byte* buffer);
+static void debug_handle_header(uint32_t size, byte* buffer);
+static void debug_handle_screenshot(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -40,6 +52,7 @@ static char* local_binaryoutfolderpath = NULL;
 
 // Other
 static int debug_headerdata[HEADER_SIZE];
+static std::queue<SendData*> local_mesgqueue;
 
 
 /*==============================
@@ -53,6 +66,16 @@ void debug_main()
     uint32_t dataheader = 0;
 
     // Send data to USB if it exists
+    while (!local_mesgqueue.empty())
+    {
+        SendData* msg = local_mesgqueue.front();
+        device_senddata(msg->type, msg->data, msg->size);
+
+        // Cleanup
+        local_mesgqueue.pop();
+        free(msg->data);
+        free(msg);
+    }
 
     // Read from USB
     do
@@ -70,7 +93,7 @@ void debug_main()
                 case DATATYPE_RAWBINARY:  debug_handle_rawbinary(size, outbuff); break;
                 case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
                 case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
-                default:                  terminate("Unknown data type.");
+                default:                  terminate("Unknown data type '%x'.", (uint32_t)command);
             }
 
             // Cleanup
@@ -89,7 +112,7 @@ void debug_main()
     @param The buffer to read from
 ==============================*/
 
-void debug_handle_text(uint32_t size, byte* buffer)
+static void debug_handle_text(uint32_t size, byte* buffer)
 {
     char* text;
     text = (char*)malloc(size+1);
@@ -109,7 +132,7 @@ void debug_handle_text(uint32_t size, byte* buffer)
     @param The buffer to read from
 ==============================*/
 
-void debug_handle_rawbinary(uint32_t size, byte* buffer)
+static void debug_handle_rawbinary(uint32_t size, byte* buffer)
 {
     FILE* fp = NULL;
     char* filename = gen_filename("binaryout", "bin");
@@ -143,7 +166,7 @@ void debug_handle_rawbinary(uint32_t size, byte* buffer)
     @param The buffer to read from
 ==============================*/
 
-void debug_handle_header(uint32_t size, byte* buffer)
+static void debug_handle_header(uint32_t size, byte* buffer)
 {
     // Ensure the data fits within our buffer
     if (size > HEADER_SIZE)
@@ -162,7 +185,7 @@ void debug_handle_header(uint32_t size, byte* buffer)
     @param The buffer to read from
 ==============================*/
 
-void debug_handle_screenshot(uint32_t size, byte* buffer)
+static void debug_handle_screenshot(uint32_t size, byte* buffer)
 {
     byte*    image = NULL;
     uint32_t written = 0;
@@ -215,6 +238,35 @@ void debug_handle_screenshot(uint32_t size, byte* buffer)
     // TODO: Clear term console stack
     free(image);
     free(filename);
+}
+
+
+/*==============================
+    debug_send
+    Sends data to the flashcart
+    @param The string with the data 
+           to send
+==============================*/
+
+void debug_send(char* data)
+{
+    SendData* mesg = (SendData*)malloc(sizeof(SendData));
+    if (mesg == NULL)
+        terminate("Unable to malloc message for debug send.");
+
+    // Parse the data and append file data if necessary
+    // Please be smart and use strtok this time...
+
+    /*
+    mesg->type = type;
+    mesg->size = size;
+    mesg->data = (byte*)malloc(size);
+    if (mesg->data == NULL)
+        terminate("Unable to malloc data for debug send.");
+    memcpy(mesg->data, data, size);
+    */
+
+    local_mesgqueue.push(mesg);
 }
 
 

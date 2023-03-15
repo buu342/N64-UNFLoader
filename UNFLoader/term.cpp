@@ -226,6 +226,7 @@ static void termthread()
             // Cleanup
             local_mesgqueue.pop();
             free(msg->str);
+            free(msg);
         }
 
         // Refresh if needed
@@ -265,10 +266,14 @@ void __log_output(const short color, const int32_t y, const char* str, ...)
     if (local_terminal != NULL)
     {
         Output* mesg = (Output*)malloc(sizeof(Output));
+        if (mesg == NULL)
+            return;
         mesg->col = color;
         mesg->y = y;
         mesg->str = (char*)malloc(vsnprintf(NULL, 0, str, args) + 1);
         va_end(args); 
+        if (mesg->str == NULL)
+            return;
 
         va_start(args, str);
         vsprintf(mesg->str, str, args);
