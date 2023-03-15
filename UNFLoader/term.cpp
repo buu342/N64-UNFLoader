@@ -234,8 +234,7 @@ static void termthread()
             refresh_output();
 
         // Deal with input
-        if (local_allowinput)
-            handle_input();
+        handle_input();
 
         // Handle the signal flag
         if (local_resizesignal)
@@ -395,25 +394,28 @@ static void handle_input()
     bool wrotein = false;
 
     // Handle key presses
-    ch = wgetch(local_inputwin);
-    switch (ch)
+    if (local_allowinput)
     {
+        ch = wgetch(local_inputwin);
+        switch (ch)
+        {
         case KEY_PPAGE: scroll_output(1); break;
         case KEY_NPAGE: scroll_output(-1); break;
         case KEY_HOME: scroll_output(local_padbottom); break;
         case KEY_END: scroll_output(-local_padbottom); break;
-        case CH_ESCAPE: 
-            scroll_output(-local_padbottom); 
+        case CH_ESCAPE:
+            scroll_output(-local_padbottom);
             program_event(PEV_ESCAPE);
             local_allowinput = false;
             // Intentional fallthrough
         case '\r':
-        case CH_ENTER: 
+        case CH_ENTER:
+            debug_send(local_input);
             memset(local_input, 0, 255);
-            local_inputcount = 0; 
-            wrotein = true; 
+            local_inputcount = 0;
+            wrotein = true;
             break;
-        default: 
+        default:
             if (ch != ERR && isascii(ch) && ch > 0x1F && local_inputcount < 255)
             {
                 local_input[local_inputcount++] = (char)ch;
@@ -422,14 +424,15 @@ static void handle_input()
                 wrotein = true;
             }
             break;
-    }
+        }
 
-    // Cursor blinking timer
-    if ((time_miliseconds() - local_blinktime) > BLINKRATE)
-    {
-        wrotein = true;
-        local_showcurs = !local_showcurs;
-        local_blinktime = time_miliseconds();
+        // Cursor blinking timer
+        if ((time_miliseconds() - local_blinktime) > BLINKRATE)
+        {
+            wrotein = true;
+            local_showcurs = !local_showcurs;
+            local_blinktime = time_miliseconds();
+        }
     }
     
     // Handle terminal resize
@@ -548,6 +551,8 @@ bool term_isusingcurses()
 void term_allowinput(bool val)
 {
     local_allowinput = val;
+    if (val == true)
+        memset(local_input, 0, 255);
 }
 
 

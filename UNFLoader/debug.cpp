@@ -10,7 +10,9 @@
 #ifndef LINUX
     #include <shlwapi.h>
 #endif
+#include <list>
 #include <queue>
+#include <iterator>
 
 
 /*********************************
@@ -30,6 +32,14 @@ typedef struct {
     USBDataType type;
     int32_t     size;
 } SendData;
+
+typedef struct {
+    char*    str;
+    uint32_t strsize;
+    byte*    data;
+    uint32_t datasize;
+    bool     ispath;
+} ParseHelper;
 
 
 /*********************************
@@ -244,29 +254,165 @@ static void debug_handle_screenshot(uint32_t size, byte* buffer)
 /*==============================
     debug_send
     Sends data to the flashcart
+    TODO: Does not handle edge case of 
+    two @ between different files not
+    separated by a space
     @param The string with the data 
            to send
 ==============================*/
 
 void debug_send(char* data)
 {
-    SendData* mesg = (SendData*)malloc(sizeof(SendData));
+    byte*     copy;
+    char*     token;
+    SendData* mesg;
+    uint32_t  datasize;
+    uint32_t  tokcount = 0;
+    bool      ispath = false;
+    std::list<ParseHelper*> datasplit;
+
+    // Start by removing trailing whitespace
+    data = trimwhitespace(data);
+    datasize = strlen(data);
+
+    // Start by counting the number of '@' characters
+    for (uint32_t i=0; i<datasize; i++)
+        if (data[i] == '@')
+            tokcount++;
+
+    // We need an even number of '@' to be valid
+    if (tokcount%2 != 0)
+    {
+        log_colored("Error: Missing closing '@'\n", CRDEF_ERROR);
+        // TODO: Clear term console stack
+        return;
+    }
+
+    // Initialize the message to send
+    mesg = (SendData*)malloc(sizeof(SendData));
     if (mesg == NULL)
         terminate("Unable to malloc message for debug send.");
+    mesg->type = DATATYPE_TEXT;
 
-    // Parse the data and append file data if necessary
-    // Please be smart and use strtok this time...
+    // If there is a '@' symbol at both the start and end, then send a raw binary
+    if (tokcount == 2 && data[0] == '@' && data[datasize-1] == '@')
+        mesg->type = DATATYPE_RAWBINARY;
+    if (data[0] == '@')
+        ispath = true;
 
-    /*
-    mesg->type = type;
-    mesg->size = size;
-    mesg->data = (byte*)malloc(size);
-    if (mesg->data == NULL)
+    // Parse the text and append data as needed
+    token = strtok(data, "@");
+    datasize = 0;
+    while (token != NULL)
+    {
+        ParseHelper* help = (ParseHelper*)calloc(sizeof(ParseHelper), 1);
+        if (help == NULL)
+            terminate("Unable to malloc data for debug send.");
+
+        if (!ispath)
+        {
+            help->strsize = strlen(token);
+            help->str = (char*)malloc(help->strsize+1);
+            if (help->str == NULL)
+                terminate("Unable to malloc data for debug send.");
+            strcpy(help->str, token);
+        }
+        else
+        {
+            uint32_t size;
+            FILE* fp = fopen(token, "rb");
+            if (fp == NULL)
+            {
+                log_colored("Error: Unable to open file '%s'.\n", CRDEF_ERROR, token);
+                for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
+                {
+                    ParseHelper* destroy = *it;
+                    if (destroy->data != NULL)
+                        free(destroy->data);
+                    free(destroy->str);
+                    free(destroy);
+                }
+                // TODO: Clear term console stack
+                free(mesg);
+                return;
+            }
+
+            // Get the data size
+            fseek(fp, 0, SEEK_END);
+            size = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            help->strsize = snprintf(NULL, 0, "@%d@", size);
+            help->datasize = size;
+
+            // Make a copy of the data
+            help->data = (byte*)malloc(size);
+            help->str = (char*)malloc(help->strsize+1);
+            if (help->data == NULL || help->str == NULL)
+                terminate("Unable to malloc data for debug send.");
+            sprintf(help->str, "@%d@", size);
+            if (fread(help->data, 1, size, fp) != size)
+            {
+                log_colored("Error: Unable to read file '%s'.\n", CRDEF_ERROR, token);
+                for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
+                {
+                    ParseHelper* destroy = *it;
+                    if (destroy->data != NULL)
+                        free(destroy->data);
+                    free(destroy->str);
+                    free(destroy);
+                }
+                // TODO: Clear term console stack
+                free(mesg);
+                return;
+            }
+
+            // Cleanup
+            fclose(fp);
+        }
+        datasplit.push_back(help);
+        datasize += help->strsize;
+        help->ispath = ispath;
+        if (ispath)
+            datasize += help->strsize;
+
+
+        // Get the next token
+        token = strtok(NULL, token);
+        ispath = !ispath;
+    }
+
+    // Now we have a list of strings and data blocks, we combine all into one
+    // We can already assign these values to the mesg
+    copy = (byte*)calloc(datasize+1, 1);
+    if (copy == NULL)
         terminate("Unable to malloc data for debug send.");
-    memcpy(mesg->data, data, size);
-    */
+    mesg->size = datasize;
+    mesg->data = copy;
 
+    // Iterate the list, copy onto the copy buffer, and free the allocated memory
+    for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
+    {
+        ParseHelper* help = *it;
+        strcpy((char*)copy, help->str);
+        copy += help->strsize;
+        if (help->ispath)
+        {
+            memcpy(copy, help->data, help->datasize);
+            copy += help->datasize;
+        }
+    }
+    
+    // Done!
     local_mesgqueue.push(mesg);
+    for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
+    {
+        ParseHelper* help = *it;
+        if (help->data != NULL)
+            free(help->data);
+        free(help->str);
+        free(help);
+    }
+    free(copy);
 }
 
 

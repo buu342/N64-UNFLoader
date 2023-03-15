@@ -369,6 +369,39 @@ char* gen_filename(const char* filename, const char* fileext)
 }
 
 
+/*==============================
+    trimwhitespace
+    Removes the trailing whitespace from
+    the start and end of a string.
+    @param  The filename
+    @param  The file extension
+    @return The starting pointer of the string
+==============================*/
+
+char* trimwhitespace(char* str)
+{
+    char* end;
+    size_t size = strlen(str);
+
+    // Ignore zero length strings
+    if (size == 0)
+        return str;
+
+    // Trim whitespace at the back of the string
+    end = str + size - 1;
+    while (end >= str && isspace(*end))
+        end--;
+    *(end + 1) = '\0';
+
+    // Find the first non-whitespace character
+    while (*str && isspace(*str))
+        str++;
+
+    // Return the new starting pointer
+    return str;
+}
+
+
 
 /*==============================
     handle_deviceerror

@@ -14,6 +14,7 @@
     uint64_t time_miliseconds();
     time_t   file_lastmodtime(const char* path);
     char*    gen_filename(const char* filename, const char* fileext);
+    char*    trimwhitespace(char* str);
     void     handle_deviceerror(DeviceError err);
     
     // Program configuration
