@@ -63,6 +63,7 @@ void terminate(const char* reason, ...)
         device_close();
 
     // Pause the program
+    term_allowinput(false);
     log_colored("Press any key to continue...\n", CRDEF_INPUT);
     if (!term_isusingcurses())
     {
@@ -81,7 +82,10 @@ void terminate(const char* reason, ...)
         #endif
     }
     else
-        getch();
+    {
+        while (!term_waskeypressed())
+            ;
+    }
 
     // End
     global_terminating = true;

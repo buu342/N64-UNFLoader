@@ -39,13 +39,13 @@
     void term_sethistorysize(int val);
     void term_usecurses(bool val);
     void term_allowinput(bool val);
-    void term_hideinput(bool val);
     void term_end();
 
     // Terminal checking
     bool term_isusingcurses();
     int  term_getw();
     int  term_geth();
+    bool term_waskeypressed();
 
     // Printing
     #include "term_internal.h"
