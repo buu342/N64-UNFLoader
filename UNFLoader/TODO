@@ -1,9 +1,7 @@
-Debug mode sending data (test on console)
-Duplicate message detecting (and program argument to cancel)
-    TODO: Clear term console stack
+Properly test changes stuff on Linux and on console
+
 Program timeout
-Listen mode reupload shortcut
 Non-Curses mode proper input detection
+
 EverDrive stuff
 SC64 stuff
-Properly test debug mode stuff

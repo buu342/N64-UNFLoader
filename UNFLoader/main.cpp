@@ -330,7 +330,7 @@ void program_loop()
         log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
 
     // Open the flashcart
-    device_open();
+    handle_deviceerror(device_open());
     log_simple("USB connection opened.\n");
 
     // Check if debug mode is possible
@@ -435,7 +435,7 @@ void program_loop()
 
     // Close the flashcart
     handle_deviceerror(device_close());
-    log_simple("USB connection closed.\n");
+    log_simple("\nUSB connection closed.\n");
 }
 
 
@@ -554,7 +554,6 @@ void show_args()
             int h = term_geth() < 40 ? 40 : term_geth();
             term_setsize(h, w);
         #endif
-        //term_allowinput(false);
     }
 
     // Print the program arguments
@@ -605,7 +604,6 @@ void show_help()
             int h = term_geth() < 40 ? 40 : term_geth();
             term_setsize(h, w);
         #endif
-        //term_allowinput(false);
     }
 
     // Print the introductory message

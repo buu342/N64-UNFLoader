@@ -79,7 +79,8 @@ void debug_main()
     while (!local_mesgqueue.empty())
     {
         SendData* msg = local_mesgqueue.front();
-        device_senddata(msg->type, msg->data, msg->size);
+        handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
+        log_stackable((char*)msg->data, CRDEF_PRINT);
 
         // Cleanup
         local_mesgqueue.pop();
@@ -130,7 +131,7 @@ static void debug_handle_text(uint32_t size, byte* buffer)
         terminate("Failed to allocate memory for incoming string.");
     memset(text, 0, size+1);
     strncpy(text, (char*)buffer, size);
-    log_colored("%s", CRDEF_PRINT, text);
+    log_stackable("%s", CRDEF_PRINT, text);
     free(text);
 }
 
@@ -161,7 +162,6 @@ static void debug_handle_rawbinary(uint32_t size, byte* buffer)
     // Write the data to the file
     fwrite(buffer, 1, size, fp);
     log_colored("Wrote %d bytes to '%s'.\n", CRDEF_INFO, size, filename);
-    // TODO: Clear term console stack
 
     // Cleanup
     fclose(fp);
@@ -245,7 +245,6 @@ static void debug_handle_screenshot(uint32_t size, byte* buffer)
     // Close the file and free the dynamic memory used
     lodepng_encode32_file(filename, image, w, h);
     log_colored("Wrote %dx%d pixels to '%s'.\n", CRDEF_INFO, w, h, filename);
-    // TODO: Clear term console stack
     free(image);
     free(filename);
 }
@@ -284,7 +283,6 @@ void debug_send(char* data)
     if (tokcount%2 != 0)
     {
         log_colored("Error: Missing closing '@'\n", CRDEF_ERROR);
-        // TODO: Clear term console stack
         return;
     }
 
@@ -333,7 +331,6 @@ void debug_send(char* data)
                     free(destroy->str);
                     free(destroy);
                 }
-                // TODO: Clear term console stack
                 free(mesg);
                 return;
             }
@@ -362,7 +359,6 @@ void debug_send(char* data)
                     free(destroy->str);
                     free(destroy);
                 }
-                // TODO: Clear term console stack
                 free(mesg);
                 return;
             }

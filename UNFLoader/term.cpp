@@ -48,6 +48,7 @@ typedef struct {
     char*   str;
     short   col;
     int32_t y;
+    bool    stack;
 } Output;
 
 
@@ -91,6 +92,8 @@ static std::atomic<int> local_padbottom (-1);
 static std::atomic<int> local_scrolly (0);
 static std::queue<Output*> local_mesgqueue;
 static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
+static char* local_laststackable = NULL;
+static int local_stackcount = 0;
 
 // Input window globals
 static std::atomic<bool> local_allowinput(true);
@@ -221,6 +224,45 @@ static void termthread()
             for (int i=0; i<TOTAL_COLORS; i++)
                 wattroff(local_outputwin, COLOR_PAIR(i+1));
 
+            // Handle message stacking
+            if (msg->stack)
+            {
+                if (local_laststackable != NULL && !strcmp(local_laststackable, msg->str))
+                {
+                    local_stackcount++;
+                    free(msg->str);
+                    if (local_stackcount == 1)
+                    {
+                        msg->str = (char*)malloc(snprintf(NULL, 0, "\nPrevious message duplicated 1 time(s)\n") + 1);
+                        sprintf(msg->str, "\nPrevious message duplicated 1 time(s)\n");
+                        msg->y = 0;
+                    }
+                    else
+                    {
+                        msg->str = (char*)malloc(snprintf(NULL, 0, "Previous message duplicated %d time(s)\n", local_stackcount) + 1);
+                        sprintf(msg->str, "Previous message duplicated %d time(s)\n", local_stackcount);
+                        msg->y = 1;
+                    }
+
+                    msg->col = CRDEF_INFO;
+                }
+                else
+                {
+                    if (local_laststackable != NULL)
+                        free(local_laststackable);
+                    local_laststackable = (char*)malloc(strlen(msg->str) + 1);
+                    strcpy(local_laststackable, msg->str);
+                    local_stackcount = 0;
+                }
+            }
+            else
+            {
+                if (local_laststackable != NULL)
+                    free(local_laststackable);
+                local_laststackable = NULL;
+                local_stackcount = 0;
+            }
+
             // If a color is specified, use it
             if (msg->col != CR_NONE)
                 wattron(local_outputwin, COLOR_PAIR(msg->col));
@@ -267,11 +309,12 @@ static void termthread()
     pad
     @param The color to use
     @param The Y offset to replace
+    @param Allow stacking this message
     @param The string to print
     @param Variable arguments to print
 ==============================*/
 
-void __log_output(const short color, const int32_t y, const char* str, ...)
+void __log_output(const short color, const int32_t y, const bool allowstack, const char* str, ...)
 {
     va_list args;
     va_start(args, str);
@@ -284,6 +327,7 @@ void __log_output(const short color, const int32_t y, const char* str, ...)
             return;
         mesg->col = color;
         mesg->y = y;
+        mesg->stack = allowstack;
         mesg->str = (char*)malloc(vsnprintf(NULL, 0, str, args) + 1);
         va_end(args); 
         if (mesg->str == NULL)
@@ -531,13 +575,14 @@ static void handle_input()
             // Intentional fallthrough
         case '\r':
         case CH_ENTER:
-            if (!local_allowinput)
+            if (!local_allowinput || local_inputcount == 0)
                 break;
             s = (char*)malloc(local_inputcount+1);
             debug_send(local_input);
             strcpy(s, local_input);
-            local_inputhistory.push_back(s);
-            local_inputpadleft = 0;
+            if (local_currhistory == local_inputhistory.begin())
+                local_inputhistory.push_back(s);
+            local_currhistory = local_inputhistory.begin();
             term_clearinput();
             wrotein = true;
             break;
@@ -649,6 +694,20 @@ static void scroll_output(int value)
 
     // Refresh the output window to see the changes
     refresh_output();
+}
+
+
+/*==============================
+    term_clearinput
+    Clears the terminal input
+==============================*/
+
+static void term_clearinput()
+{
+    memset(local_input, 0, MAXINPUT);
+    local_inputcurspos = 0;
+    local_inputcount = 0;
+    local_inputpadleft = 0;
 }
 
 
@@ -780,18 +839,4 @@ int term_geth()
 bool term_waskeypressed()
 {
     return local_keypressed.load();
-}
-
-
-/*==============================
-    term_clearinput
-    Clears the terminal input
-==============================*/
-
-static void term_clearinput()
-{
-    memset(local_input, 0, MAXINPUT);
-    local_inputcurspos = 0;
-    local_inputcount = 0;
-    local_inputpadleft = 0;
 }

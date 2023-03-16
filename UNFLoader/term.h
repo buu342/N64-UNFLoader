@@ -49,8 +49,9 @@
 
     // Printing
     #include "term_internal.h"
-    #define log_simple(string, ...) __log_output(CRDEF_PROGRAM, 0, string, ##__VA_ARGS__)
-    #define log_colored(string, color, ...) __log_output(color, 0, string, ##__VA_ARGS__)
-    #define log_replace(string, color, ...) __log_output(color, 1, string, ##__VA_ARGS__)
+    #define log_simple(string, ...) __log_output(CRDEF_PROGRAM, 0, false, string, ##__VA_ARGS__)
+    #define log_colored(string, color, ...) __log_output(color, 0, false, string, ##__VA_ARGS__)
+    #define log_stackable(string, color, ...) __log_output(color, 0, true, string, ##__VA_ARGS__)
+    #define log_replace(string, color, ...) __log_output(color, 1, false, string, ##__VA_ARGS__)
 
 #endif
