@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
     // Initialize the program
     device_initialize();
     term_initialize();
-    term_hideinput(true);
+    term_allowinput(false);
     show_title();
 
     // Read program arguments
@@ -387,7 +387,7 @@ void program_loop()
             std::thread t(progressthread, local_esclevel.load());
 
             // Upload the ROM
-            handle_deviceerror(device_sendrom(fp, filesize));
+           handle_deviceerror(device_sendrom(fp, filesize));
 
             // Cleanup
             t.join();
@@ -404,7 +404,7 @@ void program_loop()
             {
                 log_simple("Debug mode started. ");
                 printed = true;
-                term_hideinput(false);
+                term_allowinput(true);
             }
             if (local_listenmode)
             {
@@ -431,9 +431,10 @@ void program_loop()
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
     while ((local_debugmode || local_listenmode) && local_esclevel > 0);
+    term_allowinput(false);
 
     // Close the flashcart
-    device_close();
+    handle_deviceerror(device_close());
     log_simple("USB connection closed.\n");
 }
 

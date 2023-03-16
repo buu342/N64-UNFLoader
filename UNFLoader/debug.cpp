@@ -320,8 +320,6 @@ void debug_send(char* data)
         }
         else
         {
-            char* left = (char*)malloc(strlen(token));
-            left[strlen(token)];
             uint32_t size;
             FILE* fp = fopen(token, "rb");
             if (fp == NULL)
