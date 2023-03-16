@@ -1,4 +1,4 @@
-Debug mode sending data + Test it
+Debug mode sending data (test on console)
 Finish terminal input box handling (left/right, backspace/del, history)
 Duplicate message detecting (and program argument to cancel)
     TODO: Clear term console stack

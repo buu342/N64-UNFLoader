@@ -309,6 +309,7 @@ void debug_send(char* data)
         if (help == NULL)
             terminate("Unable to malloc data for debug send.");
 
+        // Read the string into the message
         if (!ispath)
         {
             help->strsize = strlen(token);
@@ -319,6 +320,8 @@ void debug_send(char* data)
         }
         else
         {
+            char* left = (char*)malloc(strlen(token));
+            left[strlen(token)];
             uint32_t size;
             FILE* fp = fopen(token, "rb");
             if (fp == NULL)
@@ -370,14 +373,14 @@ void debug_send(char* data)
             fclose(fp);
         }
         datasplit.push_back(help);
-        datasize += help->strsize;
+        if (mesg->type == DATATYPE_TEXT)
+            datasize += help->strsize;
         help->ispath = ispath;
         if (ispath)
-            datasize += help->strsize;
-
+            datasize += help->datasize;
 
         // Get the next token
-        token = strtok(NULL, token);
+        token = strtok(NULL, "@");
         ispath = !ispath;
     }
 
@@ -393,8 +396,11 @@ void debug_send(char* data)
     for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
     {
         ParseHelper* help = *it;
-        strcpy((char*)copy, help->str);
-        copy += help->strsize;
+        if (mesg->type == DATATYPE_TEXT)
+        {
+            strcpy((char*)copy, help->str);
+            copy += help->strsize;
+        }
         if (help->ispath)
         {
             memcpy(copy, help->data, help->datasize);
@@ -412,7 +418,6 @@ void debug_send(char* data)
         free(help->str);
         free(help);
     }
-    free(copy);
 }
 
 
