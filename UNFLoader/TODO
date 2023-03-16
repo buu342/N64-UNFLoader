@@ -1,5 +1,4 @@
 Debug mode sending data (test on console)
-Finish terminal input box handling (scrolling left and right)
 Duplicate message detecting (and program argument to cancel)
     TODO: Clear term console stack
 Program timeout

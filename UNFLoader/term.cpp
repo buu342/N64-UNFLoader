@@ -59,6 +59,7 @@ static void termthread();
 static void handle_input();
 static void scroll_output(int value);
 static void refresh_output();
+static void refresh_input();
 static void term_clearinput();
 #ifdef LINUX
     static void handle_resize(int sig);
@@ -93,10 +94,11 @@ static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 static std::atomic<bool> local_allowinput(true);
 static std::atomic<bool> local_showinput(true);
 static char     local_input[MAXINPUT];
-static int      local_inputcount = 0;
+static int      local_inputcount   = 0;
 static int      local_inputcurspos = 0;
-static bool     local_showcurs   = true;
-static uint64_t local_blinktime  = 0;
+static bool     local_showcurs     = true;
+static uint64_t local_blinktime    = 0;
+static int      local_inputpadleft = 0;
 
 // Input window history
 static std::list<char*> local_inputhistory;
@@ -146,7 +148,7 @@ void term_initialize()
 
         // Setup our console windows
         local_outputwin = newpad(h+local_historysize, w);
-        local_inputwin = newwin(1, w, h-1, 0);
+        local_inputwin = newpad(1, MAXINPUT);
         scrollok(local_outputwin, TRUE);
         idlok(local_outputwin, TRUE);
         keypad(local_inputwin, TRUE);
@@ -155,7 +157,7 @@ void term_initialize()
             set_escdelay(0);
         #endif
         refresh_output();
-        wrefresh(local_inputwin);
+        refresh_input();
 
         // Initialize local variables
         memset(local_input, 0, MAXINPUT);
@@ -394,6 +396,23 @@ static void refresh_output()
     }
 }
 
+static void refresh_input()
+{
+    int w, h;
+
+    // Get the terminal size
+    getmaxyx(local_terminal, h, w);
+
+    // Correct the pad left bound
+    if (local_inputcurspos < local_inputpadleft)
+        local_inputpadleft = local_inputcurspos;
+    if (local_inputcurspos > w+local_inputpadleft-1)
+        local_inputpadleft = local_inputcurspos-w+1;
+
+    // Refresh
+    prefresh(local_inputwin, 0, local_inputpadleft, h-1, 0, h-1, w-1);
+}
+
 
 /*==============================
     handle_input
@@ -424,6 +443,7 @@ static void handle_input()
                 strcpy(local_input, *local_currhistory);
                 local_inputcount = strlen(local_input);
                 local_inputcurspos = local_inputcount;
+                local_inputpadleft = 0;
                 wrotein = true;
                 local_showcurs = true;
                 local_blinktime = time_miliseconds();
@@ -436,6 +456,7 @@ static void handle_input()
                 strcpy(local_input, *local_currhistory);
                 local_inputcount = strlen(local_input);
                 local_inputcurspos = local_inputcount;
+                local_inputpadleft = 0;
                 wrotein = true;
                 local_showcurs = true;
                 local_blinktime = time_miliseconds();
@@ -494,6 +515,7 @@ static void handle_input()
                 debug_send(local_input);
                 strcpy(s, local_input);
                 local_inputhistory.push_back(s);
+                local_inputpadleft = 0;
                 term_clearinput();
                 wrotein = true;
                 break;
@@ -549,7 +571,7 @@ static void handle_input()
             // Move the cursor
             getyx(local_inputwin, y, x);
             wmove(local_inputwin, y, local_inputcurspos);
-            wrefresh(local_inputwin);
+            refresh_input();
 
             // Cursor rendering
             if (local_showcurs)
@@ -564,7 +586,7 @@ static void handle_input()
         }
 
         // Refresh the input pad to show changes
-        wrefresh(local_inputwin);
+        refresh_input();
     }
 }
 
@@ -697,7 +719,7 @@ void term_setsize(int h, int w)
     wresize(local_inputwin, 1, w);
     mvwin(local_inputwin, h-1, 0);
     wrefresh(local_terminal);
-    wrefresh(local_inputwin);
+    refresh_input();
     local_padbottom = -1;
     local_scrolly = 0;
     local_resizesignal = true;
