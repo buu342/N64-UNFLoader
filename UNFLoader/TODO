@@ -1,10 +1,10 @@
 Debug mode sending data (test on console)
-Finish terminal input box handling (left/right, backspace/del, history)
+Finish terminal input box handling (scrolling left and right)
 Duplicate message detecting (and program argument to cancel)
     TODO: Clear term console stack
 Program timeout
-Non-Curses mode proper input detection
 Listen mode reupload shortcut
+Non-Curses mode proper input detection
 EverDrive stuff
 SC64 stuff
 Properly test debug mode stuff

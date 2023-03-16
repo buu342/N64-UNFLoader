@@ -24,6 +24,8 @@ Handles terminal I/O, both with and without curses.
 #include <algorithm>
 #include <climits>
 #include <chrono>
+#include <list>
+#include <iterator>
 
 
 /*********************************
@@ -31,6 +33,7 @@ Handles terminal I/O, both with and without curses.
 *********************************/
 
 #define BLINKRATE   500
+#define MAXINPUT    256
 
 #define CH_ESCAPE    27
 #define CH_ENTER     '\n'
@@ -56,6 +59,7 @@ static void termthread();
 static void handle_input();
 static void scroll_output(int value);
 static void refresh_output();
+static void term_clearinput();
 #ifdef LINUX
     static void handle_resize(int sig);
 #endif
@@ -88,10 +92,15 @@ static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 // Input window globals
 static std::atomic<bool> local_allowinput(true);
 static std::atomic<bool> local_showinput(true);
-static char     local_input[255];
+static char     local_input[MAXINPUT];
 static int      local_inputcount = 0;
+static int      local_inputcurspos = 0;
 static bool     local_showcurs   = true;
 static uint64_t local_blinktime  = 0;
+
+// Input window history
+static std::list<char*> local_inputhistory;
+static std::list<char*>::iterator local_currhistory;
 
 
 /*==============================
@@ -136,8 +145,8 @@ void term_initialize()
         #endif
 
         // Setup our console windows
-        local_outputwin = newpad(h + local_historysize, w);
-        local_inputwin = newwin(1, w, h - 1, 0);
+        local_outputwin = newpad(h+local_historysize, w);
+        local_inputwin = newwin(1, w, h-1, 0);
         scrollok(local_outputwin, TRUE);
         idlok(local_outputwin, TRUE);
         keypad(local_inputwin, TRUE);
@@ -148,8 +157,10 @@ void term_initialize()
         refresh_output();
         wrefresh(local_inputwin);
 
-        // Initialize the input data
-        memset(local_input, 0, 255);
+        // Initialize local variables
+        memset(local_input, 0, MAXINPUT);
+        local_inputhistory.push_back("");
+        local_currhistory = local_inputhistory.begin();
 
         // Initialize the colors
         init_pair(CR_RED, COLOR_RED, -1);
@@ -157,6 +168,7 @@ void term_initialize()
         init_pair(CR_BLUE, COLOR_BLUE, -1);
         init_pair(CR_YELLOW, COLOR_YELLOW, -1);
         init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
+        wattron(local_inputwin, COLOR_PAIR(CR_GREEN));
 
         // Create the terminal thread
         thread_input = std::thread(termthread);
@@ -391,6 +403,7 @@ static void refresh_output()
 static void handle_input()
 {
     int ch;
+    char* s = NULL;
     bool wrotein = false;
 
     // Handle key presses
@@ -399,31 +412,106 @@ static void handle_input()
         ch = wgetch(local_inputwin);
         switch (ch)
         {
-        case KEY_PPAGE: scroll_output(1); break;
-        case KEY_NPAGE: scroll_output(-1); break;
-        case KEY_HOME: scroll_output(local_padbottom); break;
-        case KEY_END: scroll_output(-local_padbottom); break;
-        case CH_ESCAPE:
-            scroll_output(-local_padbottom);
-            program_event(PEV_ESCAPE);
-            local_allowinput = false;
-            // Intentional fallthrough
-        case '\r':
-        case CH_ENTER:
-            debug_send(local_input);
-            memset(local_input, 0, 255);
-            local_inputcount = 0;
-            wrotein = true;
-            break;
-        default:
-            if (ch != ERR && isascii(ch) && ch > 0x1F && local_inputcount < 255)
-            {
-                local_input[local_inputcount++] = (char)ch;
+            case KEY_PPAGE: scroll_output(1); break;
+            case KEY_NPAGE: scroll_output(-1); break;
+            case KEY_HOME: scroll_output(local_padbottom); break;
+            case KEY_END: scroll_output(-local_padbottom); break;
+            case KEY_DOWN:
+                local_currhistory++;
+                if (local_currhistory == local_inputhistory.end())
+                    local_currhistory = local_inputhistory.begin();
+                term_clearinput();
+                strcpy(local_input, *local_currhistory);
+                local_inputcount = strlen(local_input);
+                local_inputcurspos = local_inputcount;
+                wrotein = true;
                 local_showcurs = true;
                 local_blinktime = time_miliseconds();
+                break;
+            case KEY_UP:
+                if (local_currhistory == local_inputhistory.begin())
+                    local_currhistory = local_inputhistory.end();
+                local_currhistory--;
+                term_clearinput();
+                strcpy(local_input, *local_currhistory);
+                local_inputcount = strlen(local_input);
+                local_inputcurspos = local_inputcount;
                 wrotein = true;
-            }
-            break;
+                local_showcurs = true;
+                local_blinktime = time_miliseconds();
+                break;
+            case KEY_LEFT:
+                local_inputcurspos--;
+                if (local_inputcurspos < 0)
+                    local_inputcurspos = 0;
+                wrotein = true;
+                local_showcurs = true;
+                local_blinktime = time_miliseconds();
+                break;
+            case KEY_RIGHT:
+                local_inputcurspos++;
+                if (local_inputcurspos > local_inputcount)
+                    local_inputcurspos = local_inputcount;
+                wrotein = true;
+                local_showcurs = true;
+                local_blinktime = time_miliseconds();
+                break;
+            case KEY_DC: // Del key
+                if (local_inputcurspos != local_inputcount)
+                {
+                    for (int i= local_inputcurspos; i<local_inputcount; i++)
+                        local_input[i] = local_input[i+1];
+                    local_input[local_inputcount] = 0;
+                    local_inputcount--;
+                    local_input[local_inputcount] = 0;
+                    wrotein = true;
+                    local_showcurs = true;
+                    local_blinktime = time_miliseconds();
+                }
+                break;
+            case 263:
+            case CH_BACKSPACE:
+                if (local_inputcurspos > 0)
+                {
+                    for (int i=local_inputcurspos; i<local_inputcount; i++)
+                        local_input[i-1] = local_input[i];
+                    local_input[local_inputcount] = 0;
+                    local_inputcount--;
+                    local_input[local_inputcount] = 0;
+                    local_inputcurspos--;
+                    wrotein = true;
+                    local_showcurs = true;
+                    local_blinktime = time_miliseconds();
+                }
+                break;
+            case CH_ESCAPE:
+                scroll_output(-local_padbottom);
+                program_event(PEV_ESCAPE);
+                // Intentional fallthrough
+            case '\r':
+            case CH_ENTER:
+                s = (char*)malloc(local_inputcount+1);
+                debug_send(local_input);
+                strcpy(s, local_input);
+                local_inputhistory.push_back(s);
+                term_clearinput();
+                wrotein = true;
+                break;
+            default:
+                if (ch != ERR && isascii(ch) && ch > 0x1F && local_inputcount < MAXINPUT-1)
+                {
+                    if (local_inputcurspos != local_inputcount)
+                        for (int i=local_inputcount; i> local_inputcurspos; i--)
+                            local_input[i] = local_input[i-1];
+                    local_currhistory = local_inputhistory.begin();
+                    local_input[local_inputcurspos] = (char)ch;
+                    local_showcurs = true;
+                    local_blinktime = time_miliseconds();
+                    wrotein = true;
+                    local_inputcount++;
+                    local_inputcurspos++;
+                }
+                break;
         }
 
         // Cursor blinking timer
@@ -455,7 +543,13 @@ static void handle_input()
         wclear(local_inputwin);
         if (local_showinput)
         {
+            int y, x;
             wprintw(local_inputwin, "%s", local_input);
+
+            // Move the cursor
+            getyx(local_inputwin, y, x);
+            wmove(local_inputwin, y, local_inputcurspos);
+            wrefresh(local_inputwin);
 
             // Cursor rendering
             if (local_showcurs)
@@ -466,6 +560,7 @@ static void handle_input()
                     wprintw(local_inputwin, "\xe2\x96\x88");
                 #endif
             }
+            wmove(local_inputwin, y, x);
         }
 
         // Refresh the input pad to show changes
@@ -552,7 +647,7 @@ void term_allowinput(bool val)
 {
     local_allowinput = val;
     if (val == true)
-        memset(local_input, 0, 255);
+        term_clearinput();
 }
 
 
@@ -630,4 +725,17 @@ int term_getw()
 int term_geth()
 {
     return getmaxy(local_terminal);
+}
+
+
+/*==============================
+    term_clearinput
+    Clears the terminal input
+==============================*/
+
+static void term_clearinput()
+{
+    memset(local_input, 0, MAXINPUT);
+    local_inputcurspos = 0;
+    local_inputcount = 0;
 }
