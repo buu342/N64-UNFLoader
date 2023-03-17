@@ -215,6 +215,10 @@ static void termthread()
     {
         bool wroteout = false;
 
+        // If a resize message was received, clear the screen to redraw it all again
+        if (local_resizesignal)
+            refresh();
+
         // Output stuff
         while (!local_mesgqueue.empty())
         {
@@ -362,6 +366,7 @@ void __log_output(const short color, const int32_t y, const bool allowstack, con
     {
         endwin();
         clear(); // This re-initializes ncurses, no need to call newwin
+        // Clear doesn't do anything until refresh(), which can't be called here because threads
 
         local_resizesignal = true;
     }
@@ -625,14 +630,8 @@ static void handle_input()
     // Handle terminal resize
     if (local_resizesignal)
     {
-        int w, h;
-
-        // Get the new terminal size
-        getmaxyx(local_terminal, h, w);
-
-        // Resize and reposition the input windo
+        int w = getmaxx(local_terminal);
         wresize(local_inputwin, 1, w);
-        mvwin(local_inputwin, h-1, 0);
         wrotein = true;
     }
 
@@ -648,7 +647,6 @@ static void handle_input()
             // Move the cursor
             getyx(local_inputwin, y, x);
             wmove(local_inputwin, y, local_inputcurspos);
-            refresh_input();
 
             // Cursor rendering
             if (local_showcurs)

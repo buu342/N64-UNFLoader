@@ -80,7 +80,6 @@ void debug_main()
     {
         SendData* msg = local_mesgqueue.front();
         handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
-        log_stackable((char*)msg->data, CRDEF_PRINT);
 
         // Cleanup
         local_mesgqueue.pop();
