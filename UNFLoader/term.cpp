@@ -165,7 +165,7 @@ void term_initialize()
 
         // Initialize local variables
         memset(local_input, 0, MAXINPUT);
-        local_inputhistory.push_back("");
+        local_inputhistory.push_back((char*)"");
         local_currhistory = local_inputhistory.begin();
 
         // Initialize the colors
