@@ -431,10 +431,10 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte
 
 DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, byte** buff)
 {
-    uint32_t size;
+    DWORD size;
 
     // First, check if we have data to read
-    FT_GetQueueStatus(cart->handle, (DWORD*)&size);
+    FT_GetQueueStatus(cart->handle, &size);
 
     // If we do
     if (size > 0)
