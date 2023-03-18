@@ -450,12 +450,22 @@ void program_loop()
 void progressthread(int esclevel)
 {
     uint64_t uploadtime = time_miliseconds();
+    float lastprog = 0;
     log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
 
     // Wait for the upload to finish
     while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
     {
-        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress()/100.0f);
+        // If the device was closed, stop
+        if (!device_isopen())
+            return;
+
+        // Draw the progress bar
+        if (device_getuploadprogress() != lastprog)
+        {
+            progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress() / 100.0f);
+            lastprog = device_getuploadprogress();
+        }
 
         // Handle upload cancelling
         if (local_esclevel < esclevel)

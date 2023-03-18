@@ -463,6 +463,9 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_CLOSEFAIL:
             terminate("Unable to close flashcart.");
             break;
+        case DEVICEERR_FILEREADFAIL:
+            terminate("Unable to read ROM contents.");
+            break;
         case DEVICEERR_BITMODEFAIL_RESET:
             terminate("Unable to set bitmode %d.", FT_BITMODE_RESET);
             break;
