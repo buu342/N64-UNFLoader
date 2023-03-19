@@ -369,6 +369,7 @@ void __log_output(const short color, const int32_t y, const bool allowstack, con
         // Clear doesn't do anything until refresh(), which can't be called here because threads
 
         local_resizesignal = true;
+        local_padbottom = -1;
     }
 #endif
 
