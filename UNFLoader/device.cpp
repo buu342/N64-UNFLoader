@@ -22,25 +22,25 @@ Passes flashcart communication to more specific functions
         Function Pointers
 *********************************/
 
-DeviceError (*funcPointer_open)(FTDIDevice*);
-DeviceError (*funcPointer_sendrom)(FTDIDevice*, byte* rom, uint32_t size);
-DeviceError (*funcPointer_testdebug)(FTDIDevice*);
+DeviceError (*funcPointer_open)(CartDevice*);
+DeviceError (*funcPointer_sendrom)(CartDevice*, byte* rom, uint32_t size);
+DeviceError (*funcPointer_testdebug)(CartDevice*);
 bool        (*funcPointer_shouldpadrom)();
 bool        (*funcPointer_explicitcic)(byte* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
-DeviceError (*funcPointer_senddata)(FTDIDevice*, USBDataType datatype, byte* data, uint32_t size);
-DeviceError (*funcPointer_receivedata)(FTDIDevice*, uint32_t* dataheader, byte** buff);
-DeviceError (*funcPointer_close)(FTDIDevice*);
+DeviceError (*funcPointer_senddata)(CartDevice*, USBDataType datatype, byte* data, uint32_t size);
+DeviceError (*funcPointer_receivedata)(CartDevice*, uint32_t* dataheader, byte** buff);
+DeviceError (*funcPointer_close)(CartDevice*);
 
 
 /*********************************
         Function Prototypes
 *********************************/
 
-static void device_set_64drive1(FTDIDevice* cart, uint32_t index);
-static void device_set_64drive2(FTDIDevice* cart, uint32_t index);
-static void device_set_everdrive(FTDIDevice* cart, uint32_t index);
-static void device_set_sc64(FTDIDevice* cart, uint32_t index);
+static void device_set_64drive1(CartDevice* cart);
+static void device_set_64drive2(CartDevice* cart);
+static void device_set_everdrive(CartDevice* cart);
+static void device_set_sc64(CartDevice* cart);
 
 
 /*********************************
@@ -52,7 +52,7 @@ static char* local_rompath  = NULL;
 
 // Cart
 static CartType local_carttype = CART_NONE;
-static FTDIDevice local_cart;
+static CartDevice local_cart;
 
 // Upload
 std::atomic<bool> local_uploadcancelled (false);
@@ -66,7 +66,7 @@ std::atomic<float> local_uploadprogress (0.0f);
 
 void device_initialize()
 {
-    memset(&local_cart, 0, sizeof(FTDIDevice));
+    memset(&local_cart, 0, sizeof(CartDevice));
     local_cart.carttype = CART_NONE;
     local_cart.cictype  = CIC_NONE;
     local_cart.savetype = SAVE_NONE;
@@ -81,59 +81,49 @@ void device_initialize()
 
 DeviceError device_find()
 {
-    // Initialize FTD
-    if (FT_CreateDeviceInfoList(&local_cart.device_count) != FT_OK)
-        return DEVICEERR_USBBUSY;
-
-    // Check if the device exists
-    if (local_cart.device_count == 0)
-        return DEVICEERR_NODEVICES;
-
-    // Allocate storage and get device info list
-    local_cart.device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*local_cart.device_count);
-    FT_GetDeviceInfoList(local_cart.device_info, &local_cart.device_count);
-
-    // Search the devices
-    for (uint32_t i=0; i<local_cart.device_count; i++)
+    // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+    if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE1))
     {
-        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
-        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE1) && device_test_64drive1(&local_cart, i))
-        {
-            device_set_64drive1(&local_cart, i);
-            break;
-        }
+        DeviceError err = device_test_64drive1(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_64drive1(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for 64drive HW2 (FT232H Synchronous FIFO mode)
-        if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE2) && device_test_64drive2(&local_cart, i))
-        {
-            device_set_64drive2(&local_cart, i);
-            break;
-        }
+    // Look for 64drive HW2 (FT2232H Asynchronous FIFO mode)
+    if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE2))
+    {
+        DeviceError err = device_test_64drive2(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_64drive2(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for an EverDrive
-        if ((local_carttype == CART_NONE || local_carttype == CART_EVERDRIVE))
-        {
-            DeviceError deverr = device_test_everdrive(&local_cart, i);
-            if (deverr == DEVICEERR_OK)
-                device_set_everdrive(&local_cart, i);
-            else if (deverr != DEVICEERR_NOTCART)
-                return deverr;
-            break;
-        }
+    // Look for an EverDrive
+    if ((local_carttype == CART_NONE || local_carttype == CART_EVERDRIVE))
+    {
+        DeviceError err = device_test_everdrive(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_everdrive(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for SC64
-        if ((local_carttype == CART_NONE || local_carttype == CART_SC64) && device_test_sc64(&local_cart, i))
-        {
-            device_set_sc64(&local_cart, i);
-            break;
-        }
+    // Look for SC64
+    if ((local_carttype == CART_NONE || local_carttype == CART_SC64))
+    {
+        DeviceError err = device_test_sc64(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_sc64(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
     }
 
     // Finish
-    free(local_cart.device_info);
     if (local_cart.carttype == CART_NONE)
         return DEVICEERR_CARTFINDFAIL;
-    local_carttype = local_cart.carttype;
     return DEVICEERR_OK;
 }
 
@@ -145,11 +135,9 @@ DeviceError device_find()
     @param The index of the cart
 ==============================*/
 
-static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
+static void device_set_64drive1(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
-    cart->synchronous = false;
     cart->carttype = CART_64DRIVE1;
 
     // Set function pointers
@@ -172,13 +160,10 @@ static void device_set_64drive1(FTDIDevice* cart, uint32_t index)
     @param The index of the cart
 ==============================*/
 
-static void device_set_64drive2(FTDIDevice* cart, uint32_t index)
+static void device_set_64drive2(CartDevice* cart)
 {
     // Do exactly the same as device_set_64drive1
-    device_set_64drive1(cart, index);
-
-    // But modify the important cart settings
-    cart->synchronous = true;
+    device_set_64drive1(cart);
     cart->carttype = CART_64DRIVE2;
 }
 
@@ -190,10 +175,9 @@ static void device_set_64drive2(FTDIDevice* cart, uint32_t index)
     @param The index of the cart
 ==============================*/
 
-static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
+static void device_set_everdrive(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
     cart->carttype = CART_EVERDRIVE;
 
     // Set function pointers
@@ -218,10 +202,9 @@ static void device_set_everdrive(FTDIDevice* cart, uint32_t index)
     @param The index of the cart
 ==============================*/
 
-static void device_set_sc64(FTDIDevice* cart, uint32_t index)
+static void device_set_sc64(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
     cart->carttype = CART_SC64;
 
     // Set function pointers
@@ -259,7 +242,7 @@ DeviceError device_open()
 
 bool device_isopen()
 {
-    return (local_cart.handle != NULL);
+    return (local_cart.structure != NULL);
 }
 
 
@@ -427,12 +410,12 @@ DeviceError device_close()
     DeviceError err;
 
     // Should never happen, but just in case...
-    if (local_cart.handle == NULL)
+    if (local_cart.structure == NULL)
         return DEVICEERR_OK;
 
     // Close the device
     err = funcPointer_close(&local_cart);
-    local_cart.handle = NULL;
+    local_cart.structure = NULL;
     return err;
 }
 

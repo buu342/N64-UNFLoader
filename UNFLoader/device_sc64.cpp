@@ -6,6 +6,7 @@ https://github.com/Polprzewodnikowy/SummerCollection
 ***************************************************************/
 
 #include "device_sc64.h"
+#include "Include/ftd2xx.h"
 #include <string.h>
 #include <thread>
 #include <chrono>
@@ -39,26 +40,34 @@ typedef struct {
     uint32_t    val;
 } DevTuple;
 
+typedef struct 
+{
+    uint32_t  device_index;
+    FT_HANDLE handle;
+    DWORD     bytes_written;
+    DWORD     bytes_read;
+} SC64Handle;
+
 
 /*********************************
         Function Prototypes
 *********************************/
 
-static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t arg1, uint32_t arg2);
-static DevTuple    device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd);
+static DeviceError device_send_cmd_sc64(SC64Handle* fthandle, uint8_t cmd, uint32_t arg1, uint32_t arg2);
+static DevTuple    device_check_reply_sc64(SC64Handle* fthandle, uint8_t cmd);
 
 
 /*==============================
     device_send_cmd_sc64
     Prepares and sends command and parameters to SC64
-    @param  A pointer to the cart context
+    @param  A pointer to the cart handle
     @param  Command value
     @param  First argument value
     @param  Second argument value
     @return The device error, or OK
 ==============================*/
 
-static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t arg1, uint32_t arg2)
+static DeviceError device_send_cmd_sc64(SC64Handle* fthandle, uint8_t cmd, uint32_t arg1, uint32_t arg2)
 {
     byte buff[12];
     DWORD bytes_processed;
@@ -72,7 +81,7 @@ static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t 
     *(uint32_t *)(&buff[8]) = swap_endian(arg2);
 
     // Send command and parameters
-    if (FT_Write(cart->handle, buff, sizeof(buff), &bytes_processed) != FT_OK)
+    if (FT_Write(fthandle->handle, buff, sizeof(buff), &bytes_processed) != FT_OK)
         return DEVICEERR_WRITEFAIL;
     if (bytes_processed != sizeof(buff))
         return DEVICEERR_TXREPLYMISMATCH;
@@ -83,26 +92,26 @@ static DeviceError device_send_cmd_sc64(FTDIDevice* cart, uint8_t cmd, uint32_t 
 /*==============================
     device_check_reply_sc64
     Checks if last command was successful
-    @param A pointer to the cart context
+    @param A pointer to the cart handle
     @param Command value to be checked
     @returns A tuple with the device error
              and packet data size
 ==============================*/
 
-static DevTuple device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd)
+static DevTuple device_check_reply_sc64(SC64Handle* fthandle, uint8_t cmd)
 {
     byte buff[4];
     DWORD read;
     uint32_t packet_size;
 
     // Check completion signal
-    if (FT_Read(cart->handle, buff, sizeof(buff), &read) != FT_OK)
+    if (FT_Read(fthandle->handle, buff, sizeof(buff), &read) != FT_OK)
         return {DEVICEERR_READCOMPSIGFAIL, 0};
     if (read != sizeof(buff) || memcmp(buff, "CMP", 3) != 0 || buff[3] != cmd)
         return {DEVICEERR_NOCOMPSIG, 0};
 
     // Get packet size
-    if (FT_Read(cart->handle, &packet_size, 4, &read) != FT_OK)
+    if (FT_Read(fthandle->handle, &packet_size, 4, &read) != FT_OK)
         return {DEVICEERR_READPACKSIZEFAIL, 0};
     if (read != 4)
         return {DEVICEERR_BADPACKSIZE, 0};
@@ -116,12 +125,45 @@ static DevTuple device_check_reply_sc64(FTDIDevice* cart, uint8_t cmd)
     Checks whether the device passed as an argument is SC64
     @param  A pointer to the cart context
     @param  The index of the cart
-    @return True if the cart is an SC64, or false otherwise
+    @return DEVICEERR_OK if the cart is an SC64, 
+            DEVICEERR_NOTCART if it isn't,
+            Any other device error if problems ocurred
 ==============================*/
 
-bool device_test_sc64(FTDIDevice* cart, uint32_t index)
+DeviceError device_test_sc64(CartDevice* cart)
 {
-    return (strcmp(cart->device_info[index].Description, "SC64") == 0 && cart->device_info[index].ID == 0x04036014);
+    DWORD device_count;
+    FT_DEVICE_LIST_INFO_NODE* device_info;
+
+    // Initialize FTD
+    if (FT_CreateDeviceInfoList(&device_count) != FT_OK)
+        return DEVICEERR_USBBUSY;
+
+    // Check if the device exists
+    if (device_count == 0)
+        return DEVICEERR_NODEVICES;
+
+    // Allocate storage and get device info list
+    device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*device_count);
+    FT_GetDeviceInfoList(device_info, &device_count);
+
+    // Search the devices
+    for (uint32_t i=0; i<device_count; i++)
+    {
+        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+        if (strcmp(device_info[i].Description, "SC64") == 0 && device_info[i].ID == 0x04036014)
+        {
+            SC64Handle* fthandle = (SC64Handle*) malloc(sizeof(SC64Handle));
+            free(device_info);
+            fthandle->device_index = i;
+            cart->structure = fthandle;
+            return DEVICEERR_OK;
+        }
+    }
+
+    // Could not find the flashcart
+    free(device_info);
+    return DEVICEERR_NOTCART;
 }
 
 
@@ -177,30 +219,30 @@ bool device_explicitcic_sc64(byte* bootcode)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_open_sc64(FTDIDevice* cart)
+DeviceError device_open_sc64(CartDevice* cart)
 {
+    SC64Handle* fthandle = (SC64Handle*) cart->structure;
     ULONG modem_status;
     uint32_t version;
     DeviceError err;
     DevTuple retval;
 
     // Open the cart
-    cart->status = FT_Open(cart->device_index, &cart->handle);
-    if (cart->status != FT_OK || cart->handle == NULL)
+    if (FT_Open(fthandle->device_index, &fthandle->handle) != FT_OK || fthandle->handle == NULL)
         return DEVICEERR_CANTOPEN;
 
     // Reset the cart and set its timeouts and latency timer
-    if (FT_ResetDevice(cart->handle) != FT_OK)
+    if (FT_ResetDevice(fthandle->handle) != FT_OK)
         return DEVICEERR_RESETFAIL;
-    if (FT_SetTimeouts(cart->handle, 5000, 5000) != FT_OK)
+    if (FT_SetTimeouts(fthandle->handle, 5000, 5000) != FT_OK)
         return DEVICEERR_TIMEOUTSETFAIL;
 
     // Perform controller reset by setting DTR line and checking DSR line status
-    if (FT_SetDtr(cart->handle) != FT_OK)
+    if (FT_SetDtr(fthandle->handle) != FT_OK)
         return DEVICEERR_SETDTRFAIL;
     for (int i = 0; i < 10; i++)
     {
-        if (FT_GetModemStatus(cart->handle, &modem_status) != FT_OK)
+        if (FT_GetModemStatus(fthandle->handle, &modem_status) != FT_OK)
             return DEVICEERR_GETMODEMSTATUSFAIL;
         if (modem_status & 0x20)
             break;
@@ -210,15 +252,15 @@ DeviceError device_open_sc64(FTDIDevice* cart)
         return DEVICEERR_PURGEFAIL;
 
     // Purge USB contents
-    if (FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+    if (FT_Purge(fthandle->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
         return DEVICEERR_PURGEFAIL;
 
     // Release reset
-    if (FT_ClrDtr(cart->handle) != FT_OK)
+    if (FT_ClrDtr(fthandle->handle) != FT_OK)
         return DEVICEERR_CLEARDTRFAIL;
     for (int i = 0; i < 10; i++)
     {
-        if (FT_GetModemStatus(cart->handle, &modem_status) != FT_OK)
+        if (FT_GetModemStatus(fthandle->handle, &modem_status) != FT_OK)
             return DEVICEERR_GETMODEMSTATUSFAIL;
         if (!(modem_status & 0x20))
             break;
@@ -228,15 +270,15 @@ DeviceError device_open_sc64(FTDIDevice* cart)
         return DEVICEERR_SC64_CTRLRELEASEFAIL;
 
     // Check SC64 firmware version
-    err = device_send_cmd_sc64(cart, CMD_VERSION_GET, 0, 0);
+    err = device_send_cmd_sc64(fthandle, CMD_VERSION_GET, 0, 0);
     if (err != DEVICEERR_OK)
         return err;
-    retval = device_check_reply_sc64(cart, CMD_VERSION_GET);
+    retval = device_check_reply_sc64(fthandle, CMD_VERSION_GET);
     if (retval.err != DEVICEERR_OK)
         return retval.err;
-    if (FT_Read(cart->handle, &version, 4, &cart->bytes_read) != FT_OK)
+    if (FT_Read(fthandle->handle, &version, 4, &fthandle->bytes_read) != FT_OK)
         return DEVICEERR_SC64_FIRMWARECHECKFAIL;
-    if (retval.val != 4 || cart->bytes_read != 4 || version != VERSION_V2)
+    if (retval.val != 4 || fthandle->bytes_read != 4 || version != VERSION_V2)
         return DEVICEERR_SC64_FIRMWAREUNKNOWN;
 
     // Ok
@@ -251,9 +293,12 @@ DeviceError device_open_sc64(FTDIDevice* cart)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_close_sc64(FTDIDevice* cart)
+DeviceError device_close_sc64(CartDevice* cart)
 {
-    if (FT_Close(cart->handle) != FT_OK)
+    SC64Handle* fthandle = (SC64Handle*) cart->structure;
+    if (FT_Close(fthandle->handle) != FT_OK)
         return DEVICEERR_CLOSEFAIL;
+    free(fthandle);
+    cart->structure = NULL;
     return DEVICEERR_OK;
 }

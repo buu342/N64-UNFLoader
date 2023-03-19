@@ -467,10 +467,10 @@ void handle_deviceerror(DeviceError err)
             terminate("Unable to read ROM contents.");
             break;
         case DEVICEERR_BITMODEFAIL_RESET:
-            terminate("Unable to set bitmode %d.", FT_BITMODE_RESET);
+            terminate("Unable to set reset bitmode.");
             break;
         case DEVICEERR_BITMODEFAIL_SYNCFIFO:
-            terminate("Unable to set bitmode %d.", FT_BITMODE_SYNC_FIFO);
+            terminate("Unable to set syncfifo bitmode.");
             break;
         case DEVICEERR_SETDTRFAIL:
             terminate("Unable to set DTR line.");

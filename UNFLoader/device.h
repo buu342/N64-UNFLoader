@@ -1,7 +1,6 @@
 #ifndef __DEVICE_HEADER
 #define __DEVICE_HEADER
 
-    #include "Include/ftd2xx.h"
     #include <stdint.h>
     #include <stdlib.h>
     #include <stdio.h>
@@ -98,18 +97,11 @@
     typedef uint8_t byte;
 
     typedef struct {
-        CartType                  carttype;
-        CICType                   cictype;
-        SaveType                  savetype;
-        DWORD                     device_count;
-        uint32_t                  device_index;
-        FT_DEVICE_LIST_INFO_NODE* device_info;
-        FT_STATUS                 status;
-        FT_HANDLE                 handle;
-        bool                      synchronous; // For 64Drive
-        DWORD                     bytes_written;
-        DWORD                     bytes_read;
-    } FTDIDevice;
+        CartType carttype;
+        CICType  cictype;
+        SaveType savetype;
+        void*    structure;
+    } CartDevice;
 
 
     /*********************************

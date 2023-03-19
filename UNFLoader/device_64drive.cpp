@@ -7,31 +7,74 @@ http://64drive.retroactive.be/support.php
 ***************************************************************/
 
 #include "device_64drive.h"
+#include "Include/ftd2xx.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <thread>
 #include <chrono>
 
+typedef struct 
+{
+    uint32_t  device_index;
+    FT_HANDLE handle;
+    bool      synchronous;
+    DWORD     bytes_written;
+    DWORD     bytes_read;
+} N64DriveHandle;
+
 
 /*********************************
         Function Prototypes
 *********************************/
 
-DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...);
+DeviceError device_sendcmd_64drive(N64DriveHandle* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...);
 
 
 /*==============================
     device_test_64drive1
     Checks whether the device passed as an argument is 64Drive HW1
     @param  A pointer to the cart context
-    @param  The index of the cart
-    @return True if the cart is a 64Drive HW1, or false otherwise
+    @return DEVICEERR_OK if the cart is a 64Drive HW1, 
+            DEVICEERR_NOTCART if it isn't,
+            Any other device error if problems ocurred
 ==============================*/
 
-bool device_test_64drive1(FTDIDevice* cart, uint32_t index)
+DeviceError device_test_64drive1(CartDevice* cart)
 {
-    return (strcmp(cart->device_info[index].Description, "64drive USB device A") == 0 && cart->device_info[index].ID == 0x4036010);
+    DWORD device_count;
+    FT_DEVICE_LIST_INFO_NODE* device_info;
+
+    // Initialize FTD
+    if (FT_CreateDeviceInfoList(&device_count) != FT_OK)
+        return DEVICEERR_USBBUSY;
+
+    // Check if the device exists
+    if (device_count == 0)
+        return DEVICEERR_NODEVICES;
+
+    // Allocate storage and get device info list
+    device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*device_count);
+    FT_GetDeviceInfoList(device_info, &device_count);
+
+    // Search the devices
+    for (uint32_t i=0; i<device_count; i++)
+    {
+        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+        if (strcmp(device_info[i].Description, "64drive USB device A") == 0 && device_info[i].ID == 0x4036010)
+        {
+            N64DriveHandle* fthandle = (N64DriveHandle*) malloc(sizeof(N64DriveHandle));
+            free(device_info);
+            fthandle->device_index = i;
+            fthandle->synchronous = false;
+            cart->structure = fthandle;
+            return DEVICEERR_OK;
+        }
+    }
+
+    // Could not find the flashcart
+    free(device_info);
+    return DEVICEERR_NOTCART;
 }
 
 
@@ -39,13 +82,46 @@ bool device_test_64drive1(FTDIDevice* cart, uint32_t index)
     device_test_64drive2
     Checks whether the device passed as an argument is 64Drive HW2
     @param  A pointer to the cart context
-    @param  The index of the cart
-    @return True if the cart is a 64Drive HW2, or false otherwise
+    @return DEVICEERR_OK if the cart is a 64Drive HW2, 
+            DEVICEERR_NOTCART if it isn't,
+            Any other device error if problems ocurred
 ==============================*/
 
-bool device_test_64drive2(FTDIDevice* cart, uint32_t index)
+DeviceError device_test_64drive2(CartDevice* cart)
 {
-    return (strcmp(cart->device_info[index].Description, "64drive USB device") == 0 && cart->device_info[index].ID == 0x4036014);
+    DWORD device_count;
+    FT_DEVICE_LIST_INFO_NODE* device_info;
+
+    // Initialize FTD
+    if (FT_CreateDeviceInfoList(&device_count) != FT_OK)
+        return DEVICEERR_USBBUSY;
+
+    // Check if the device exists
+    if (device_count == 0)
+        return DEVICEERR_NODEVICES;
+
+    // Allocate storage and get device info list
+    device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*device_count);
+    FT_GetDeviceInfoList(device_info, &device_count);
+
+    // Search the devices
+    for (uint32_t i=0; i<device_count; i++)
+    {
+        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+        if (strcmp(device_info[i].Description, "64drive USB device") == 0 && device_info[i].ID == 0x4036014)
+        {
+            N64DriveHandle* fthandle = (N64DriveHandle*) malloc(sizeof(N64DriveHandle));
+            free(device_info);
+            fthandle->device_index = i;
+            fthandle->synchronous = true;
+            cart->structure = fthandle;
+            return DEVICEERR_OK;
+        }
+    }
+
+    // Could not find the flashcart
+    free(device_info);
+    return DEVICEERR_NOTCART;
 }
 
 
@@ -107,10 +183,11 @@ bool device_explicitcic_64drive(byte* bootcode)
     @returns True if the firmware version is higher than 2.04
 ==============================*/
 
-DeviceError device_testdebug_64drive(FTDIDevice* cart)
+DeviceError device_testdebug_64drive(CartDevice* cart)
 {
     uint32_t result;
-    DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_GETVER, true, &result, 0);
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
+    DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_GETVER, true, &result, 0);
     if (err != DEVICEERR_OK)
         return err;
 
@@ -126,7 +203,7 @@ DeviceError device_testdebug_64drive(FTDIDevice* cart)
 /*==============================
     device_sendcmd_64drive
     Opens the USB pipe
-    @param  A pointer to the cart context
+    @param  A pointer to the cart handle
     @param  The command to send
     @param  A bool stating whether a reply should be expected
     @param  A pointer to store the result of the reply
@@ -135,7 +212,7 @@ DeviceError device_testdebug_64drive(FTDIDevice* cart)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
+DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
 {
     byte     send_buff[32];
     uint32_t recv_buff[32];
@@ -160,9 +237,9 @@ DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply
     va_end(params);
 
     // Write to the cart
-    if (FT_Write(cart->handle, send_buff, 4+(numparams*4), &cart->bytes_written) != FT_OK)
+    if (FT_Write(fthandle->handle, send_buff, 4+(numparams*4), &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
-    if (cart->bytes_written == 0)
+    if (fthandle->bytes_written == 0)
         return DEVICEERR_WRITEZERO;
 
     // If the command expects a response
@@ -175,7 +252,7 @@ DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply
             return DEVICEERR_OK;
 
         // Read the reply from the 64Drive
-        if (FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read) != FT_OK)
+        if (FT_Read(fthandle->handle, recv_buff, 4, &fthandle->bytes_read) != FT_OK)
             return DEVICEERR_NOCOMPSIG;
 
         // Store the result if requested
@@ -184,9 +261,9 @@ DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply
             (*result) = swap_endian(recv_buff[0]);
 
             // Read the rest of the stuff and the CMP as well
-            if (FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read) != FT_OK)
+            if (FT_Read(fthandle->handle, recv_buff, 4, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_NOCOMPSIG;
-            if (FT_Read(cart->handle, recv_buff, 4, &cart->bytes_read) != FT_OK)
+            if (FT_Read(fthandle->handle, recv_buff, 4, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_NOCOMPSIG;
         }
 
@@ -207,32 +284,33 @@ DeviceError device_sendcmd_64drive(FTDIDevice* cart, uint8_t command, bool reply
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_open_64drive(FTDIDevice* cart)
+DeviceError device_open_64drive(CartDevice* cart)
 {
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
+
     // Open the cart
-    cart->status = FT_Open(cart->device_index, &cart->handle);
-    if (cart->status != FT_OK || cart->handle == NULL)
+    if (FT_Open(fthandle->device_index, &fthandle->handle) != FT_OK || fthandle->handle == NULL)
         return DEVICEERR_CANTOPEN;
 
     // Reset the cart and set its timeouts
-    if (FT_ResetDevice(cart->handle) != FT_OK)
+    if (FT_ResetDevice(fthandle->handle) != FT_OK)
         return DEVICEERR_RESETFAIL;
-    if (FT_ResetDevice(cart->handle) != FT_OK)
+    if (FT_ResetDevice(fthandle->handle) != FT_OK)
         return DEVICEERR_RESETFAIL;
-    if (FT_SetTimeouts(cart->handle, 5000, 5000) != FT_OK)
+    if (FT_SetTimeouts(fthandle->handle, 5000, 5000) != FT_OK)
         return DEVICEERR_TIMEOUTSETFAIL;
 
     // If the cart is in synchronous mode, enable the bits
-    if (cart->synchronous)
+    if (fthandle->synchronous)
     {
-        if (FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_RESET) != FT_OK)
+        if (FT_SetBitMode(fthandle->handle, 0xff, FT_BITMODE_RESET) != FT_OK)
             return DEVICEERR_BITMODEFAIL_RESET;
-        if (FT_SetBitMode(cart->handle, 0xff, FT_BITMODE_SYNC_FIFO) != FT_OK)
+        if (FT_SetBitMode(fthandle->handle, 0xff, FT_BITMODE_SYNC_FIFO) != FT_OK)
             return DEVICEERR_BITMODEFAIL_SYNCFIFO;
     }
 
     // Purge USB contents
-    if (FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+    if (FT_Purge(fthandle->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
         return DEVICEERR_PURGEFAIL;
 
     // Ok
@@ -249,8 +327,9 @@ DeviceError device_open_64drive(FTDIDevice* cart)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
+DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
 {
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
     uint32_t ram_addr = 0x0;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = size;
@@ -260,10 +339,10 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
     // Start by setting the CIC
     if (cart->cictype != CIC_NONE)
     {
-        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
+        DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
             return err;
-        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        FT_Read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read);
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_SETCIC)
             return DEVICEERR_64D_BADCMP;
     }
@@ -271,10 +350,10 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
     // Then, set the save type
     if (cart->savetype != SAVE_NONE)
     {
-        DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, (uint32_t)cart->savetype, 0);
+        DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_SETSAVE, false, NULL, 1, (uint32_t)cart->savetype, 0);
         if (err != DEVICEERR_OK)
             return err;
-        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        FT_Read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read);
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_SETSAVE)
             return DEVICEERR_64D_BADCMP;
     }
@@ -301,11 +380,11 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
            break;
 
         // Send the data to the 64Drive
-        device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-        FT_Write(cart->handle, rom + bytes_done, bytes_do, &cart->bytes_written);
+        device_sendcmd_64drive(fthandle, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
+        FT_Write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written);
 
         // Read the success response
-        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        FT_Read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read);
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_LOADRAM)
             return DEVICEERR_64D_BADCMP;
 
@@ -339,8 +418,9 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte* data, uint32_t size)
+DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size)
 {
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
     byte     buf[4];
     uint32_t cmp_magic;
     uint32_t newsize = 0;
@@ -367,14 +447,14 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte
 
     // Send this block of data
     device_setuploadprogress(0.0f);
-    err = device_sendcmd_64drive(cart, DEV_CMD_USBRECV, false, NULL, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
+    err = device_sendcmd_64drive(fthandle, DEV_CMD_USBRECV, false, NULL, 1, (newsize & 0x00FFFFFF) | datatype << 24, 0);
     if (err != DEVICEERR_OK)
         return err;
-    if (FT_Write(cart->handle, datacopy, newsize, &cart->bytes_written) != FT_OK)
+    if (FT_Write(fthandle->handle, datacopy, newsize, &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
 
     // Read the CMP signal
-    if (FT_Read(cart->handle, buf, 4, &cart->bytes_read) != FT_OK)
+    if (FT_Read(fthandle->handle, buf, 4, &fthandle->bytes_read) != FT_OK)
         return DEVICEERR_READFAIL;
     cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
     if (cmp_magic != 0x434D5040)
@@ -399,12 +479,13 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, byte** buff)
+DeviceError device_receivedata_64drive(CartDevice* cart, uint32_t* dataheader, byte** buff)
 {
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
     DWORD size;
 
     // First, check if we have data to read
-    FT_GetQueueStatus(cart->handle, &size);
+    FT_GetQueueStatus(fthandle->handle, &size);
 
     // If we do
     if (size > 0)
@@ -413,13 +494,13 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, b
         byte     temp[4];
 
         // Ensure we have valid data by reading the header
-        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
             return DEVICEERR_READFAIL;
         if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
             return DEVICEERR_64D_BADDMA;
 
         // Get information about the incoming data and store it in dataheader
-        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
             return DEVICEERR_READFAIL;
         (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
 
@@ -436,14 +517,14 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, b
             uint32_t readamount = size-read;
             if (readamount > 512)
                 readamount = 512;
-            if (FT_Read(cart->handle, (*buff)+read, readamount, &cart->bytes_read) != FT_OK)
+            if (FT_Read(fthandle->handle, (*buff)+read, readamount, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
-            read += cart->bytes_read;
+            read += fthandle->bytes_read;
             device_setuploadprogress((((float)read)/((float)size))*100.0f);
         }
 
         // Read the completion signal
-        if (FT_Read(cart->handle, temp, 4, &cart->bytes_read) != FT_OK)
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
             return DEVICEERR_READFAIL;
         if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
             return DEVICEERR_64D_BADCMP;
@@ -467,9 +548,12 @@ DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, b
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_close_64drive(FTDIDevice* cart)
+DeviceError device_close_64drive(CartDevice* cart)
 {
-    if (FT_Close(cart->handle) != FT_OK)
+    N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
+    if (FT_Close(fthandle->handle) != FT_OK)
         return DEVICEERR_CLOSEFAIL;
+    free(fthandle);
+    cart->structure = NULL;
     return DEVICEERR_OK;
 }

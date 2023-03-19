@@ -34,16 +34,16 @@
             Function Prototypes
     *********************************/
 
-    bool        device_test_64drive1(FTDIDevice* cart, uint32_t index);
-    bool        device_test_64drive2(FTDIDevice* cart, uint32_t index);
-    DeviceError device_open_64drive(FTDIDevice* cart);
-    DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size);
+    DeviceError device_test_64drive1(CartDevice* cart);
+    DeviceError device_test_64drive2(CartDevice* cart);
+    DeviceError device_open_64drive(CartDevice* cart);
+    DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size);
     uint32_t    device_maxromsize_64drive();
     bool        device_shouldpadrom_64drive();
     bool        device_explicitcic_64drive(byte* bootcode);
-    DeviceError device_testdebug_64drive(FTDIDevice* cart);
-    DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte* data, uint32_t size);
-    DeviceError device_receivedata_64drive(FTDIDevice* cart, uint32_t* dataheader, byte** buff);
-    DeviceError device_close_64drive(FTDIDevice* cart);
+    DeviceError device_testdebug_64drive(CartDevice* cart);
+    DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size);
+    DeviceError device_receivedata_64drive(CartDevice* cart, uint32_t* dataheader, byte** buff);
+    DeviceError device_close_64drive(CartDevice* cart);
 
 #endif
