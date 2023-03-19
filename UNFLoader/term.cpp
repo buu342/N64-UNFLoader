@@ -583,11 +583,11 @@ static void handle_input()
             if (!local_allowinput || local_inputcount == 0)
                 break;
             s = (char*)malloc(local_inputcount+1);
-            debug_send(local_input);
             strcpy(s, local_input);
             if (local_currhistory == local_inputhistory.begin())
                 local_inputhistory.push_back(s);
             local_currhistory = local_inputhistory.begin();
+            debug_send(local_input);
             term_clearinput();
             wrotein = true;
             break;

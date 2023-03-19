@@ -28,6 +28,7 @@
 *********************************/
 
 typedef struct {
+    char*       original;
     byte*       data;
     USBDataType type;
     int32_t     size;
@@ -80,9 +81,11 @@ void debug_main()
     {
         SendData* msg = local_mesgqueue.front();
         handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
+        log_colored("Sent command '%s'\n", CRDEF_INFO, msg->original);
 
         // Cleanup
         local_mesgqueue.pop();
+        free(msg->original);
         free(msg->data);
         free(msg);
     }
@@ -290,6 +293,10 @@ void debug_send(char* data)
     if (mesg == NULL)
         terminate("Unable to malloc message for debug send.");
     mesg->type = DATATYPE_TEXT;
+    mesg->original = (char*)malloc(datasize);
+    if (mesg->original == NULL)
+        terminate("Unable to malloc message for debug send.");
+    strcpy(mesg->original, data);
 
     // If there is a '@' symbol at both the start and end, then send a raw binary
     if (tokcount == 2 && data[0] == '@' && data[datasize-1] == '@')
@@ -330,6 +337,7 @@ void debug_send(char* data)
                     free(destroy->str);
                     free(destroy);
                 }
+                free(mesg->original);
                 free(mesg);
                 return;
             }
@@ -358,6 +366,7 @@ void debug_send(char* data)
                     free(destroy->str);
                     free(destroy);
                 }
+                free(mesg->original);
                 free(mesg);
                 return;
             }

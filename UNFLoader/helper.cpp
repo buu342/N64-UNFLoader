@@ -146,7 +146,7 @@ uint64_t time_miliseconds()
 {
     #ifndef LINUX
         SYSTEMTIME st;
-        GetSystemTime(&st);
+        GetLocalTime(&st);
         return (uint64_t)st.wMilliseconds;
     #else
         struct timeval tv;

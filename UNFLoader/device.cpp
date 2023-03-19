@@ -334,7 +334,7 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
     uint32_t originalsize = filesize;
     byte* rom_buffer;
     DeviceError err;
-
+    
     // Initialize upload checker globals
     local_uploadcancelled = false;
     local_uploadprogress = 0.0f;
@@ -344,13 +344,13 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
         filesize = calc_padsize(filesize);
 
     // Check we managed to malloc
-    rom_buffer = (byte*) calloc(sizeof(byte)*filesize, 1);
+    rom_buffer = (byte*) malloc(sizeof(byte)*filesize);
     if (rom_buffer == NULL)
         return DEVICEERR_MALLOCFAIL;
 
     // Read the ROM into a buffer
     fseek(rom, 0, SEEK_SET);
-    if (fread(rom_buffer, 1, filesize, rom) == 0)
+    if (fread(rom_buffer, 1, originalsize, rom) != originalsize)
         return DEVICEERR_FILEREADFAIL;
     fseek(rom, 0, SEEK_SET);
 
@@ -364,7 +364,7 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
             SWAP(rom_buffer[i], rom_buffer[i+1]);
 
     // Upload the ROM
-    err = funcPointer_sendrom(&local_cart, rom_buffer, originalsize);
+    err = funcPointer_sendrom(&local_cart, rom_buffer, filesize);
     free(rom_buffer);
     if (err != DEVICEERR_OK)
         device_cancelupload();
