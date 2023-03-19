@@ -497,7 +497,7 @@ void handle_deviceerror(DeviceError err)
             terminate("Malloc failure.");
             return;
         case DEVICEERR_UPLOADCANCELLED:
-            log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
+            log_replace("Upload cancelled by the user.\n", CRDEF_ERROR);
             return;
         case DEVICEERR_TIMEOUT:
             terminate("Flashcart timed out.");
@@ -514,6 +514,9 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_64D_BADDMA:
             terminate("Unexpected DMA header.");
             break;
+        case DEVICEERR_64D_DATATOOBIG:
+            log_colored("Data must be under 8MB.\n", CRDEF_ERROR);
+            return;
         case DEVICEERR_SC64_CTRLRESETFAIL:
             terminate("Couldn't perform SC64 controller reset.");
             break;

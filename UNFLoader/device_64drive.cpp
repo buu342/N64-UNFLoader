@@ -217,6 +217,8 @@ DeviceError device_open_64drive(FTDIDevice* cart)
     // Reset the cart and set its timeouts
     if (FT_ResetDevice(cart->handle) != FT_OK)
         return DEVICEERR_RESETFAIL;
+    if (FT_ResetDevice(cart->handle) != FT_OK)
+        return DEVICEERR_RESETFAIL;
     if (FT_SetTimeouts(cart->handle, 5000, 5000) != FT_OK)
         return DEVICEERR_TIMEOUTSETFAIL;
 
@@ -250,11 +252,9 @@ DeviceError device_open_64drive(FTDIDevice* cart)
 DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
 {
     uint32_t ram_addr = 0x0;
-    uint32_t bytes_left = size;
     uint32_t bytes_done = 0;
-    uint32_t bytes_do;
-    uint32_t chunk = 0;
-    DWORD    cmps;
+    uint32_t bytes_left = size;
+    uint32_t chunk;
     byte     cmpbuff[4];
 
     // Start by setting the CIC
@@ -263,6 +263,9 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
         DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
             return err;
+        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_SETCIC)
+            return DEVICEERR_64D_BADCMP;
     }
     
     // Then, set the save type
@@ -271,9 +274,13 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
         DeviceError err = device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, (uint32_t)cart->savetype, 0);
         if (err != DEVICEERR_OK)
             return err;
+        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_SETSAVE)
+            return DEVICEERR_64D_BADCMP;
     }
 
     // Decide a better, more optimized chunk size for sending
+    // Chunks must be under 8MB
     if (size > 16*1024*1024)
         chunk = 32;
     else if (size > 2*1024*1024)
@@ -283,79 +290,38 @@ DeviceError device_sendrom_64drive(FTDIDevice* cart, byte* rom, uint32_t size)
     chunk *= 128*1024; // Convert to megabytes
 
     // Upload the ROM in a loop
-    while (1)
+    while (bytes_left > 0)
     {
-        // Decide how many bytes to send
-        if (bytes_left >= chunk)
-            bytes_do = chunk;
-        else
+        uint32_t bytes_do = chunk;
+        if (bytes_left < chunk)
             bytes_do = bytes_left;
 
-        // If we have an uneven number of bytes, fix that
-        if (bytes_do%4 != 0)
-            bytes_do -= bytes_do%4;
-
-        // End if we've got nothing else to send
-        if (bytes_do <= 0)
-            break;
-        
         // Check if the upload was cancelled
         if (device_uploadcancelled())
-            return DEVICEERR_UPLOADCANCELLED;
+           break;
 
-        // Try to send chunks
-        for (int i=0; i<2; i++)
-        {
-            // If we failed the first time, clear the USB and try again
-            if (i == 1)
-            {
-                if (FT_ResetPort(cart->handle) != FT_OK)
-                    return DEVICEERR_RESETPORTFAIL;
-                if (FT_ResetDevice(cart->handle) != FT_OK)
-                    return DEVICEERR_RESETFAIL;
-                if (FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
-                    return DEVICEERR_PURGEFAIL;
-            }
+        // Send the data to the 64Drive
+        device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
+        FT_Write(cart->handle, rom + bytes_done, bytes_do, &cart->bytes_written);
 
-            // Send the chunk to cartridge RAM
-            device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-            FT_Write(cart->handle, rom+bytes_done, bytes_do, &cart->bytes_written);
+        // Read the success response
+        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
+        if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_LOADRAM)
+            return DEVICEERR_64D_BADCMP;
 
-            // If we managed to write, don't try again
-            if (cart->bytes_written)
-                break;
-        }
-
-        // Check for a timeout
-        if (cart->bytes_written == 0)
-            return DEVICEERR_TIMEOUT;
-
-        // Ignore the success response
-        cart->status = FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
-
-        // Keep track of how many bytes were uploaded
+        // Update the upload progress
+        device_setuploadprogress((((float)bytes_done) / ((float)size)) * 100.0f);
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
         ram_addr += bytes_do;
-        device_setuploadprogress((((float)bytes_done)/((float)size))*100.0f);
     }
 
     // Wait for the CMP signal
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    // Read the incoming CMP signals to ensure everything's fine
-    FT_GetQueueStatus(cart->handle, &cmps);
-    while (cmps > 0)
-    {
-        // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, cmpbuff, 4, &cart->bytes_read);
-        if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != 0x20)
-            return DEVICEERR_64D_BADCMP;
-
-        // Wait a little bit before reading the next CMP signal
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        FT_GetQueueStatus(cart->handle, &cmps);
-    }
+    // Return an error if the upload was cancelled
+    if (device_uploadcancelled())
+        return DEVICEERR_UPLOADCANCELLED;
 
     // Success
     device_setuploadprogress(100.0f);
@@ -388,6 +354,10 @@ DeviceError device_senddata_64drive(FTDIDevice* cart, USBDataType datatype, byte
         newsize = (size & ~3) + 4;
     else
         newsize = size;
+
+    // Files must be smaller than 8MB
+    if (newsize > 8*1024*1024)
+        return DEVICEERR_64D_DATATOOBIG;
 
     // Copy the data onto a temp variable
     datacopy = (byte*) calloc(newsize, 1);
