@@ -413,7 +413,7 @@ static void refresh_output()
         char scrolltext[40 + 1];
 
         // Initialize the scroll text and the window to render the text to
-        sprintf(scrolltext, "%d/%d", local_padbottom.load() - local_scrolly.load() - (h+2), local_padbottom.load() - (h+2));
+        sprintf(scrolltext, "%d/%d", local_padbottom.load() - local_scrolly.load()-h+2, local_padbottom.load()-h+2);
         scrolltextlen = strlen(scrolltext);
 
         // Initialize the scroll text window if necessary
