@@ -2,6 +2,8 @@
 #define __HELPER_HEADER
 
     #include "device.h"
+    #include <stdint.h>
+    #include <time.h>
 
 
     /*********************************
