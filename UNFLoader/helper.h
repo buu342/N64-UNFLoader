@@ -12,6 +12,8 @@
 
     // Useful
     void     terminate(const char* reason, ...);
+    void     pauseprogram();
+    void     progressthread(const char* msg);
     void     progressbar_draw(const char* text, short color, float percent);
     uint64_t time_miliseconds();
     time_t   file_lastmodtime(const char* path);

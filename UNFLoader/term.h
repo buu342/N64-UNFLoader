@@ -39,6 +39,7 @@
     void term_sethistorysize(int val);
     void term_usecurses(bool val);
     void term_allowinput(bool val);
+    void term_enablestacking(bool val);
     void term_end();
 
     // Terminal checking

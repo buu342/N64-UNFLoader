@@ -33,7 +33,6 @@ UNFLoader Entrypoint
 static void parse_args_priority(std::list<char*>* args);
 static void parse_args(std::list<char*>* args);
 static void program_loop();
-static void progressthread(int esclevel);
 static void autodetect_romheader();
 static void show_title();
 static void show_args();
@@ -88,7 +87,10 @@ int main(int argc, char* argv[])
     if (!local_debugmode && !local_listenmode && device_getrom() == NULL)
     {
         show_args();
-        terminate(NULL);
+        if (term_isusingcurses())
+            terminate(NULL);
+        else
+            pauseprogram();
     }
 
     // Can't use listen mode if there's no ROM to listen to
@@ -166,7 +168,10 @@ static void parse_args_priority(std::list<char*>* args)
             term_initialize();
             show_title();
             show_help();
-            terminate(NULL);
+            if (term_isusingcurses())
+                terminate(NULL);
+            else
+                pauseprogram();
         }
     }
 }
@@ -288,6 +293,9 @@ static void parse_args(std::list<char*>* args)
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
+            case 'm': // Allow message stacking
+                term_allowinput(false);
+                break;
             default:
                 terminate("Unknown command '%s'", command);
                 break;
@@ -374,6 +382,7 @@ static void program_loop()
         if (device_getrom() != NULL && (firstupload || (local_listenmode && lastmodtime != newmodtime) || local_reupload))
         {
             FILE* fp;
+            uint64_t uploadtime;
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
             local_reupload = false;
 
@@ -403,15 +412,30 @@ static void program_loop()
             if (device_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
                 log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
 
-            // Start the progress bar thread
-            increment_escapelevel();
-            std::thread t(progressthread, get_escapelevel());
-
             // Upload the ROM
-           handle_deviceerror(device_sendrom(fp, filesize));
+            increment_escapelevel();
+            uploadtime = time_miliseconds();
+            if (term_isusingcurses()) // If curses is being used, spawn a thread to draw a progress bar
+            {
+                std::thread t;
+                log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
+                t = std::thread(progressthread, "Uploading ROM (ESC to cancel)");
+                handle_deviceerror(device_sendrom(fp, filesize));
+                t.join();
+            }
+            else
+            {
+                log_simple("Uploading ROM (Type 'cancel' to stop).\n");
+                handle_deviceerror(device_sendrom(fp, filesize));
+            }
 
-            // Cleanup
-            t.join();
+            // Success?
+            if (!device_uploadcancelled())
+                log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
+            else
+                log_replace("ROM upload cancelled by the user.\n", CRDEF_ERROR);
+            
+            // Update variables and close the file
             lastmodtime = newmodtime;
             if (!device_uploadcancelled())
                 decrement_escapelevel();
@@ -436,8 +460,16 @@ static void program_loop()
             if (printed)
             {
                 log_simple("\n");
-                log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
-                log_colored("Press ESC to exit.\n\n", CRDEF_INPUT);
+                if (term_isusingcurses())
+                {
+                    log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
+                    log_colored("Press ESC to exit.\n\n", CRDEF_INPUT);
+                }
+                else
+                {
+                    log_simple("Type 'reupload' to force a reupload. ");
+                    log_simple("Type 'exit' to exit.\n-----------------------------\n\n");
+                }
             }
             firstupload = false;
         }
@@ -457,52 +489,6 @@ static void program_loop()
     // Close the flashcart
     handle_deviceerror(device_close());
     log_simple("\nUSB connection closed.\n");
-}
-
-
-/*==============================
-    progressthread
-    Draws the upload progress bar
-    in a separate thread
-    @param The escape level, to check
-           when cancelling happens
-==============================*/
-
-static void progressthread(int esclevel)
-{
-    uint64_t uploadtime = time_miliseconds();
-    float lastprog = 0;
-    log_colored("Uploading ROM (ESC to cancel)\n", CRDEF_INPUT);
-
-    // Wait for the upload to finish
-    while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
-    {
-        // If the device was closed, stop
-        if (!device_isopen())
-            return;
-
-        // Draw the progress bar
-        if (device_getuploadprogress() != lastprog)
-        {
-            progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress() / 100.0f);
-            lastprog = device_getuploadprogress();
-        }
-
-        // Handle upload cancelling
-        if (get_escapelevel() < esclevel)
-        {
-            device_cancelupload();
-            log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
-            break;
-        }
-
-        // Sleep for a bit to be kind to the CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    // Success?
-    if (!device_uploadcancelled())
-        log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
 }
 
 
@@ -664,7 +650,7 @@ static void show_args()
     log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");
     log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");
     log_simple("  -h <int>\t\t   Max window history (default %d).\n", DEFAULT_HISTORYSIZE);
-    log_simple("  -m \t\t\t   Always show duplicate prints in debug mode.\n");
+    log_simple("  -m\t\t\t   Always show duplicate prints in debug mode.\n");
     log_simple("  -b\t\t\t   Disable ncurses.\n");
 }
 

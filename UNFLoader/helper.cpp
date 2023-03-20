@@ -36,6 +36,7 @@ const int   save_strcount = sizeof(save_strings)/sizeof(save_strings[0]);
 /*==============================
     terminate
     Stops the program and prints "Press any key to continue..."
+    (if using curses)
     @param A string to print
     @param Variadic arguments to print as well
 ==============================*/
@@ -64,41 +65,18 @@ void terminate(const char* reason, ...)
         device_close();
 
     // Pause the program
-    term_allowinput(false);
-    if (get_timeout() != -1 && term_isusingcurses())
-        log_colored("Press any key to continue, or wait for timeout.\n", CRDEF_INPUT);
-    else if (get_timeout() != -1)
-        log_colored("Program exiting in %d seconds.\n", CRDEF_INPUT, get_timeout());
-    else
-        log_colored("Press any key to continue...\n", CRDEF_INPUT);
-    if (!term_isusingcurses())
-    {
-        if (get_timeout() != -1)
-        {
-            uint64_t start = time_miliseconds();
-            while ((time_miliseconds()-start)/1000 < (uint32_t)get_timeout())
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        else
-        {
-            #ifndef LINUX
-                system("pause > nul");
-            #else
-                struct termios info, orig;
-                tcgetattr(0, &info);
-                tcgetattr(0, &orig);
-                info.c_lflag &= ~(ICANON | ECHO);
-                info.c_cc[VMIN] = 1;
-                info.c_cc[VTIME] = 0;
-                tcsetattr(0, TCSANOW, &info);
-                getchar();
-                tcsetattr(0, TCSANOW, &orig);
-            #endif
-        }
-    }
-    else
+    if (term_isusingcurses())
     {
         uint64_t start = time_miliseconds();
+        term_allowinput(false);
+        if (get_timeout() != -1 && term_isusingcurses())
+            log_colored("Press any key to continue, or wait for timeout.\n", CRDEF_INPUT);
+        else if (get_timeout() != -1)
+            log_colored("Program exiting in %d seconds.\n", CRDEF_INPUT, get_timeout());
+        else
+            log_colored("Press any key to continue...\n", CRDEF_INPUT);
+
+        // Pause until timeout or a key is pressed
         while (!term_waskeypressed() && (get_timeout() == -1 || (get_timeout() != -1 && (time_miliseconds()-start)/1000 < (uint32_t)get_timeout())))
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -108,6 +86,75 @@ void terminate(const char* reason, ...)
     term_end();
     exit(-1);
 }
+
+
+/*==============================
+    pauseprogram
+    Pauses the program and prints "Press any key to continue..."
+    without curses
+==============================*/
+
+void pauseprogram()
+{
+    log_colored("Press any key to continue...\n", CRDEF_INPUT);
+    #ifndef LINUX
+        system("pause > nul");
+    #else
+        struct termios info, orig;
+        tcgetattr(0, &info);
+        tcgetattr(0, &orig);
+        info.c_lflag &= ~(ICANON | ECHO);
+        info.c_cc[VMIN] = 1;
+        info.c_cc[VTIME] = 0;
+        tcsetattr(0, TCSANOW, &info);
+        getchar();
+        tcsetattr(0, TCSANOW, &orig);
+    #endif
+
+    // End
+    global_terminating = true;
+    exit(-1);
+}
+
+
+/*==============================
+    progressthread
+    Draws the upload progress bar
+    in a separate thread
+    @param The message to print next to the progress bar
+==============================*/
+
+void progressthread(const char* msg)
+{
+    int esclevel = get_escapelevel();
+    float lastprog = 0;
+
+    // Wait for the upload to finish
+    while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
+    {
+        // If the device was closed, stop
+        if (!device_isopen())
+            return;
+
+        // Draw the progress bar
+        if (device_getuploadprogress() != lastprog)
+        {
+            progressbar_draw(msg, CRDEF_INPUT, device_getuploadprogress() / 100.0f);
+            lastprog = device_getuploadprogress();
+        }
+
+        // Handle upload cancelling
+        if (get_escapelevel() < esclevel)
+        {
+            device_cancelupload();
+            break;
+        }
+
+        // Sleep for a bit to be kind to the CPU
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
 
 /*==============================
     progressbar_draw
@@ -187,7 +234,7 @@ CartType cart_strtotype(const char* cartstring)
     if (cartstring[0] >= ('0'+((int)CART_64DRIVE1)) && cartstring[0] <= ('0'+((int)CART_SC64)) && cartstring[1] == '\0')
         return (CartType)(cartstring[0]-'0');
 
-    // Check if the user, for some reason, wrote the entire CIC string out
+    // Check if the user, for some reason, wrote the entire cart string out
     for (int i=0; i<cart_strcount; i++)
         if (!strcmp(cart_strings[i], cartstring))
             return (CartType)(i+1);

@@ -53,6 +53,6 @@
     int  get_escapelevel();
     void increment_escapelevel();
     void decrement_escapelevel();
-    int get_timeout();
+    int  get_timeout();
 
 #endif

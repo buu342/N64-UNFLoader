@@ -53,7 +53,6 @@ static void debug_handle_text(uint32_t size, byte* buffer);
 static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
 static void debug_handle_screenshot(uint32_t size, byte* buffer);
-static void progressthread(int esclevel);
 
 
 /*********************************
@@ -84,14 +83,28 @@ void debug_main()
     {
         SendData* msg = local_mesgqueue.front();
         increment_escapelevel();
-        std::thread t(progressthread, get_escapelevel());
-        handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
-        t.join();
+        if (term_isusingcurses())
+        {
+            std::thread t;
+            log_colored("Uploading command (ESC to cancel)\n", CRDEF_INPUT);
+            t = std::thread(progressthread, "Uploading command (ESC to cancel)");
+            handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
+            t.join();
+        }
+        else
+        {
+            log_simple("Uploading command (type 'cancel' to cancel).\n");
+            handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
+        }
+
+        // Print success?
         if (!device_uploadcancelled())
         {
             log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
             decrement_escapelevel();
         }
+        else
+            log_replace("Upload cancelled by the user.\n", CRDEF_ERROR);
 
         // Cleanup
         local_mesgqueue.pop();
@@ -494,45 +507,4 @@ void debug_closedebugout()
 {
     fclose(local_debugoutfile);
     local_debugoutfile = NULL;
-}
-
-
-/*==============================
-    progressthread
-    Draws the upload progress bar
-    in a separate thread
-    @param The escape level, to check
-           when cancelling happens
-==============================*/
-
-static void progressthread(int esclevel)
-{
-    float lastprog = 0;
-    log_colored("Uploading command (ESC to cancel)\n", CRDEF_INPUT);
-
-    // Wait for the upload to finish
-    while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
-    {
-        // If the device was closed, stop
-        if (!device_isopen())
-            return;
-
-        // Draw the progress bar
-        if (device_getuploadprogress() != lastprog)
-        {
-            progressbar_draw("Uploading command (ESC to cancel)", CRDEF_INPUT, device_getuploadprogress() / 100.0f);
-            lastprog = device_getuploadprogress();
-        }
-
-        // Handle upload cancelling
-        if (get_escapelevel() < esclevel)
-        {
-            device_cancelupload();
-            log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
-            break;
-        }
-
-        // Sleep for a bit to be kind to the CPU
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
 }

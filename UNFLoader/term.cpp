@@ -58,6 +58,7 @@ typedef struct {
 
 #define ctrl(a) (a & 0x1F)
 static void termthread();
+static void termthread_simple();
 static void handle_input();
 static void scroll_output(int value);
 static void refresh_output();
@@ -93,7 +94,8 @@ static std::atomic<int> local_scrolly (0);
 static std::queue<Output*> local_mesgqueue;
 static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 static char* local_laststackable = NULL;
-static int local_stackcount = 0;
+static int   local_stackcount = 0;
+static bool  local_allowstack = true;
 
 // Input window globals
 static std::atomic<bool> local_allowinput(true);
@@ -179,6 +181,11 @@ void term_initialize()
         // Create the terminal thread
         thread_input = std::thread(termthread);
     }
+    else
+    {
+        thread_input = std::thread(termthread_simple);
+        thread_input.detach();
+    }
 }
 
 
@@ -229,7 +236,7 @@ static void termthread()
                 wattroff(local_outputwin, COLOR_PAIR(i+1));
 
             // Handle message stacking
-            if (msg->stack)
+            if (local_allowstack && msg->stack)
             {
                 if (local_laststackable != NULL && !strcmp(local_laststackable, msg->str))
                 {
@@ -668,6 +675,40 @@ static void handle_input()
 
 
 /*==============================
+    termthread_simple
+    Reads user input without using curses
+==============================*/
+
+static void termthread_simple()
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    while (!global_terminating)
+    {
+        // Block until the user presses enter
+        if (local_allowinput && fgets(local_input, MAXINPUT-1, stdin) != NULL && !global_terminating)
+        {
+            // Remove trailing newline
+            local_input[strcspn(local_input, "\r\n")] = 0;
+
+            // Handle input
+            if (strlen(local_input) > 0)
+            {
+                if (!strcmp(local_input, "exit") || !strcmp(local_input, "cancel"))
+                    program_event(PEV_ESCAPE);
+                else if (!strcmp(local_input, "reupload"))
+                    program_event(PEV_REUPLOAD);
+                else
+                    debug_send(local_input);
+            }
+
+            // Cleanup
+            memset(local_input, 0, MAXINPUT);
+        }
+    }
+}
+
+
+/*==============================
     scroll_output
     Scrolls the window pad by a
     given amount.
@@ -802,6 +843,18 @@ void term_setsize(int h, int w)
     local_padbottom = -1;
     local_scrolly = 0;
     local_resizesignal = true;
+}
+
+
+/*==============================
+    term_enablestacking
+    Enables/disables stacking printf
+    messages
+==============================*/
+
+void term_enablestacking(bool val)
+{
+    local_allowstack = val;
 }
 
 
