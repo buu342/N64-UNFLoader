@@ -16,6 +16,8 @@
     #include <sys/time.h>
     #include <termios.h>
 #endif
+#include <thread>
+#include <chrono>
 
 
 /*********************************
@@ -63,27 +65,42 @@ void terminate(const char* reason, ...)
 
     // Pause the program
     term_allowinput(false);
-    log_colored("Press any key to continue...\n", CRDEF_INPUT);
+    if (get_timeout() != -1 && term_isusingcurses())
+        log_colored("Press any key to continue, or wait for timeout.\n", CRDEF_INPUT);
+    else if (get_timeout() != -1)
+        log_colored("Program exiting in %d seconds.\n", CRDEF_INPUT, get_timeout());
+    else
+        log_colored("Press any key to continue...\n", CRDEF_INPUT);
     if (!term_isusingcurses())
     {
-        #ifndef LINUX
-            system("pause > nul");
-        #else
-            struct termios info, orig;
-            tcgetattr(0, &info);
-            tcgetattr(0, &orig);
-            info.c_lflag &= ~(ICANON | ECHO);
-            info.c_cc[VMIN] = 1;
-            info.c_cc[VTIME] = 0;
-            tcsetattr(0, TCSANOW, &info);
-            getchar();
-            tcsetattr(0, TCSANOW, &orig);
-        #endif
+        if (get_timeout() != -1)
+        {
+            uint64_t start = time_miliseconds();
+            while ((time_miliseconds()-start)/1000 < (uint32_t)get_timeout())
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        else
+        {
+            #ifndef LINUX
+                system("pause > nul");
+            #else
+                struct termios info, orig;
+                tcgetattr(0, &info);
+                tcgetattr(0, &orig);
+                info.c_lflag &= ~(ICANON | ECHO);
+                info.c_cc[VMIN] = 1;
+                info.c_cc[VTIME] = 0;
+                tcsetattr(0, TCSANOW, &info);
+                getchar();
+                tcsetattr(0, TCSANOW, &orig);
+            #endif
+        }
     }
     else
     {
-        while (!term_waskeypressed())
-            ;
+        uint64_t start = time_miliseconds();
+        while (!term_waskeypressed() && (get_timeout() == -1 || (get_timeout() != -1 && (time_miliseconds()-start)/1000 < (uint32_t)get_timeout())))
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     // End

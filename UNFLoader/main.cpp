@@ -50,9 +50,10 @@ FILE* global_debugoutptr = NULL;
 std::atomic<bool> global_terminating (false);
 
 // Local globals
-static bool  local_autodetect = true;
-static bool  local_debugmode  = false;
-static bool  local_listenmode = false;
+static bool     local_autodetect = true;
+static bool     local_debugmode  = false;
+static bool     local_listenmode = false;
+static int      local_timeout = -1;
 static std::list<char*>  local_args;
 static std::atomic<int>  local_esclevel (0);
 static std::atomic<bool> local_reupload (false);
@@ -262,12 +263,28 @@ static void parse_args(std::list<char*>* args)
                 local_autodetect = false;
                 break;
             case 'e': // File export directory
-                debug_setdebugout(*it);
-                log_simple("File export path set to '%s'\n", *it);
+                if (nextarg_isvalid(it, args))
+                {
+                    debug_setbinaryout(*it);
+                    log_simple("File export path set to '%s'\n", *it);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+                break;
+            case 't': // File export directory
+                if (nextarg_isvalid(it, args))
+                {
+                    local_timeout = atoi(*it);
+                    if (local_timeout < 0)
+                        terminate("Timeout must be larger than zero.");
+                    log_simple("Timeout set to %d seconds.\n", *it);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
                 break;
             case 'h': // Set history size
                 if (nextarg_isvalid(it, args))
-                    term_sethistorysize(atoi(command));
+                    term_sethistorysize(atoi(*it));
                 else
                     terminate("Missing parameter(s) for command '%s'.", command);
                 break;
@@ -328,6 +345,10 @@ static void program_loop()
     // Explicit CIC checking
     if (device_getrom() != NULL && device_explicitcic())
         log_simple("CIC set automatically to '%s'.\n", cic_typetostr(device_getcic()));
+
+    // Autodetect ROM header
+    if (local_autodetect)
+        autodetect_romheader();
 
     // Open the flashcart
     handle_deviceerror(device_open());
@@ -403,20 +424,19 @@ static void program_loop()
             bool printed = false;
             if (local_debugmode)
             {
-                log_simple("Debug mode started. ");
+                log_colored("Debug mode started. ", CRDEF_INPUT);
                 printed = true;
                 term_allowinput(true);
             }
             if (local_listenmode)
             {
-                log_simple("Listening for file changes.");
+                log_colored("Listening for file changes.", CRDEF_INPUT);
                 printed = true;
             }
             if (printed)
             {
                 log_simple("\n");
-                if (local_listenmode)
-                    log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
+                log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
                 log_colored("Press ESC to exit.\n\n", CRDEF_INPUT);
             }
             firstupload = false;
@@ -509,7 +529,9 @@ void program_event(ProgEvent key)
 
 /*==============================
     get_escapelevel
-    TODO
+    Gets the amount of times ESC
+    needs to be pressed to exit.
+    @return The ESC level
 ==============================*/
 
 int get_escapelevel()
@@ -520,7 +542,8 @@ int get_escapelevel()
 
 /*==============================
     increment_escapelevel
-    TODO
+    Increments the amount of times
+    ESC needs to be pressed to exit.
 ==============================*/
 
 void increment_escapelevel()
@@ -531,12 +554,27 @@ void increment_escapelevel()
 
 /*==============================
     decrement_escapelevel
-    TODO
+    Decrements the amount of times
+    ESC needs to be pressed to exit.
 ==============================*/
 
 void decrement_escapelevel()
 {
     local_esclevel--;
+}
+
+
+/*==============================
+    get_timeout
+    Gets the current timeout value.
+    @return -1 for no timeout, any other
+            positive value for number of
+            seconds for a timeout.
+==============================*/
+
+int get_timeout()
+{
+    return local_timeout;
 }
 
 
@@ -621,7 +659,7 @@ static void show_args()
     log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM768, "SRAM 768Kbit", (int)SAVE_FLASHRAMPKMN, "FlashRAM 1Mbit (PokeStdm2)");
     log_simple("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n");
     log_simple("  -l\t\t\t   Listen mode (reupload ROM when changed).\n");
-    log_simple("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n");
+    log_simple("  -t <seconds>\t\t   Set timeout for program exit.\n");
     log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n");
     log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");
     log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");
@@ -675,39 +713,41 @@ static void show_help()
             log_simple(" 1) Ensure your device is on the latest firmware/version.\n"
                        " 2) Plug your 64Drive USB into your PC, ensuring the console is turned OFF.\n"
                        " 3) Run this program to upload a ROM. Example:\n" 
-                       " \t unfloader.exe -r myrom.n64\n");
+                       " \t UNFLoader.exe -r myrom.n64\n");
             log_simple(" 4) If using 64Drive HW2, your game might not boot if you do not state the\n"
-                       "    correct CIC as an argument. Most likely, you are using CIC 6102, so simply\n"
-                       "    append that to the end of the arguments. Example:\n"
-                       " \t unfloader.exe -r myrom.n64 -c 6102\n"
+                       "    correct CIC as an argument. UNFLoader will try to autodetect the CIC from\n"
+                       "    the ROM header. If this fails, you can specify the CIC as a program\n"
+                       "    argument. Example:\n"
+                       " \t UNFLoader.exe -r myrom.n64 -c 6102\n"
                        " 5) Once the upload process is finished, turn the console on. Your ROM should\n"
                        "    execute.\n");
             break;
         case '2':
             log_simple(" 1) Ensure your device is on the latest firmware/version for your cart model.\n"
-                        " 2) Plug your EverDrive USB into your PC, ensuring the console is turned ON and\n"
-                        "    in the main menu.\n"
-                        " 3) Run this program to upload a ROM. Example:\n" 
-                        " \t unfloader.exe -r myrom.n64\n"
-                        " 4) Once the upload process is finished, your ROM should execute.\n");
+                       " 2) Plug your EverDrive USB into your PC, ensuring the console is turned ON and\n"
+                       "    in the main menu.\n"
+                       " 3) Run this program to upload a ROM. Example:\n" 
+                       " \t UNFLoader.exe -r myrom.n64\n"
+                       " 4) Once the upload process is finished, your ROM should execute.\n");
             break;
         case '3':
             log_simple(" 1) Plug the SC64 USB into your PC.\n"
                        " 2) Run this program to upload a ROM. Example:\n" 
-                       " \t unfloader.exe -r myrom.n64\n"
+                       " \t UNFLoader.exe -r myrom.n64\n"
                        " 3) Once the upload process is finished, your ROM should execute.\n");
             break;
         case '4':
             log_simple("Listen mode automatically re-uploads the ROM via USB when it is modified. This\n"
-                    "saves you the trouble of having to restart this program every recompile of your\n"
-                    "homebrew. It is on YOU to ensure the cart is prepared to receive another ROM.\n"
-                    "That means that the console must be switched OFF if you're using the 64Drive or\n"
-                    "be in the menu if you're using an EverDrive. In SC64 case ROM can be uploaded\n"
-                    "while console is running but if currently running code is actively accessing\n"
-                    "ROM space this can result in glitches or even crash, proceed with caution.\n");
+                       "saves you the trouble of having to restart this program every recompile of your\n"
+                       "homebrew. It is on YOU to ensure the cart is prepared to receive another ROM.\n"
+                       "That means that the console must be switched OFF if you're using the 64Drive or\n"
+                       "be in the menu if you're using an EverDrive. In the SC64's case, the ROM can be\n"
+                       "uploaded while console is running, but if currently running code is actively\n"
+                       "accessing ROM space, this can result in glitches or even crash, proceed with\n"
+                       "caution.\n");
             break;
         case '5':
-            log_simple("In order to use the debug mode, the N64 ROM that you are executing must already\n"
+            log_simple("In order to use debug mode, the N64 ROM that you are executing must already\n"
                        "have implented the USB or debug library that comes with this tool. Otherwise,\n"
                        "debug mode will serve no purpose.\n\n");
             log_simple("During debug mode, you are able to type commands, which show up in ");
@@ -723,9 +763,9 @@ static void show_help()
                        "program is running. Messages from the console will appear in ");
             log_colored(                                                             "yellow", CRDEF_PRINT);
             log_simple(                                                                     ".\n\n"
-                    "For more information on how to implement the debug library, check the GitHub\n"
-                    "page where this tool was uploaded to, there should be plenty of examples there.\n"
-                    PROGRAM_GITHUB"\n");
+                       "For more information on how to implement the debug library, check the GitHub\n"
+                       "page where this tool was uploaded to, there should be plenty of examples there.\n"
+                       PROGRAM_GITHUB"\n");
             break;
         default:
             terminate("Unknown category."); 

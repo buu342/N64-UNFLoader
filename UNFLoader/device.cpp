@@ -51,7 +51,6 @@ static void device_set_sc64(CartDevice* cart);
 static char* local_rompath  = NULL;
 
 // Cart
-static CartType local_carttype = CART_NONE;
 static CartDevice local_cart;
 
 // Upload
@@ -82,7 +81,7 @@ void device_initialize()
 DeviceError device_find()
 {
     // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
-    if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE1))
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_64DRIVE1))
     {
         DeviceError err = device_test_64drive1(&local_cart);
         if (err == DEVICEERR_OK)
@@ -92,7 +91,7 @@ DeviceError device_find()
     }
 
     // Look for 64drive HW2 (FT2232H Asynchronous FIFO mode)
-    if ((local_carttype == CART_NONE || local_carttype == CART_64DRIVE2))
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_64DRIVE2))
     {
         DeviceError err = device_test_64drive2(&local_cart);
         if (err == DEVICEERR_OK)
@@ -102,7 +101,7 @@ DeviceError device_find()
     }
 
     // Look for an EverDrive
-    if ((local_carttype == CART_NONE || local_carttype == CART_EVERDRIVE))
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_EVERDRIVE))
     {
         DeviceError err = device_test_everdrive(&local_cart);
         if (err == DEVICEERR_OK)
@@ -112,7 +111,7 @@ DeviceError device_find()
     }
 
     // Look for SC64
-    if ((local_carttype == CART_NONE || local_carttype == CART_SC64))
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_SC64))
     {
         DeviceError err = device_test_sc64(&local_cart);
         if (err == DEVICEERR_OK)
@@ -124,7 +123,6 @@ DeviceError device_find()
     // Finish
     if (local_cart.carttype == CART_NONE)
         return DEVICEERR_CARTFINDFAIL;
-    local_carttype = local_cart.carttype;
     return DEVICEERR_OK;
 }
 
@@ -452,7 +450,7 @@ bool device_setrom(char* path)
 
 void device_setcart(CartType cart)
 {
-    local_carttype = cart;
+    local_cart.carttype = cart;
 }
 
 
@@ -501,7 +499,7 @@ char* device_getrom()
 
 CartType device_getcart()
 {
-    return local_carttype;
+    return local_cart.carttype;
 }
 
 
