@@ -569,6 +569,9 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_TIMEOUT:
             terminate("Flashcart timed out.");
             break;
+        case DEVICEERR_POLLFAIL:
+            terminate("Flashcart polling failed.");
+            break;
         case DEVICEERR_64D_8303USB:
             terminate("The 8303 CIC is not supported through USB.");
             break;

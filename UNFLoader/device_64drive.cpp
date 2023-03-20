@@ -381,10 +381,12 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
 
         // Send the data to the 64Drive
         device_sendcmd_64drive(fthandle, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-        FT_Write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written);
+        if (FT_Write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written)  != FT_OK)
+            return DEVICEERR_WRITEFAIL;
 
         // Read the success response
-        FT_Read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read);
+        if (FT_Read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read)  != FT_OK)
+            return DEVICEERR_READFAIL;
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_LOADRAM)
             return DEVICEERR_64D_BADCMP;
 
@@ -485,7 +487,8 @@ DeviceError device_receivedata_64drive(CartDevice* cart, uint32_t* dataheader, b
     DWORD size;
 
     // First, check if we have data to read
-    FT_GetQueueStatus(fthandle->handle, &size);
+    if (FT_GetQueueStatus(fthandle->handle, &size) != FT_OK)
+        return DEVICEERR_POLLFAIL;
 
     // If we do
     if (size > 0)
