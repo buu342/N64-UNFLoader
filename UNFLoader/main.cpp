@@ -165,7 +165,8 @@ static void parse_args_priority(std::list<char*>* args)
         char* command = (*it);
         if (!strcmp(command, "-help"))
         {
-            term_initialize();
+            if (term_isusingcurses())
+               term_initialize();
             show_title();
             show_help();
             if (term_isusingcurses())
@@ -431,14 +432,15 @@ static void program_loop()
 
             // Success?
             if (!device_uploadcancelled())
-                log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds()-uploadtime))/1000.0f);
+            {
+                decrement_escapelevel();
+                log_replace("ROM successfully uploaded in %.02lf seconds!\n", CRDEF_PROGRAM, ((double)(time_miliseconds() - uploadtime)) / 1000.0f);
+            }
             else
                 log_replace("ROM upload cancelled by the user.\n", CRDEF_ERROR);
             
             // Update variables and close the file
             lastmodtime = newmodtime;
-            if (!device_uploadcancelled())
-                decrement_escapelevel();
             fclose(fp);
         }
 

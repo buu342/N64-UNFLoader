@@ -84,7 +84,11 @@ void terminate(const char* reason, ...)
     // End
     global_terminating = true;
     term_end();
-    exit(-1);
+    #ifndef LINUX
+        TerminateProcess(GetCurrentProcess(), 0);
+    #else
+        exit(0);
+    #endif
 }
 
 
