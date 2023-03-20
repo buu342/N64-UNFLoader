@@ -286,11 +286,17 @@ DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bo
 
 DeviceError device_open_64drive(CartDevice* cart)
 {
+    DWORD size;
     N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
 
     // Open the cart
     if (FT_Open(fthandle->device_index, &fthandle->handle) != FT_OK || fthandle->handle == NULL)
         return DEVICEERR_CANTOPEN;
+
+    // First, check if the USB port has crap in it, and if so, unclog it
+    // Won't deal with data sent from PC to the N64 not being read 
+    while (FT_GetQueueStatus(fthandle->handle, &size) && size > 0)
+        FT_Read(fthandle->handle, &size, sizeof(DWORD), &fthandle->bytes_read);
 
     // Reset the cart and set its timeouts
     if (FT_ResetDevice(fthandle->handle) != FT_OK)
