@@ -50,5 +50,8 @@
     *********************************/
 
     void program_event(ProgEvent key);
+    int  get_escapelevel();
+    void increment_escapelevel();
+    void decrement_escapelevel();
 
 #endif

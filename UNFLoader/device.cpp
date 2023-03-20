@@ -124,6 +124,7 @@ DeviceError device_find()
     // Finish
     if (local_cart.carttype == CART_NONE)
         return DEVICEERR_CARTFINDFAIL;
+    local_carttype = local_cart.carttype;
     return DEVICEERR_OK;
 }
 

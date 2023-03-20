@@ -30,14 +30,14 @@ UNFLoader Entrypoint
         Function Prototypes
 *********************************/
 
-void parse_args_priority(std::list<char*>* args);
-void parse_args(std::list<char*>* args);
-void program_loop();
-void progressthread(int esclevel);
-void autodetect_romheader();
-void show_title();
-void show_args();
-void show_help();
+static void parse_args_priority(std::list<char*>* args);
+static void parse_args(std::list<char*>* args);
+static void program_loop();
+static void progressthread(int esclevel);
+static void autodetect_romheader();
+static void show_title();
+static void show_args();
+static void show_help();
 #define nextarg_isvalid(a, b) (((++a) != b->end()) && (*a)[0] != '-')
 
 
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     @param A list of arguments
 ==============================*/
 
-void parse_args_priority(std::list<char*>* args)
+static void parse_args_priority(std::list<char*>* args)
 {
     std::list<char*>::iterator it;
 
@@ -178,7 +178,7 @@ void parse_args_priority(std::list<char*>* args)
     @param An array with the arguments
 ==============================*/
 
-void parse_args(std::list<char*>* args)
+static void parse_args(std::list<char*>* args)
 {
     std::list<char*>::iterator it;
 
@@ -284,7 +284,7 @@ void parse_args(std::list<char*>* args)
     Prints the title of the program
 ==============================*/
 
-void show_title()
+static void show_title()
 {
     int i;
     char title[] = PROGRAM_NAME_SHORT;
@@ -312,7 +312,7 @@ void show_title()
     flow
 ==============================*/
 
-void program_loop()
+static void program_loop()
 {
     bool firstupload = true;
     bool autocart = (device_getcart() == CART_NONE);
@@ -340,7 +340,7 @@ void program_loop()
     // If listen or debug mode is enabled, increment escape level so that
     // The user must press esc to exit
     if (local_listenmode || local_debugmode)
-        local_esclevel++;
+        increment_escapelevel();
 
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
@@ -383,8 +383,8 @@ void program_loop()
                 log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
 
             // Start the progress bar thread
-            local_esclevel++;
-            std::thread t(progressthread, local_esclevel.load());
+            increment_escapelevel();
+            std::thread t(progressthread, get_escapelevel());
 
             // Upload the ROM
            handle_deviceerror(device_sendrom(fp, filesize));
@@ -392,7 +392,8 @@ void program_loop()
             // Cleanup
             t.join();
             lastmodtime = newmodtime;
-            local_esclevel--;
+            if (!device_uploadcancelled())
+                decrement_escapelevel();
             fclose(fp);
         }
 
@@ -430,7 +431,7 @@ void program_loop()
         else if (local_listenmode)
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-    while ((local_debugmode || local_listenmode) && local_esclevel > 0);
+    while ((local_debugmode || local_listenmode) && get_escapelevel() > 0);
     term_allowinput(false);
 
     // Close the flashcart
@@ -447,7 +448,7 @@ void program_loop()
            when cancelling happens
 ==============================*/
 
-void progressthread(int esclevel)
+static void progressthread(int esclevel)
 {
     uint64_t uploadtime = time_miliseconds();
     float lastprog = 0;
@@ -468,7 +469,7 @@ void progressthread(int esclevel)
         }
 
         // Handle upload cancelling
-        if (local_esclevel < esclevel)
+        if (get_escapelevel() < esclevel)
         {
             device_cancelupload();
             log_replace("Upload cancelled by the user.\n", CRDEF_PROGRAM);
@@ -497,7 +498,7 @@ void program_event(ProgEvent key)
     switch (key)
     {
         case PEV_ESCAPE:
-            local_esclevel--;
+            decrement_escapelevel();
             break;
         case PEV_REUPLOAD:
             local_reupload = true;
@@ -507,12 +508,45 @@ void program_event(ProgEvent key)
 
 
 /*==============================
+    get_escapelevel
+    TODO
+==============================*/
+
+int get_escapelevel()
+{
+    return local_esclevel.load();
+}
+
+
+/*==============================
+    increment_escapelevel
+    TODO
+==============================*/
+
+void increment_escapelevel()
+{
+    local_esclevel++;
+}
+
+
+/*==============================
+    decrement_escapelevel
+    TODO
+==============================*/
+
+void decrement_escapelevel()
+{
+    local_esclevel--;
+}
+
+
+/*==============================
     autodetect_romheader
     Reads the ROM header and sets the save/RTC value
     using the ED format.
 ==============================*/
 
-void autodetect_romheader()
+static void autodetect_romheader()
 {
     FILE* fp;
     byte* buff;
@@ -555,7 +589,7 @@ void autodetect_romheader()
     Prints the arguments of the program
 ==============================*/
 
-void show_args()
+static void show_args()
 {
     if (term_isusingcurses())
     {
@@ -602,7 +636,7 @@ void show_args()
     Prints the help information
 ==============================*/
 
-void show_help()
+static void show_help()
 {
     int category = 0;
 
