@@ -397,7 +397,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     byte     buffer[16];
     uint32_t header;
-    uint32_t newsize = size + (16 - ((size%16 == 0) ? 16 : size%16));
+    uint32_t newsize = size + (512 - ((size%512 == 0) ? 512 : size%512));
     byte*    datacopy = NULL;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = newsize;
