@@ -395,14 +395,15 @@ DeviceError device_testdebug_everdrive(CartDevice* cart)
 DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size)
 {
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
-    int left = size;
-    int read = 0;
-    uint32_t header = (size & 0xFFFFFF) | (((uint32_t)datatype) << 24);
-    char*  buffer = (char*) malloc(sizeof(char) * 512);
-    char cmp[] = {'C', 'M', 'P', 'H'};
-    device_setuploadprogress(0.0f);
+    byte     buffer[16];
+    uint32_t header;
+    uint32_t newsize = size + (16 - ((size%16 == 0) ? 16 : size%16));
+    byte*    datacopy = NULL;
+    uint32_t bytes_done = 0;
+    uint32_t bytes_left = newsize;
 
     // Put in the DMA header along with length and type information in the buffer
+    header = (newsize & 0xFFFFFF) | (((uint32_t)datatype) << 24);
     buffer[0] = 'D';
     buffer[1] = 'M';
     buffer[2] = 'A';
@@ -413,55 +414,40 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     buffer[7] = header & 0xFF;
 
     // Send the DMA message
-    FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written);
+    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
 
-    // Upload the data
-    for ( ; ; )
+    // Copy the data onto a temp variable
+    datacopy = (byte*) calloc(newsize, 1);
+    if (datacopy == NULL)
+        return DEVICEERR_MALLOCFAIL;
+    memcpy(datacopy, data, size);
+
+    // Send the data in chunks
+    device_setuploadprogress(0.0f);
+    while (bytes_left > 0)
     {
-        int i, block;
-
-        // Decide how many bytes to send
-        if (left >= 512)
-          block = 512;
-        else
-          block = left;
-
-        // End if we've got nothing else to send
-        if (block <= 0)
-            break;
-
-        // Try to send chunks
-        for (i=0; i<2; i++)
-        {
-                // If we failed the first time, clear the USB and try again
-            if (i == 1)
-            {
-                FT_ResetPort(fthandle->handle);
-                FT_ResetDevice(fthandle->handle);
-                FT_Purge(fthandle->handle, FT_PURGE_RX | FT_PURGE_TX);
-            }
-
-            // Send the chunk through USB
-            memcpy(buffer, data+read, block);
-            FT_Write(fthandle->handle, buffer, 512, &fthandle->bytes_written);
-
-                  // If we managed to write, don't try again
-            if (fthandle->bytes_written)
-                break;
-        }
-
-        // Keep track of how many bytes were uploaded
-        left -= block;
-        read += block;
+        uint32_t bytes_do = 512;
+        if (bytes_left < 512)
+            bytes_do = bytes_left;
+        if (FT_Write(fthandle->handle, datacopy+bytes_done, bytes_do, &fthandle->bytes_written) != FT_OK)
+            return DEVICEERR_WRITEFAIL;
+        bytes_left -= bytes_do;
+        bytes_done += bytes_do;
+        device_setuploadprogress((((float)bytes_done)/((float)newsize))*100.0f);
     }
 
     // Send the CMP signal
-    memcpy(buffer, cmp, 4);
-    FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written);
-    device_setuploadprogress(100.0f);
+    buffer[0] = 'C';
+    buffer[1] = 'M';
+    buffer[2] = 'P';
+    buffer[3] = 'H';
+    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
 
-    // Free the data used by the buffer
-    free(buffer);
+    // Free used up resources
+    device_setuploadprogress(100.0f);
+    free(datacopy);
     return DEVICEERR_OK;
 }
 
