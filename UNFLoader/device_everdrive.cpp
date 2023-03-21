@@ -397,8 +397,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     byte     buffer[16];
     uint32_t header;
-    uint32_t align = size%16;
-    uint32_t newsize = size+align;
+    uint32_t newsize = size + (16 - ((size%16 == 0) ? 16 : size%16));
     byte*    datacopy = NULL;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = newsize;
@@ -431,7 +430,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
         uint32_t bytes_do = 512;
         if (bytes_left < 512)
             bytes_do = bytes_left;
-        if (FT_Write(fthandle->handle, datacopy+bytes_done, newsize, &fthandle->bytes_written) != FT_OK)
+        if (FT_Write(fthandle->handle, datacopy+bytes_done, bytes_do, &fthandle->bytes_written) != FT_OK)
             return DEVICEERR_WRITEFAIL;
         device_setuploadprogress((((float)bytes_done)/((float)newsize))*100.0f);
         bytes_left -= bytes_do;
@@ -521,7 +520,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
             return DEVICEERR_64D_BADCMP;
         totalread += fthandle->bytes_read;
 
-        // Ensure byte alignment by reading X amount of bytes needed
+        // Ensure 16 byte alignment by reading X amount of bytes needed
         if (totalread % 16 != 0)
         {
             byte tempbuff[16];
