@@ -399,10 +399,10 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
             return DEVICEERR_64D_BADCMP;
 
         // Update the upload progress
-        device_setuploadprogress((((float)bytes_done)/((float)size))*100.0f);
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
         ram_addr += bytes_do;
+        device_setuploadprogress((((float)bytes_done)/((float)size))*100.0f);
     }
 
     // Wait for the CMP signal
