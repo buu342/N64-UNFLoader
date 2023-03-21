@@ -9,6 +9,8 @@ http://krikzz.com/pub/support/everdrive-64/x-series/dev/
 #include "device_everdrive.h"
 #include "Include/ftd2xx.h"
 #include <string.h>
+#include <thread>
+#include <chrono>
 
 typedef struct 
 {
@@ -195,6 +197,342 @@ DeviceError device_open_everdrive(CartDevice* cart)
         return DEVICEERR_PURGEFAIL;
 
     // Ok
+    return DEVICEERR_OK;
+}
+
+/*==============================
+    device_sendcmd_everdrive
+    Sends a command to the flashcart
+    @param A pointer to the cart handle
+    @param A char with the command to send
+    @param The address to send the data to
+    @param The size of the data to send
+    @param Any other args to send with the data
+==============================*/
+
+static DeviceError device_sendcmd_everdrive(ED64Handle* cart, char command, int address, int size, int arg)
+{
+    byte cmd_buffer[16];
+    size /= 512;
+
+    // Define the command and send it
+    cmd_buffer[0] = 'c';
+    cmd_buffer[1] = 'm';
+    cmd_buffer[2] = 'd';
+    cmd_buffer[3] = command;
+    cmd_buffer[4] = (char) (address >> 24);
+    cmd_buffer[5] = (char) (address >> 16);
+    cmd_buffer[6] = (char) (address >> 8);
+    cmd_buffer[7] = (char) (address);
+    cmd_buffer[8] = (char) (size >> 24);
+    cmd_buffer[9] = (char) (size >> 16);
+    cmd_buffer[10]= (char) (size >> 8);
+    cmd_buffer[11]= (char) (size);
+    cmd_buffer[12]= (char) (arg >> 24);
+    cmd_buffer[13]= (char) (arg >> 16);
+    cmd_buffer[14]= (char) (arg >> 8);
+    cmd_buffer[15]= (char) (arg);
+    if (FT_Write(cart->handle, cmd_buffer, 16, &cart->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
+    return DEVICEERR_OK;
+}
+
+
+
+/*==============================
+    device_sendrom_everdrive
+    Sends the ROM to the flashcart
+    @param A pointer to the cart context
+    @param A pointer to the ROM to send
+    @param The size of the ROM
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
+{
+    DeviceError err;
+    ED64Handle* fthandle = (ED64Handle*)cart->structure;
+    uint32_t    bytes_done = 0;
+    uint32_t    bytes_left = size;
+    uint32_t    crc_area = 0x100000 + 4096;
+
+    // Fill memory if the file is too small
+    if (size < crc_area)
+    {
+        char recv_buff[16];
+        err = device_sendcmd_everdrive(fthandle, 'c', 0x10000000, crc_area, 0);
+        if (err != DEVICEERR_OK)
+            return err;
+        err = device_sendcmd_everdrive(fthandle, 't', 0, 0, 0);
+        if (err != DEVICEERR_OK)
+            return err;
+        if (FT_Read(fthandle->handle, recv_buff, 16, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+    }
+
+    // Set the save type
+    if (cart->savetype != SAVE_NONE)
+    {
+        rom[0x3C] = 'E';
+        rom[0x3D] = 'D';
+        switch (cart->savetype)
+        {
+            case SAVE_EEPROM4K:     rom[0x3F] = 0x10; break;
+            case SAVE_EEPROM16K:    rom[0x3F] = 0x20; break;
+            case SAVE_SRAM256:      rom[0x3F] = 0x30; break;
+            case SAVE_FLASHRAM:     rom[0x3F] = 0x50; break;
+            case SAVE_SRAM768:      rom[0x3F] = 0x40; break;
+            case SAVE_FLASHRAMPKMN: rom[0x3F] = 0x60; break;
+            default: break;
+        }
+    }
+
+    // Send a command saying we're about to write to the cart
+    err = device_sendcmd_everdrive(fthandle, 'W', 0x10000000, size, 0);
+    if (err != DEVICEERR_OK)
+        return err;
+
+    // Upload the ROM in a loop
+    while (bytes_left > 0)
+    {
+        uint32_t bytes_do = 0x8000;
+
+        // Decide how many bytes to send
+        if (bytes_left < bytes_do)
+            bytes_do = bytes_left;
+
+        // Check if the upload was cancelled
+        if (device_uploadcancelled())
+           break;
+
+        // Send the data to the everdrive
+        if (FT_Write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written)  != FT_OK)
+            return DEVICEERR_WRITEFAIL;
+        if (fthandle->bytes_written == 0)
+            return DEVICEERR_TIMEOUT;
+
+        // Update the upload progress
+        device_setuploadprogress((((float)bytes_done) / ((float)size)) * 100.0f);
+        bytes_left -= bytes_do;
+        bytes_done += bytes_do;
+    }
+
+    // Wait for the CMP signal
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+    // Return an error if the upload was cancelled
+    if (device_uploadcancelled())
+        return DEVICEERR_UPLOADCANCELLED;
+
+    // Send the PIFboot command
+    err = device_sendcmd_everdrive(fthandle, 's', 0, 0, 0);
+    if (err != DEVICEERR_OK)
+        return err;
+
+    // Write the filename of the save file if necessary
+    if (cart->savetype != SAVE_NONE)
+    {
+        uint32_t i;
+        char*    path = device_getrom();
+        uint32_t pathlen = strlen(device_getrom());
+        char*    filename = (char*)malloc(pathlen+1);
+        int32_t  extension_start = -1;
+        if (filename == NULL)
+            return DEVICEERR_MALLOCFAIL;
+
+        // Extract the filename from the path
+        for (i=pathlen; i>=0; i--)
+        {
+            if (path[i] == '.' && extension_start == -1)
+                extension_start = i;
+            if (path[i] == '\\' || path[i] == '/')
+            {
+                i++;
+                break;
+            }
+        }
+
+        // Copy the string and send it over to the cart
+        if (extension_start == -1)
+            extension_start = pathlen;
+        memcpy(filename, path+i, (extension_start-i));
+        if (FT_Write(fthandle->handle, filename, 256, &fthandle->bytes_written) != FT_OK)
+            return DEVICEERR_WRITEFAIL;
+        free(filename);
+    }
+
+    // Success
+    device_setuploadprogress(100.0f);
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_testdebug_everdrive
+    Checks whether this cart can use debug mode
+    @param A pointer to the cart context
+    @returns Always returns DEVICEERR_OK.
+==============================*/
+
+DeviceError device_testdebug_everdrive(CartDevice* cart)
+{
+    // TODO: Make this check EverDrive firmware version
+    (void)cart; // Prevents error about unused parameter
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_senddata_everdrive
+    Sends data to the EverDrive
+    @param  A pointer to the cart context
+    @param  The datatype that is being sent
+    @param  A buffer containing said data
+    @param  The size of the data
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size)
+{
+    ED64Handle* fthandle = (ED64Handle*)cart->structure;
+    byte     buffer[16];
+    uint32_t header;
+    uint32_t align = size%16;
+    uint32_t newsize = size+align;
+    byte*    datacopy = NULL;
+    uint32_t bytes_done = 0;
+    uint32_t bytes_left = newsize;
+
+    // Put in the DMA header along with length and type information in the buffer
+    header = (newsize & 0xFFFFFF) | ((uint32_t)datatype << 24);
+    buffer[0] = 'D';
+    buffer[1] = 'M';
+    buffer[2] = 'A';
+    buffer[3] = '@';
+    buffer[4] = (header >> 24) & 0xFF;
+    buffer[5] = (header >> 16) & 0xFF;
+    buffer[6] = (header >> 8)  & 0xFF;
+    buffer[7] = header & 0xFF;
+
+    // Send the DMA message
+    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
+
+    // Copy the data onto a temp variable
+    datacopy = (byte*) calloc(newsize, 1);
+    if (datacopy == NULL)
+        return DEVICEERR_MALLOCFAIL;
+    memcpy(datacopy, data, size);
+
+    // Send this block of data
+    device_setuploadprogress(0.0f);
+    while (bytes_left > 0)
+    {
+        uint32_t bytes_do = 512;
+        if (bytes_left < 512)
+            bytes_do = bytes_left;
+        if (FT_Write(fthandle->handle, datacopy+bytes_done, newsize, &fthandle->bytes_written) != FT_OK)
+            return DEVICEERR_WRITEFAIL;
+        device_setuploadprogress((((float)bytes_done)/((float)newsize))*100.0f);
+        bytes_left -= bytes_do;
+        bytes_done += bytes_do;
+    }
+
+    // Send the CMP signal
+    buffer[0] = 'C';
+    buffer[1] = 'M';
+    buffer[2] = 'P';
+    buffer[3] = 'H';
+    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+        return DEVICEERR_WRITEFAIL;
+
+    // Free used up resources
+    device_setuploadprogress(100.0f);
+    free(datacopy);
+    return DEVICEERR_OK;
+}
+
+
+/*==============================
+    device_receivedata_everdrive
+    Receives data from the EverDrive
+    @param  A pointer to the cart context
+    @param  A pointer to an 32-bit value where
+            the received data header will be
+            stored.
+    @param  A pointer to a byte buffer pointer
+            where the data will be malloc'ed into.
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader, byte** buff)
+{
+    ED64Handle* fthandle = (ED64Handle*)cart->structure;
+    DWORD size;
+
+    // First, check if we have data to read
+    if (FT_GetQueueStatus(fthandle->handle, &size) != FT_OK)
+        return DEVICEERR_POLLFAIL;
+
+    // If we do
+    if (size > 0)
+    {
+        uint32_t read = 0;
+        byte     temp[4];
+
+        // Ensure we have valid data by reading the header
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
+            return DEVICEERR_64D_BADDMA;
+
+        // Get information about the incoming data and store it in dataheader
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
+
+        // Read the data into the buffer, in 512 byte chunks
+        size = (*dataheader) & 0xFFFFFF;
+        (*buff) = (byte*)malloc(size);
+        if ((*buff) == NULL)
+            return DEVICEERR_MALLOCFAIL;
+
+        // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
+        device_setuploadprogress(0.0f);
+        while (read < size)
+        {
+            uint32_t readamount = size-read;
+            if (readamount > 512)
+                readamount = 512;
+            if (FT_Read(fthandle->handle, (*buff)+read, readamount, &fthandle->bytes_read) != FT_OK)
+                return DEVICEERR_READFAIL;
+            read += fthandle->bytes_read;
+            device_setuploadprogress((((float)read)/((float)size))*100.0f);
+        }
+
+        // Read the completion signal
+        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+        if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
+            return DEVICEERR_64D_BADCMP;
+
+        // Ensure byte alignment by reading X amount of bytes needed
+        if (read % 16 != 0)
+        {
+            byte tempbuff[16];
+            int left = 16 - (read % 16);
+            if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
+                return DEVICEERR_READFAIL;
+        }
+        device_setuploadprogress(100.0f);
+    }
+    else
+    {
+        (*dataheader) = 0;
+        (*buff) = NULL;
+    }
+
+    // All's good
     return DEVICEERR_OK;
 }
 

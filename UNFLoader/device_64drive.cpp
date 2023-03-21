@@ -180,7 +180,9 @@ bool device_explicitcic_64drive(byte* bootcode)
     device_testdebug_64drive
     Checks whether the 64Drive can use debug mode
     @param A pointer to the cart context
-    @returns True if the firmware version is higher than 2.04
+    @returns DEVICEERR_OK if the firmware version is higher than 2.04, 
+             DEVICEERR_64D_CANTDEBUG if the firmware isn't,
+             or any other device error
 ==============================*/
 
 DeviceError device_testdebug_64drive(CartDevice* cart)
@@ -397,7 +399,7 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
             return DEVICEERR_64D_BADCMP;
 
         // Update the upload progress
-        device_setuploadprogress((((float)bytes_done) / ((float)size)) * 100.0f);
+        device_setuploadprogress((((float)bytes_done)/((float)size))*100.0f);
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
         ram_addr += bytes_do;

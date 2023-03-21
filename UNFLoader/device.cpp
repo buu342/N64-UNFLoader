@@ -184,12 +184,10 @@ static void device_set_everdrive(CartDevice* cart)
     funcPointer_maxromsize = &device_maxromsize_everdrive;
     funcPointer_shouldpadrom = &device_shouldpadrom_everdrive;
     funcPointer_explicitcic = &device_explicitcic_everdrive;
-    /*
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
     funcPointer_receivedata = &device_receivedata_everdrive;
-    */
     funcPointer_close = &device_close_everdrive;
 }
 
