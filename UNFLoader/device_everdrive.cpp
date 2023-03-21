@@ -424,7 +424,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
         return DEVICEERR_MALLOCFAIL;
     memcpy(datacopy, data, size);
 
-    // Send this block of data
+    // Send the data in chunks
     device_setuploadprogress(0.0f);
     while (bytes_left > 0)
     {
@@ -477,7 +477,8 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
     // If we do
     if (size > 0)
     {
-        uint32_t read = 0;
+        uint32_t dataread = 0;
+        uint32_t totalread = 0;
         byte     temp[4];
 
         // Ensure we have valid data by reading the header
@@ -485,11 +486,13 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
             return DEVICEERR_READFAIL;
         if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
             return DEVICEERR_64D_BADDMA;
+        totalread += fthandle->bytes_read;
 
         // Get information about the incoming data and store it in dataheader
         if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
             return DEVICEERR_READFAIL;
         (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
+        totalread += fthandle->bytes_read;
 
         // Read the data into the buffer, in 512 byte chunks
         size = (*dataheader) & 0xFFFFFF;
@@ -499,15 +502,16 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
 
         // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
         device_setuploadprogress(0.0f);
-        while (read < size)
+        while (dataread < size)
         {
-            uint32_t readamount = size-read;
+            uint32_t readamount = size-dataread;
             if (readamount > 512)
                 readamount = 512;
-            if (FT_Read(fthandle->handle, (*buff)+read, readamount, &fthandle->bytes_read) != FT_OK)
+            if (FT_Read(fthandle->handle, (*buff)+dataread, readamount, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
-            read += fthandle->bytes_read;
-            device_setuploadprogress((((float)read)/((float)size))*100.0f);
+            totalread += fthandle->bytes_read;
+            dataread += fthandle->bytes_read;
+            device_setuploadprogress((((float)dataread)/((float)size))*100.0f);
         }
 
         // Read the completion signal
@@ -515,12 +519,13 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
             return DEVICEERR_READFAIL;
         if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
             return DEVICEERR_64D_BADCMP;
+        totalread += fthandle->bytes_read;
 
         // Ensure byte alignment by reading X amount of bytes needed
-        if (read % 16 != 0)
+        if (totalread % 16 != 0)
         {
             byte tempbuff[16];
-            int left = 16 - (read % 16);
+            int left = 16 - (totalread % 16);
             if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
         }
