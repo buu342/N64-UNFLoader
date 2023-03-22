@@ -414,7 +414,7 @@ void debug_send(char* data)
     copy = (byte*)calloc(datasize+1, 1);
     if (copy == NULL)
         terminate("Unable to malloc data for debug send.");
-    mesg->size = datasize;
+    mesg->size = datasize+1;
     mesg->data = copy;
 
     // Iterate the list, copy onto the copy buffer, and free the allocated memory
