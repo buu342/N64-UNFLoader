@@ -403,7 +403,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     uint32_t bytes_left = newsize;
 
     // Put in the DMA header along with length and type information in the buffer
-    header = (newsize & 0xFFFFFF) | (((uint32_t)datatype) << 24);
+    header = (size & 0xFFFFFF) | (((uint32_t)datatype) << 24);
     buffer[0] = 'D';
     buffer[1] = 'M';
     buffer[2] = 'A';
