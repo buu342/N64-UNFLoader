@@ -1425,6 +1425,8 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     u32 result[2];
     u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
     u32 left = size;
+    u32 writable_restore;
+    u32 args[2];
 
     // Wait for previous transfer to end
     do {
@@ -1432,7 +1434,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     } while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
 
     // Enable SDRAM writes and get previous setting
-    u32 writable_restore = usb_sc64_set_writable(TRUE);
+    writable_restore = usb_sc64_set_writable(TRUE);
 
     while (left > 0)
     {
@@ -1466,7 +1468,8 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     usb_sc64_set_writable(writable_restore);
 
     // Start sending data from buffer in SDRAM
-    u32 args[2] = { SC64_SDRAM_BASE + DEBUG_ADDRESS, USBHEADER_CREATE(datatype, size) };
+    args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    args[1] = USBHEADER_CREATE(datatype, size);
     usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL);
 }
 
@@ -1480,16 +1483,20 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 
 static u32 usb_sc64_poll(void)
 {
+    u8 datatype;
+    u32 length;
     u32 result[2];
 
     // Get read status and extract packet info
     usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
-    u8 datatype = result[0] & 0xFF;
-    u32 length = result[1] & 0xFFFFFF;
+    datatype = result[0] & 0xFF;
+    length = result[1] & 0xFFFFFF;
 
     // There's data available to read
     if (length > 0)
     {
+        u32 args[2];
+        
         // Fill USB read data variables
         usb_datatype = datatype;
         usb_dataleft = length;
@@ -1497,7 +1504,8 @@ static u32 usb_sc64_poll(void)
         usb_readblock = -1;
 
         // Start receiving data to buffer in SDRAM
-        u32 args[2] = { SC64_SDRAM_BASE + DEBUG_ADDRESS, length };
+        args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+        args[1] = length;
         usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL);
 
         // Wait for completion

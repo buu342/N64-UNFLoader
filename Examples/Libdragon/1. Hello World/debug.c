@@ -472,6 +472,7 @@ https://github.com/buu342/N64-UNFLoader
     
         // Intentionally cause a TLB exception on load/instruction fetch
         crash = *(volatile char *)1;
+        (void)crash;
     }
         
         
@@ -599,7 +600,7 @@ https://github.com/buu342/N64-UNFLoader
             #ifndef LIBDRAGON
                 curtime = osGetTime();
             #else
-                read_count(curtime);
+                curtime = timer_ticks();
             #endif
             
             // And the debounce time on the 64Drive's button has elapsed

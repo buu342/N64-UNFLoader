@@ -1247,24 +1247,22 @@ static u32 usb_everdrive_poll()
     usb_dataleft = usb_datasize;
     usb_readblock = -1;
     
-    // Begin receiving data
-    usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
-    len = (usb_datasize + BUFFER_SIZE-usb_datasize%BUFFER_SIZE)/BUFFER_SIZE;
+    // Get the aligned data size. Must be 16 byte aligned
+    len = usb_datasize + (16 - ((usb_datasize%16 == 0) ? 16 : usb_datasize%16));
     
     // While there's data to service
-    while (len--) 
+    while (len > 0) 
     {
-        // Wait for the USB to be ready and then read data
-        usb_everdrive_usbbusy();
-        usb_everdrive_readdata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT), BUFFER_SIZE); // TODO: Replace with usb_everdrive_readusb?
+        u32 bytes_do = BUFFER_SIZE;
+        if (len < BUFFER_SIZE)
+            bytes_do = len;
         
-        // Tell the FPGA we can receive more data
-        if (len != 0)
-            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
+        usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
-        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, BUFFER_SIZE);
-        offset += BUFFER_SIZE;
+        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, bytes_do);
+        offset += bytes_do;
+        len -= bytes_do;
     }
     
     // Read the CMP Signal
@@ -1279,7 +1277,7 @@ static u32 usb_everdrive_poll()
         usb_readblock = -1;
         return 0;
     }
-
+    
     // Return the data header
     return USBHEADER_CREATE(usb_datatype, usb_datasize);
 }
@@ -1425,6 +1423,8 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     u32 result[2];
     u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
     u32 left = size;
+    u32 writable_restore;
+    u32 args[2];
 
     // Wait for previous transfer to end
     do {
@@ -1432,7 +1432,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     } while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
 
     // Enable SDRAM writes and get previous setting
-    u32 writable_restore = usb_sc64_set_writable(TRUE);
+    writable_restore = usb_sc64_set_writable(TRUE);
 
     while (left > 0)
     {
@@ -1466,7 +1466,8 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     usb_sc64_set_writable(writable_restore);
 
     // Start sending data from buffer in SDRAM
-    u32 args[2] = { SC64_SDRAM_BASE + DEBUG_ADDRESS, USBHEADER_CREATE(datatype, size) };
+    args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    args[1] = USBHEADER_CREATE(datatype, size);
     usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL);
 }
 
@@ -1480,16 +1481,20 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 
 static u32 usb_sc64_poll(void)
 {
+    u8 datatype;
+    u32 length;
     u32 result[2];
 
     // Get read status and extract packet info
     usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
-    u8 datatype = result[0] & 0xFF;
-    u32 length = result[1] & 0xFFFFFF;
+    datatype = result[0] & 0xFF;
+    length = result[1] & 0xFFFFFF;
 
     // There's data available to read
     if (length > 0)
     {
+        u32 args[2];
+        
         // Fill USB read data variables
         usb_datatype = datatype;
         usb_dataleft = length;
@@ -1497,7 +1502,8 @@ static u32 usb_sc64_poll(void)
         usb_readblock = -1;
 
         // Start receiving data to buffer in SDRAM
-        u32 args[2] = { SC64_SDRAM_BASE + DEBUG_ADDRESS, length };
+        args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+        args[1] = length;
         usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL);
 
         // Wait for completion
