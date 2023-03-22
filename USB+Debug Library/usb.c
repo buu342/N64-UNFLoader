@@ -1247,24 +1247,22 @@ static u32 usb_everdrive_poll()
     usb_dataleft = usb_datasize;
     usb_readblock = -1;
     
-    // Begin receiving data
-    usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
-    len = (usb_datasize + BUFFER_SIZE-usb_datasize%BUFFER_SIZE)/BUFFER_SIZE;
+    // Get the aligned data size. Must be 16 byte aligned
+    len = usb_datasize + (16 - ((usb_datasize%16 == 0) ? 16 : usb_datasize%16));
     
     // While there's data to service
-    while (len--) 
+    while (len > 0) 
     {
-        // Wait for the USB to be ready and then read data
-        usb_everdrive_usbbusy();
-        usb_everdrive_readdata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT), BUFFER_SIZE); // TODO: Replace with usb_everdrive_readusb?
+        u32 bytes_do = BUFFER_SIZE;
+        if (len < BUFFER_SIZE)
+            bytes_do = len;
         
-        // Tell the FPGA we can receive more data
-        if (len != 0)
-            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | BUFFER_SIZE);
+        usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
-        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, BUFFER_SIZE);
-        offset += BUFFER_SIZE;
+        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, bytes_do);
+        offset += bytes_do;
+        len -= bytes_do;
     }
     
     // Read the CMP Signal
@@ -1279,7 +1277,7 @@ static u32 usb_everdrive_poll()
         usb_readblock = -1;
         return 0;
     }
-
+    
     // Return the data header
     return USBHEADER_CREATE(usb_datatype, usb_datasize);
 }

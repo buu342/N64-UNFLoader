@@ -312,10 +312,11 @@ bool device_testdebug_everdrive(ftdi_context_t* cart)
 
 void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    int left = size;
+    int newsize = size + (16 - ((size%16 == 0) ? 16 : size%16));
+    int left = newsize;
     int read = 0;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
-    char*  buffer = (char*) malloc(sizeof(char) * 512);
+    char*  buffer = (char*) malloc(sizeof(char)*newsize);
     char cmp[] = {'C', 'M', 'P', 'H'};
 
     // Put in the DMA header along with length and type information in the buffer
@@ -332,6 +333,7 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
     FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
 
     // Upload the data
+    memcpy(buffer, data, size);
     pdprint("\n", CRDEF_PROGRAM);
     progressbar_draw("Uploading data", CRDEF_INFO, 0);
     for ( ; ; )
@@ -360,8 +362,7 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
             }
 
             // Send the chunk through USB
-            memcpy(buffer, data+read, block);
-            FT_Write(cart->handle, buffer, 512, &cart->bytes_written);
+            FT_Write(cart->handle, buffer+read, block, &cart->bytes_written);
 
                   // If we managed to write, don't try again
             if (cart->bytes_written)
