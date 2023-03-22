@@ -1256,7 +1256,8 @@ static u32 usb_everdrive_poll()
         u32 bytes_do = BUFFER_SIZE;
         if (len < BUFFER_SIZE)
             bytes_do = len;
-        
+            
+        // Read a chunk from USB and store it into our temp buffer
         usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
