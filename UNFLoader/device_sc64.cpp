@@ -398,8 +398,8 @@ DeviceError device_test_sc64(CartDevice *cart)
             SC64Device *device = (SC64Device *)malloc(sizeof(SC64Device));
             if (device == NULL)
                 return DEVICEERR_MALLOCFAIL;
-            memset(device, 0, sizeof(SC64Device));
             device->device_number = i;
+            device->handle = NULL;
             device->packets = std::deque<SC64Packet>();
             cart->structure = device;
             return DEVICEERR_OK;
@@ -551,31 +551,35 @@ DeviceError device_sendrom_sc64(CartDevice *cart, byte *rom, uint32_t size)
         uint32_t params[2] = {0, 0};
         switch (cart->cictype)
         {
-        case CIC_6101:
-            CIC_PARAMS(params, 0x3F, 0x45CC73EE317A);
-            break;
-        case CIC_7102:
-            CIC_PARAMS(params, 0x3F, 0x44160EC5D9AF);
-            break;
-        case CIC_6102:
-        case CIC_7101:
-            CIC_PARAMS(params, 0x3F, 0xA536C0F1D859);
-            break;
-        case CIC_X103:
-            CIC_PARAMS(params, 0x78, 0x586FD4709867);
-            break;
-        case CIC_X105:
-            CIC_PARAMS(params, 0x91, 0x8618A45BC2D3);
-            break;
-        case CIC_X106:
-            CIC_PARAMS(params, 0x85, 0x2BBAD4E6EB74);
-            break;
-        case CIC_5101:
-            CIC_PARAMS(params, 0xAC, 0x000000000000); // TODO: calculate checksum
-            break;
-        case CIC_8303:
-            CIC_PARAMS(params, 0xDD, 0x32B294E2AB90);
-            break;
+            case CIC_6101:
+                CIC_PARAMS(params, 0x3F, 0x45CC73EE317A);
+                break;
+            case CIC_7102:
+                CIC_PARAMS(params, 0x3F, 0x44160EC5D9AF);
+                break;
+            case CIC_6102:
+            case CIC_7101:
+                CIC_PARAMS(params, 0x3F, 0xA536C0F1D859);
+                break;
+            case CIC_X103:
+                CIC_PARAMS(params, 0x78, 0x586FD4709867);
+                break;
+            case CIC_X105:
+                CIC_PARAMS(params, 0x91, 0x8618A45BC2D3);
+                break;
+            case CIC_X106:
+                CIC_PARAMS(params, 0x85, 0x2BBAD4E6EB74);
+                break;
+            case CIC_5101:
+                //CIC_PARAMS(params, 0xAC, 0x000000000000); // TODO: calculate checksum
+                params[0] = 0;
+                params[1] = 0;
+                break;
+            case CIC_8303:
+                CIC_PARAMS(params, 0xDD, 0x32B294E2AB90);
+                break;
+            default:
+                break;
         }
         err = device_execute_command_sc64(device, CMD_CIC_PARAMS_SET, params[0], params[1], NULL, 0, &response);
         if (err != DEVICEERR_OK)
