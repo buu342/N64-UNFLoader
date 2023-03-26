@@ -92,7 +92,7 @@ https://github.com/buu342/N64-UNFLoader
 
 // How many cycles for the 64Drive to wait for data. 
 // Lowering this might improve performance slightly faster at the expense of USB reading accuracy
-#define D64_POLLTIME       2000
+#define D64_DEFAULTPOLLTIME 2000
 
 // Cartridge Interface definitions. Obtained from 64Drive's Spec Sheet
 #define D64_BASE_ADDRESS   0xB0000000
@@ -284,6 +284,9 @@ int usb_readblock = -1;
         #define osPiRawStartDma(a, b, c, d) __osPiRawStartDma(a, b, c, d)
     #endif
 #endif
+
+// Flashcart specific stuff
+static u32 d64_polltime = D64_DEFAULTPOLLTIME;
 
 
 /*********************************
@@ -883,7 +886,7 @@ static u32 usb_64drive_poll()
     usb_64drive_arm(DEBUG_ADDRESS, DEBUG_ADDRESS_SIZE);
     
     // Burn some time to see if any USB data comes in
-    for (i=0; i<D64_POLLTIME; i++)
+    for (i=0; i<d64_polltime; i++)
         ;
     
     // If there's data to service
@@ -944,6 +947,25 @@ static void usb_64drive_read()
             (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
     #endif
+}
+
+
+/*==============================
+    usb_set_64drive_polltime
+    Sets the time which the 64Drive should poll
+    for incoming USB data. Default is 2000.
+    Lowering this value improves game performance
+    at the cost of polling accuracy.
+    This is a hacky workaround for a 64Drive bug,
+    but it is planned to be removed in the future
+    when the polling protocol is changed.
+    @param The time to stall for waiting for USB
+           data
+==============================*/
+
+void usb_set_64drive_polltime(int polltime)
+{
+    d64_polltime = polltime;
 }
 
 
@@ -1082,16 +1104,24 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 /*==============================
     usb_everdrive_usbbusy
     Spins until the USB is no longer busy
+    @return 1 on success, 0 on failure
 ==============================*/
 
-static void usb_everdrive_usbbusy() 
+static u8 usb_everdrive_usbbusy() 
 {
-    u32 val __attribute__((aligned(8)));
-    do 
+    u32 timeout = 0;
+    u32 val __attribute__((aligned(8))) = 0;
+    while ((val & ED_USBSTAT_ACT) != 0)
     {
         usb_everdrive_readreg(ED_REG_USBCFG, &val);
+        timeout++;
+        if (timeout > 8192)
+        {
+            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+            return 0;
+        }
     } 
-    while ((val & ED_USBSTAT_ACT) != 0);
+    return 1;
 }
 
 
@@ -1135,8 +1165,9 @@ static void usb_everdrive_readusb(void* buffer, int size)
         // Request to read from the USB
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
 
-        // Wait for the FPGA to transfer the data to its internal buffer
-        usb_everdrive_usbbusy(); 
+        // Wait for the FPGA to transfer the data to its internal buffer, or stop on timeout
+        if (!usb_everdrive_usbbusy())
+            return;
 
         // Read from the internal buffer and store it in our buffer
         usb_everdrive_readdata(buffer, ED_GET_REGADD(ED_REG_USBDAT + addr), block); 
@@ -1204,9 +1235,10 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WRNOP);
         usb_everdrive_writedata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT + baddr), blocksend);
         
-        // Set USB to write mode with the new address and wait for USB to end
+        // Set USB to write mode with the new address and wait for USB to end (or stop if it times out)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
-        usb_everdrive_usbbusy();
+        if (!usb_everdrive_usbbusy())
+            return;
         
         // Keep track of what we've read so far
         left -= block;
@@ -1230,7 +1262,8 @@ static u32 usb_everdrive_poll()
     int offset = 0;
     
     // Wait for the USB to be ready
-    usb_everdrive_usbbusy();
+    if (!usb_everdrive_usbbusy())
+        return;
     
     // Check if the USB is ready to be read
     if (!usb_everdrive_canread())
@@ -1267,7 +1300,8 @@ static u32 usb_everdrive_poll()
     }
     
     // Read the CMP Signal
-    usb_everdrive_usbbusy();
+    if (!usb_everdrive_usbbusy())
+        return;
     usb_everdrive_readusb(buff, 16);
     if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
     {
