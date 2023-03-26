@@ -293,6 +293,65 @@ static u32 d64_polltime = D64_DEFAULTPOLLTIME;
           USB functions
 *********************************/
 
+#ifdef LIBDRAGON
+    static inline u32 usb_io_read(u32 pi_address) {
+        return io_read(pi_address);
+    }
+
+    static inline void usb_io_write(u32 pi_address, u32 value) {
+        io_write(pi_address, value);
+    }
+
+    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size) {
+        data_cache_hit_writeback_invalidate(ram_address, size);
+        dma_read(ram_address, pi_address, size);
+    }
+
+    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size) {
+        data_cache_hit_writeback(ram_address, size);
+        dma_write(ram_address, pi_address, size);
+    }
+#else
+    static inline u32 usb_io_read(u32 pi_address) {
+        u32 value;
+        #if USE_OSRAW
+            osPiRawReadIo(pi_address, &value);
+        #else
+            osPiReadIo(pi_address, &value);
+        #endif
+        return value;
+    }
+
+    static inline void usb_io_write(u32 pi_address, u32 value) {
+        #if USE_OSRAW
+            osPiRawWriteIo(pi_address, value);
+        #else
+            osPiWriteIo(pi_address, value);
+        #endif
+    }
+
+    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size) {
+        osWritebackDCache(ram_address, size);
+        osInvalDCache(ram_address, size);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_READ, pi_address, ram_address, size);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, pi_address, ram_address, size, &dmaMessageQ);
+            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
+    }
+
+    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size) {
+        osWritebackDCache(ram_address, size);
+        #if USE_OSRAW
+            osPiRawStartDma(OS_WRITE, pi_address, ram_address, size);
+        #else
+            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, pi_address, ram_address, size, &dmaMessageQ);
+            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+        #endif
+    }
+#endif
+
 /*==============================
     usb_initialize
     Initializes the USB buffers and pointers
@@ -1368,60 +1427,23 @@ static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
     // Write arguments if provided
     if (args != NULL)
     {
-        #ifdef LIBDRAGON
-            io_write(SC64_REG_DATA_0, args[0]);
-            io_write(SC64_REG_DATA_1, args[1]);
-        #else
-            #if USE_OSRAW
-                osPiRawWriteIo(SC64_REG_DATA_0, args[0]);
-                osPiRawWriteIo(SC64_REG_DATA_1, args[1]);
-            #else
-                osPiWriteIo(SC64_REG_DATA_0, args[0]);
-                osPiWriteIo(SC64_REG_DATA_1, args[1]);
-            #endif
-        #endif
+        usb_io_write(SC64_REG_DATA_0, args[0]);
+        usb_io_write(SC64_REG_DATA_1, args[1]);
     }
 
     // Start execution
-    #ifdef LIBDRAGON
-        io_write(SC64_REG_SR_CMD, cmd);
-    #else
-        #if USE_OSRAW
-            osPiRawWriteIo(SC64_REG_SR_CMD, cmd);
-        #else
-            osPiWriteIo(SC64_REG_SR_CMD, cmd);
-        #endif
-    #endif
+    usb_io_write(SC64_REG_SR_CMD, cmd);
 
     // Wait for completion
-    do
-    {
-        #ifdef LIBDRAGON
-            sr = io_read(SC64_REG_SR_CMD);
-        #else
-            #if USE_OSRAW
-                osPiRawReadIo(SC64_REG_SR_CMD, &sr);
-            #else
-                osPiReadIo(SC64_REG_SR_CMD, &sr);
-            #endif
-        #endif
+    do {
+        sr = usb_io_read(SC64_REG_SR_CMD);
     } while (sr & SC64_SR_CMD_BUSY);
 
     // Read result if provided
     if (result != NULL)
     {
-        #ifdef LIBDRAGON
-            result[0] = io_read(SC64_REG_DATA_0);
-            result[1] = io_read(SC64_REG_DATA_1);
-        #else
-            #if USE_OSRAW
-                osPiRawReadIo(SC64_REG_DATA_0, &result[0]);
-                osPiRawReadIo(SC64_REG_DATA_1, &result[1]);
-            #else
-                osPiReadIo(SC64_REG_DATA_0, &result[0]);
-                osPiReadIo(SC64_REG_DATA_1, &result[1]);
-            #endif
-        #endif
+        result[0] = usb_io_read(SC64_REG_DATA_0);
+        result[1] = usb_io_read(SC64_REG_DATA_1);
     }
 
     // Return error status
@@ -1478,18 +1500,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         memcpy(usb_buffer, data, dma_length);
 
         // Copy block of data from RDRAM to SDRAM
-        #ifdef LIBDRAGON
-            data_cache_hit_writeback(usb_buffer, dma_length);
-            dma_write(usb_buffer, sdram_address, dma_length);
-        #else
-            osWritebackDCache(usb_buffer, dma_length);
-            #if USE_OSRAW
-                osPiRawStartDma(OS_WRITE, sdram_address, usb_buffer, dma_length);
-            #else
-                osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, sdram_address, usb_buffer, dma_length, &dmaMessageQ);
-                osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-            #endif
-        #endif
+        usb_dma_write(usb_buffer, sdram_address, dma_length);
 
         // Update pointers and variables
         data += dma_length;
@@ -1566,17 +1577,5 @@ static void usb_sc64_read(void)
     u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS + usb_readblock;
 
     // Set up DMA transfer between RDRAM and the PI
-    #ifdef LIBDRAGON
-        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-        dma_read(usb_buffer, sdram_address, BUFFER_SIZE);
-    #else
-        osWritebackDCache(usb_buffer, BUFFER_SIZE);
-        osInvalDCache(usb_buffer, BUFFER_SIZE);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, sdram_address, usb_buffer, BUFFER_SIZE);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, sdram_address, usb_buffer, BUFFER_SIZE, &dmaMessageQ);
-            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    #endif
+    usb_dma_read(usb_buffer, sdram_address, BUFFER_SIZE);
 }
