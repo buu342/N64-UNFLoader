@@ -395,7 +395,7 @@ DeviceError device_test_sc64(CartDevice *cart)
         // Look for SC64
         if (device_info[i].ID == 0x04036014 && memcmp(device_info[i].Description, "SC64", 4) == 0)
         {
-            SC64Device *device = (SC64Device *)malloc(sizeof(SC64Device));
+            SC64Device *device = new SC64Device;
             if (device == NULL)
                 return DEVICEERR_MALLOCFAIL;
             device->device_number = i;
