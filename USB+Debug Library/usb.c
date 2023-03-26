@@ -1552,28 +1552,28 @@ static u32 usb_sc64_poll(void)
     if (length == 0)
         return 0;
         
-        // Fill USB read data variables
-        usb_datatype = datatype;
-        usb_dataleft = length;
-        usb_datasize = usb_dataleft;
-        usb_readblock = -1;
+    // Fill USB read data variables
+    usb_datatype = datatype;
+    usb_dataleft = length;
+    usb_datasize = usb_dataleft;
+    usb_readblock = -1;
 
-        // Start receiving data to buffer in SDRAM
-        args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
-        args[1] = length;
+    // Start receiving data to buffer in SDRAM
+    args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    args[1] = length;
     if (usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL))
     {
         // Return 0 if USB read was unsuccessful
         return 0;
     }
 
-        // Wait for completion
-        do {
-            usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
-        } while (result[0] & SC64_USB_READ_STATUS_BUSY);
+    // Wait for completion
+    do {
+        usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
+    } while (result[0] & SC64_USB_READ_STATUS_BUSY);
 
-        // Return USB header
-        return USBHEADER_CREATE(datatype, length);
+    // Return USB header
+    return USBHEADER_CREATE(datatype, length);
 }
 
 
