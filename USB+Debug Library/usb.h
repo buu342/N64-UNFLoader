@@ -11,6 +11,7 @@
     // Settings
     #define USE_OSRAW          0           // Use if you're doing USB operations without the PI Manager (libultra only)
     #define DEBUG_ADDRESS_SIZE 8*1024*1024 // Max size of USB I/O. The bigger this value, the more ROM you lose!
+    #define CHECK_EMULATOR     0           // Stops the USB library from working if it detects an emulator to prevent problems
     
     // Cart definitions
     #define CART_NONE      0
