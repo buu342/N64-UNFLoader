@@ -587,17 +587,23 @@ void handle_deviceerror(DeviceError err)
         case DEVICEERR_64D_DATATOOBIG:
             log_colored("Data must be under 8MB.\n", CRDEF_ERROR);
             return;
-        case DEVICEERR_SC64_CTRLRESETFAIL:
-            terminate("Couldn't perform SC64 controller reset.");
+        case DEVICEERR_SC64_CMDFAIL:
+            terminate("SC64 command response error");
+            break;
+        case DEVICEERR_SC64_COMMFAIL:
+            terminate("SC64 communication error");
             break;
         case DEVICEERR_SC64_CTRLRELEASEFAIL:
             terminate("Couldn't release SC64 controller reset.");
             break;
+        case DEVICEERR_SC64_CTRLRESETFAIL:
+            terminate("Couldn't perform SC64 controller reset.");
+            break;
         case DEVICEERR_SC64_FIRMWARECHECKFAIL:
             terminate("Couldn't get SC64 firmware version.");
             break;
-        case DEVICEERR_SC64_FIRMWAREUNKNOWN:
-            terminate("Unknown SC64 firmware version.");
+        case DEVICEERR_SC64_FIRMWAREUNSUPPORTED:
+            terminate("Unsupported SC64 firmware version, please upgrade to firmware 2.14.0 or higher.");
             break;
         default:
             if (err != DEVICEERR_OK && err != DEVICEERR_NOTCART)

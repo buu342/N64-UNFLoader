@@ -209,12 +209,10 @@ static void device_set_sc64(CartDevice* cart)
     funcPointer_maxromsize = &device_maxromsize_sc64;
     funcPointer_shouldpadrom = &device_shouldpadrom_sc64;
     funcPointer_explicitcic = &device_explicitcic_sc64;
-    /*
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
     funcPointer_senddata = &device_senddata_sc64;
     funcPointer_receivedata = &device_receivedata_sc64;
-    */
     funcPointer_close = &device_close_sc64;
 }
 
