@@ -437,7 +437,7 @@ u32 calc_padsize(u32 size)
     @returns The unique string
 ==============================*/
 
-#define DATESIZE 7*2+1
+#define DATESIZE 64//7*2+1
 char* gen_filename()
 {
     static int increment = 0;
