@@ -118,4 +118,24 @@
     
     extern void usb_purge();
     
+    
+    /*********************************
+       Flashcart Specific Functions
+    *********************************/
+    
+    /*==============================
+        usb_set_64drive_polltime
+        Sets the time which the 64Drive should poll
+        for incoming USB data. Default is 2000.
+        Lowering this value improves game performance
+        at the cost of polling accuracy.
+        This is a hacky workaround for a 64Drive bug,
+        but it is planned to be removed in the future
+        when the polling protocol is changed.
+        @param The time to stall for waiting for USB
+               data
+    ==============================*/
+
+    void usb_set_64drive_polltime(int polltime);
+    
 #endif
