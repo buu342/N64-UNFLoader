@@ -1325,7 +1325,7 @@ static u32 usb_everdrive_poll()
     
     // Wait for the USB to be ready
     if (!usb_everdrive_usbbusy())
-        return;
+        return 0;
     
     // Check if the USB is ready to be read
     if (!usb_everdrive_canread())
@@ -1363,7 +1363,7 @@ static u32 usb_everdrive_poll()
     
     // Read the CMP Signal
     if (!usb_everdrive_usbbusy())
-        return;
+        return 0;
     usb_everdrive_readusb(buff, 16);
     if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
     {
@@ -1484,8 +1484,8 @@ static u32 usb_sc64_set_writable(u32 enable)
 
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
-    u32 sdram_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
     u32 left = size;
+    u32 pi_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
     u32 writable_restore;
     u32 args[2];
     u32 result[2];
@@ -1496,18 +1496,18 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     while (left > 0)
     {
         // Calculate transfer size
-        u32 dma_length = ALIGN(MIN(left, BUFFER_SIZE), 2);
+        u32 block = MIN(left, BUFFER_SIZE);
 
         // Copy data to PI DMA aligned buffer
-        memcpy(usb_buffer, data, dma_length);
+        memcpy(usb_buffer, data, block);
 
         // Copy block of data from RDRAM to SDRAM
-        usb_dma_write(usb_buffer, sdram_address, dma_length);
+        usb_dma_write(usb_buffer, pi_address, ALIGN(block, 2));
 
         // Update pointers and variables
-        data += dma_length;
-        sdram_address += dma_length;
-        left -= dma_length;
+        data += block;
+        left -= block;
+        pi_address += block;
     }
 
     // Restore previous SDRAM writable setting
@@ -1539,28 +1539,28 @@ static void usb_sc64_write(int datatype, const void* data, int size)
 static u32 usb_sc64_poll(void)
 {
     u8 datatype;
-    u32 length;
+    u32 size;
     u32 args[2];
     u32 result[2];
 
     // Get read status and extract packet info
     usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
     datatype = result[0] & 0xFF;
-    length = result[1] & 0xFFFFFF;
+    size = result[1] & 0xFFFFFF;
 
     // Return 0 if there's no data
-    if (length == 0)
+    if (size == 0)
         return 0;
         
     // Fill USB read data variables
     usb_datatype = datatype;
-    usb_dataleft = length;
+    usb_dataleft = size;
     usb_datasize = usb_dataleft;
     usb_readblock = -1;
 
     // Start receiving data to buffer in SDRAM
     args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
-    args[1] = length;
+    args[1] = size;
     if (usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL))
     {
         // Return 0 if USB read was unsuccessful
@@ -1573,7 +1573,7 @@ static u32 usb_sc64_poll(void)
     } while (result[0] & SC64_USB_READ_STATUS_BUSY);
 
     // Return USB header
-    return USBHEADER_CREATE(datatype, length);
+    return USBHEADER_CREATE(datatype, size);
 }
 
 
