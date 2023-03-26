@@ -6,6 +6,7 @@ https://github.com/Polprzewodnikowy/SummerCart64
 ***************************************************************/
 
 #include <chrono>
+#include <cstring>
 #include <deque>
 #include <thread>
 #include "device_sc64.h"
