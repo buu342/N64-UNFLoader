@@ -93,11 +93,9 @@ https://github.com/buu342/N64-UNFLoader
           64Drive macros
 *********************************/
 
-// How many cycles for the 64Drive to wait for data. 
-// Lowering this might improve performance slightly faster at the expense of USB reading accuracy
-#define D64_DEFAULTPOLLTIME 2000
+#define D64_COMMAND_TIMEOUT         10000
+#define D64_WRITE_TIMEOUT           10000
 
-// Cartridge Interface definitions. Obtained from 64Drive's Spec Sheet
 #define D64_BASE                    0x10000000
 #define D64_REGS_BASE               0x18000000
 
@@ -123,8 +121,6 @@ https://github.com/buu342/N64-UNFLoader
 
 #define D64_CUI_ARM_MASK            0x0F
 #define D64_CUI_ARM_IDLE            0x00
-#define D64_CUI_ARM_BUSY            0x0F
-#define D64_CUI_ARM_ARMED_NO_DATA   0x01
 #define D64_CUI_ARM_UNARMED_DATA    0x02
 
 #define D64_CUI_WRITE_MASK          0xF0
@@ -168,34 +164,36 @@ https://github.com/buu342/N64-UNFLoader
             SC64 macros
 *********************************/
 
-#define SC64_BASE                       0x10000000
-#define SC64_REGS_BASE                  0x1FFF0000
+#define SC64_WRITE_TIMEOUT          10000
 
-#define SC64_REG_SR_CMD                 (SC64_REGS_BASE + 0x00)
-#define SC64_REG_DATA_0                 (SC64_REGS_BASE + 0x04)
-#define SC64_REG_DATA_1                 (SC64_REGS_BASE + 0x08)
-#define SC64_REG_IDENTIFIER             (SC64_REGS_BASE + 0x0C)
-#define SC64_REG_KEY                    (SC64_REGS_BASE + 0x10)
+#define SC64_BASE                   0x10000000
+#define SC64_REGS_BASE              0x1FFF0000
 
-#define SC64_SR_CMD_ERROR               (1 << 30)
-#define SC64_SR_CMD_BUSY                (1 << 31)
+#define SC64_REG_SR_CMD             (SC64_REGS_BASE + 0x00)
+#define SC64_REG_DATA_0             (SC64_REGS_BASE + 0x04)
+#define SC64_REG_DATA_1             (SC64_REGS_BASE + 0x08)
+#define SC64_REG_IDENTIFIER         (SC64_REGS_BASE + 0x0C)
+#define SC64_REG_KEY                (SC64_REGS_BASE + 0x10)
 
-#define SC64_V2_IDENTIFIER              0x53437632
+#define SC64_SR_CMD_ERROR           (1 << 30)
+#define SC64_SR_CMD_BUSY            (1 << 31)
 
-#define SC64_KEY_RESET                  0x00000000
-#define SC64_KEY_UNLOCK_1               0x5F554E4C
-#define SC64_KEY_UNLOCK_2               0x4F434B5F
+#define SC64_V2_IDENTIFIER          0x53437632
 
-#define SC64_CMD_CONFIG_SET             'C'
-#define SC64_CMD_USB_WRITE_STATUS       'U'
-#define SC64_CMD_USB_WRITE              'M'
-#define SC64_CMD_USB_READ_STATUS        'u'
-#define SC64_CMD_USB_READ               'm'
+#define SC64_KEY_RESET              0x00000000
+#define SC64_KEY_UNLOCK_1           0x5F554E4C
+#define SC64_KEY_UNLOCK_2           0x4F434B5F
 
-#define SC64_CFG_ID_ROM_WRITE_ENABLE    1
+#define SC64_CMD_CONFIG_SET         'C'
+#define SC64_CMD_USB_WRITE_STATUS   'U'
+#define SC64_CMD_USB_WRITE          'M'
+#define SC64_CMD_USB_READ_STATUS    'u'
+#define SC64_CMD_USB_READ           'm'
 
-#define SC64_USB_WRITE_STATUS_BUSY      (1 << 31)
-#define SC64_USB_READ_STATUS_BUSY       (1 << 31)
+#define SC64_CFG_ROM_WRITE_ENABLE   1
+
+#define SC64_USB_WRITE_STATUS_BUSY  (1 << 31)
+#define SC64_USB_READ_STATUS_BUSY   (1 << 31)
 
 
 /*********************************
@@ -285,9 +283,6 @@ int usb_readblock = -1;
         #define osPiRawStartDma(a, b, c, d) __osPiRawStartDma(a, b, c, d)
     #endif
 #endif
-
-// Flashcart specific stuff
-static u32 d64_polltime = D64_DEFAULTPOLLTIME;
 
 
 /*********************************
@@ -658,19 +653,19 @@ void usb_purge()
 
 /*==============================
     usb_64drive_wait
-    Wait until the 64Drive is ready
+    Wait until the 64Drive CI is ready
     @return 0 if success or -1 if failure
 ==============================*/
 
-static s8 usb_64drive_wait(void)
+static s32 usb_64drive_wait(void)
 {
     u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
-    
+
     // Wait until the cartridge interface is ready
     do
     {
         // Took too long, abort
-        if((timeout++) > 10000)
+        if(timeout++ > D64_COMMAND_TIMEOUT)
             return -1;
     }
     while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
@@ -682,32 +677,57 @@ static s8 usb_64drive_wait(void)
 
 /*==============================
     usb_64drive_set_writable
-    Set the write mode on the 64Drive
+    Set the CARTROM write mode on the 64Drive
     @param A boolean with whether to enable or disable
 ==============================*/
 
-static void usb_64drive_set_writable(u8 enable)
+static void usb_64drive_set_writable(u32 enable)
 {
+    // Wait until CI is not busy
+    usb_64drive_wait();
+
     // Send enable/disable CARTROM writes command
     usb_io_write(D64_REG_COMMAND, enable ? D64_CI_ENABLE_ROMWR : D64_CI_DISABLE_ROMWR);
 
-    // Wait until CI is not busy
-    usb_64drive_wait(); // TODO: rename it to `usb_64drive_ci_wait`
+    // Wait until operation is finished
+    usb_64drive_wait();
 }
 
 
+/*==============================
+    usb_64drive_cui_write
+    Writes data from buffer in the 64drive through USB
+    @param Data type
+    @param Offset in CARTROM memory space
+    @param Transfer size
+==============================*/
+
 static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 {
+    u32 timeout = 0;
+
     // Start USB write
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
-    // Align size to 32-bits due to bugs in firmware
+    // Align size to 32-bits due to bugs in the firmware
     usb_io_write(D64_REG_USBP1R1, USBHEADER_CREATE(datatype, ALIGN(size, 4)));
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
 
     // Spin until the write buffer is free
+    do
+    {
+        // Took too long, abort
+        if (timeout++ > D64_WRITE_TIMEOUT)
+            return;
+    }
     while((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) != D64_CUI_WRITE_IDLE);
 }
 
+
+/*==============================
+    usb_64drive_cui_poll
+    Checks if there is data waiting to be read from USB FIFO
+    @return 0 if no data is waiting, otherwise there is data in USB FIFO
+==============================*/
 
 static u32 usb_64drive_cui_poll(void)
 {
@@ -716,29 +736,57 @@ static u32 usb_64drive_cui_poll(void)
 }
 
 
-static u32 usb_64drive_cui_read(u32 offset, u32 size)
+/*==============================
+    usb_64drive_cui_read
+    Reads data from USB FIFO to buffer in the 64drive
+    @param Offset in CARTROM memory space
+    @return USB header (datatype + size)
+==============================*/
+
+static u32 usb_64drive_cui_read(u32 offset)
 {
     u32 header;
+    u32 left;
+    u32 datatype;
+    u32 size;
 
-    // Arm USB FIFO
+    // Arm USB FIFO with 8 byte sized transfer
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
-    usb_io_write(D64_REG_USBP1R1, size & 0xFFFFFF);
+    usb_io_write(D64_REG_USBP1R1, 8);
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
 
     // Wait until data is received
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_BUSY);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
 
-    // Get data header (datatype and size)
-    header = usb_io_read(D64_REG_USBP0R0);
+    // Get datatype and bytes remaining
+    header = usb_io_read(D64_REG_USBP0R0)
+    left = usb_io_read(D64_REG_USBP1R1) & 0x00FFFFFF;
+    datatype = header & 0xFF000000;
+    size = header & 0x00FFFFFF;
+
+    // Determine if we need to read more data
+    if (left > 0)
+    {
+        // Arm USB FIFO with known transfer size
+        usb_io_write(D64_REG_USBP0R0, (offset + 8) >> 1);
+        usb_io_write(D64_REG_USBP1R1, left);
+        usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
+
+        // Wait until data is received
+        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
+
+        // Calculate total transfer length
+        size += left;
+    }
 
     // Disarm USB FIFO
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
 
-    // Wait until disarmed
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_BUSY);
+    // Wait until USB FIFO is disarmed
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE);
 
     // Return data header (datatype and size)
-    return header;
+    return (datatype | size);
 }
 
 
@@ -755,6 +803,10 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 {
     u32 left = size;
     u32 pi_address = D64_BASE + DEBUG_ADDRESS;
+
+    // Return if previous transfer timed out
+    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) == D64_CUI_WRITE_BUSY)
+        return;
 
     // Set the cartridge to write mode
     usb_64drive_set_writable(TRUE);
@@ -800,7 +852,7 @@ static u32 usb_64drive_poll(void)
     if (usb_64drive_cui_poll())
     {
         // Read data to the buffer in 64drive SDRAM memory
-        header = usb_64drive_cui_read(DEBUG_ADDRESS, DEBUG_ADDRESS_SIZE);
+        header = usb_64drive_cui_read(DEBUG_ADDRESS);
 
         // Get the data header
         usb_datatype = USBHEADER_GETTYPE(header);
@@ -826,26 +878,6 @@ static void usb_64drive_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
     usb_dma_read(usb_buffer, D64_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
-}
-
-
-/*==============================
-    usb_set_64drive_polltime
-    Sets the time which the 64Drive should poll
-    for incoming USB data. Default is 2000.
-    Lowering this value improves game performance
-    at the cost of polling accuracy.
-    This is a hacky workaround for a 64Drive bug,
-    but it is planned to be removed in the future
-    when the polling protocol is changed.
-    @param The time to stall for waiting for USB
-           data
-==============================*/
-
-void usb_set_64drive_polltime(int polltime)
-{
-    // TODO: Unused
-    d64_polltime = polltime;
 }
 
 
@@ -1206,25 +1238,7 @@ static u32 usb_everdrive_poll()
 static void usb_everdrive_read()
 {
     // Set up DMA transfer between RDRAM and the PI
-    #ifdef LIBDRAGON
-        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-        while (dma_busy());
-        *(vu32*)0xA4600010 = 3;
-        dma_read(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
-        data_cache_hit_writeback_invalidate(usb_buffer, BUFFER_SIZE);
-    #else
-        osWritebackDCacheAll();
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, 
-                         ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                         BUFFER_SIZE);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                         ED_BASE + DEBUG_ADDRESS + usb_readblock, usb_buffer, 
-                         BUFFER_SIZE, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    #endif
+    usb_dma_read(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
 }
 
 
@@ -1256,9 +1270,11 @@ static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
     usb_io_write(SC64_REG_SR_CMD, cmd);
 
     // Wait for completion
-    do {
+    do
+    {
         sr = usb_io_read(SC64_REG_SR_CMD);
-    } while (sr & SC64_SR_CMD_BUSY);
+    }
+    while (sr & SC64_SR_CMD_BUSY);
 
     // Read result if provided
     if (result != NULL)
@@ -1284,7 +1300,7 @@ static u32 usb_sc64_set_writable(u32 enable)
     u32 args[2];
     u32 result[2];
 
-    args[0] = SC64_CFG_ID_ROM_WRITE_ENABLE;
+    args[0] = SC64_CFG_ROM_WRITE_ENABLE;
     args[1] = enable;
     usb_sc64_execute_cmd(SC64_CMD_CONFIG_SET, args, result);
 
@@ -1302,11 +1318,17 @@ static u32 usb_sc64_set_writable(u32 enable)
 
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
+    u32 timeout = 0;
     u32 left = size;
     u32 pi_address = SC64_BASE + DEBUG_ADDRESS;
     u32 writable_restore;
     u32 args[2];
     u32 result[2];
+
+    // Return if previous transfer timed out
+    usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
+    if (result[0] & SC64_USB_WRITE_STATUS_BUSY)
+        return;
 
     // Enable SDRAM writes and get previous setting
     writable_restore = usb_sc64_set_writable(TRUE);
@@ -1335,15 +1357,17 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     args[0] = SC64_BASE + DEBUG_ADDRESS;
     args[1] = USBHEADER_CREATE(datatype, size);
     if (usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL))
-    {
-        // Return if USB write was unsuccessful
-        return;
-    }
+        return; // Return if USB write was unsuccessful
 
     // Wait for transfer to end
-    do {
+    do
+    {
+        // Took too long, abort
+        if (timeout++ > SC64_WRITE_TIMEOUT)
+            return;
         usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
-    } while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
+    }
+    while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
 }
 
 
@@ -1380,15 +1404,14 @@ static u32 usb_sc64_poll(void)
     args[0] = SC64_BASE + DEBUG_ADDRESS;
     args[1] = size;
     if (usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL))
-    {
-        // Return 0 if USB read was unsuccessful
-        return 0;
-    }
+        return 0; // Return 0 if USB read was unsuccessful
 
     // Wait for completion
-    do {
+    do
+    {
         usb_sc64_execute_cmd(SC64_CMD_USB_READ_STATUS, NULL, result);
-    } while (result[0] & SC64_USB_READ_STATUS_BUSY);
+    }
+    while (result[0] & SC64_USB_READ_STATUS_BUSY);
 
     // Return USB header
     return USBHEADER_CREATE(datatype, size);
