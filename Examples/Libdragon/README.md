@@ -3,6 +3,8 @@ This folder contains example ROMs written in libdragon utilizing the USB and deb
 
 To build the ROMs, simply call make.
 
+Please note that usb.c and usb.h are part of libdragon, therefore are not included in the sample projects. If you are using a really old version of libdragon for some reason, then these will need to be included and added to the makefiles.
+
 
 ### 1. Hello World
 A barebones ROM that prints `Hello World!` to the debug console upon booting and doesn't do anything else. Shows you how to print using either `debug_printf`, or `usb_write`. Also allows you to see how `DEBUG_MODE` affects the final ROM.
@@ -10,7 +12,7 @@ A barebones ROM that prints `Hello World!` to the debug console upon booting and
 **Usage**
 1) Upload the ROM.
 2) `Hello World!` should print to your debug console screen.
-3) Play around with the values of `USE_PRITNF` in `main.c`, `DEBUG_MODE` in `debug.h`, or `USE_OSRAW` in `usb.h`. Remember to clean the .o's as make doesn't detect changes to header files!
+3) Play around with the values of `USE_PRITNF` in `main.c`, `DEBUG_MODE` in `debug.h`. Remember to clean the .o's as make doesn't detect changes to header files!
 
 
 ### 2. Raw USB Reading

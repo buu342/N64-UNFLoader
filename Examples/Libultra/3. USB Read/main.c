@@ -88,14 +88,6 @@ static void mainThreadFunction(void *arg)
     char incoming_type = 0;
     int incoming_size = 0;
     
-    // Because of a bug in the 64Drive firmware, it can sometimes miss out on USB data. 
-    // This happens more often the sooner successive usb_poll calls are made, and since this
-    // sample doesn't really do anything complex, the time between calls is pretty short.
-    // As a result, we'll need to increase the poll time to fix this sample for 64Drive users.
-    // In a proper game, you will likely not need to touch this function.
-    // It will likely be removed in a future version of a library, once a better USB polling protocl is made.
-    usb_set_64drive_polltime(50000);
-    
     // Give the user instructions
     usb_write(DATATYPE_TEXT, "Type something into the console!\n", 33+1);
     
