@@ -673,7 +673,7 @@ static s8 usb_64drive_wait(void)
         if((timeout++) > 10000)
             return -1;
     }
-    while(io_read(D64_REG_STATUS) & D64_CI_BUSY);
+    while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
 
     // Success
     return 0;
@@ -699,10 +699,10 @@ static void usb_64drive_set_writable(u8 enable)
 static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 {
     // Start USB write
-    io_write(D64_REG_USBP0R0, offset >> 1);
+    usb_io_write(D64_REG_USBP0R0, offset >> 1);
     // Align size to 32-bits due to bugs in firmware
-    io_write(D64_REG_USBP1R1, USBHEADER_CREATE(datatype, ALIGN(size, 4)));
-    io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
+    usb_io_write(D64_REG_USBP1R1, USBHEADER_CREATE(datatype, ALIGN(size, 4)));
+    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
 
     // Spin until the write buffer is free
     while((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) != D64_CUI_WRITE_IDLE);
