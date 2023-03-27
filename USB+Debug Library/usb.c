@@ -425,6 +425,27 @@ static void usb_findcart()
 {
     u32 buff __attribute__((aligned(8)));
     
+    // Before we do anything, check that we are using an emulator
+    #if CHECK_EMULATOR
+        // Check the RDP clock register.
+        // Always zero on emulators
+        if (IO_READ(0xA4100010) == 0) // DPC_CLOCK_REG in Libultra
+            return;
+    
+        // Fallback, harder emulator check.
+        // The VI has an interesting quirk where its values are mirrored every 0x40 bytes
+        // It's unlikely that emulators handle this, so we'll write to the VI_TEST_ADDR register and readback 0x40 bytes from its address
+        // If they don't match, we probably have an emulator
+        buff = (*(u32*)0xA4400038);
+        (*(u32*)0xA4400038) = 0x6ABCDEF9;
+        if ((*(u32*)0xA4400038) != (*(u32*)0xA4400078))
+        {
+            (*(u32*)0xA4400038) = buff;
+            return;
+        }
+        (*(u32*)0xA4400038) = buff;
+    #endif
+    
     // Read the cartridge and check if we have a 64Drive.
     #ifdef LIBDRAGON
         buff = io_read(D64_CIBASE_ADDRESS + D64_REGISTER_MAGIC);
