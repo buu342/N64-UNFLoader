@@ -291,6 +291,7 @@ void debug_send(char* data)
     char*     token;
     SendData* mesg;
     uint32_t  datasize;
+    uint32_t  padbytes = 0;
     uint32_t  tokcount = 0;
     bool      ispath = false;
     std::list<ParseHelper*> datasplit;
@@ -411,10 +412,12 @@ void debug_send(char* data)
 
     // Now we have a list of strings and data blocks, we combine all into one
     // We can already assign these values to the mesg
-    copy = (byte*)calloc(datasize+1, 1);
+    if (mesg->type == DATATYPE_TEXT)
+        padbytes = 1;
+    copy = (byte*)calloc(datasize+padbytes, 1);
     if (copy == NULL)
         terminate("Unable to malloc data for debug send.");
-    mesg->size = datasize+1;
+    mesg->size = datasize+padbytes;
     mesg->data = copy;
 
     // Iterate the list, copy onto the copy buffer, and free the allocated memory
