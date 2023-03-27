@@ -174,7 +174,7 @@ https://github.com/buu342/N64-UNFLoader
             SC64 macros
 *********************************/
 
-#define SC64_SDRAM_BASE                 0x10000000
+#define SC64_BASE                       0x10000000
 #define SC64_REGS_BASE                  0x1FFF0000
 
 #define SC64_REG_SR_CMD                 (SC64_REGS_BASE + 0x00)
@@ -1485,7 +1485,7 @@ static u32 usb_sc64_set_writable(u32 enable)
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
     u32 left = size;
-    u32 pi_address = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    u32 pi_address = SC64_BASE + DEBUG_ADDRESS;
     u32 writable_restore;
     u32 args[2];
     u32 result[2];
@@ -1514,7 +1514,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     usb_sc64_set_writable(writable_restore);
 
     // Start sending data from buffer in SDRAM
-    args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    args[0] = SC64_BASE + DEBUG_ADDRESS;
     args[1] = USBHEADER_CREATE(datatype, size);
     if (usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL))
     {
@@ -1559,7 +1559,7 @@ static u32 usb_sc64_poll(void)
     usb_readblock = -1;
 
     // Start receiving data to buffer in SDRAM
-    args[0] = SC64_SDRAM_BASE + DEBUG_ADDRESS;
+    args[0] = SC64_BASE + DEBUG_ADDRESS;
     args[1] = size;
     if (usb_sc64_execute_cmd(SC64_CMD_USB_READ, args, NULL))
     {
@@ -1585,5 +1585,5 @@ static u32 usb_sc64_poll(void)
 static void usb_sc64_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
-    usb_dma_read(usb_buffer, SC64_SDRAM_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
+    usb_dma_read(usb_buffer, SC64_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
 }
