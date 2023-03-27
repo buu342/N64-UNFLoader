@@ -585,7 +585,9 @@ static void handle_input()
             scroll_output(-local_padbottom);
             program_event(PEV_ESCAPE);
             local_keypressed = false;
-            // Intentional fallthrough
+            term_clearinput();
+            wrotein = true;
+            break;
         case '\r':
         case CH_ENTER:
             if (!local_allowinput || local_inputcount == 0)
