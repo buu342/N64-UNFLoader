@@ -29,7 +29,9 @@ https://github.com/buu342/N64-UNFLoader
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
 // Size alignment helper
-#define	ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
+#ifndef ALIGN
+    #define	ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
+#endif
 
 
 /*********************************
@@ -759,7 +761,7 @@ static u32 usb_64drive_cui_read(u32 offset)
     while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
 
     // Get datatype and bytes remaining
-    header = usb_io_read(D64_REG_USBP0R0)
+    header = usb_io_read(D64_REG_USBP0R0);
     left = usb_io_read(D64_REG_USBP1R1) & 0x00FFFFFF;
     datatype = header & 0xFF000000;
     size = header & 0x00FFFFFF;
