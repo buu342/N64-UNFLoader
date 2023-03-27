@@ -8,6 +8,7 @@ Handles the boot process of the ROM.
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 #include <libdragon.h>
 #include "texture.h"
 #include "debug.h"
@@ -45,9 +46,11 @@ int main(void)
     int x = 64;
 
     // Initialize libdragon
-    init_interrupts();
     display_init(RESOLUTION_320x240, DEPTH_32_BPP, 2, GAMMA_NONE, ANTIALIAS_RESAMPLE);
+    dfs_init(DFS_DEFAULT_LOCATION);
     rdp_init();
+    controller_init();
+    timer_init();
 
     // Initialize the debug library
     debug_initialize();
@@ -55,19 +58,18 @@ int main(void)
     debug_addcommand("move", "Toggles square movement", command_move);
     debug_addcommand("color R G B", "Changes the background color", command_color);
     debug_addcommand("texture @file@", "Changes the square texture", command_texture);
-    debug_64drivebutton(command_button, TRUE);
+    debug_64drivebutton(command_button, true);
     debug_printcommands();
 
     // Initialize our sprite
-    spr_texture = (sprite_t*) malloc(sizeof(sprite_t)+4096);
+    spr_texture = (sprite_t*) malloc(sizeof(sprite_t)+(32*32*sizeof(int)));
     spr_texture->width = 32;
     spr_texture->height = 32;
     spr_texture->bitdepth = 4;
     spr_texture->format = 0;
     spr_texture->hslices = 1;
     spr_texture->vslices = 1;
-    for (int i=0; i<4096; i++)
-        spr_texture->data[i] = global_texture[i];
+    memcpy(spr_texture->data, global_texture, 4096);
 
     // Main loop
     while(1)
@@ -85,7 +87,7 @@ int main(void)
             x = (x+4)%(320-32);
 
         // Draw the background and the sprite
-        graphics_fill_screen(disp, (((uint32_t)global_red)<<24)|(((uint32_t)global_green)<<16)|(((uint32_t)global_blue)<<8)|0x000000FF);
+        graphics_fill_screen(disp, graphics_make_color(global_red, global_green, global_blue, 255));
         graphics_set_color(0x0, 0xFFFFFFFF);
         graphics_draw_sprite_trans(disp, x, 64, spr_texture);
 
@@ -177,8 +179,7 @@ char* command_texture()
     
     // Replace the texture with the incoming data
     debug_parsecommand(global_texture);
-    for (int i=0; i<4096; i++)
-        spr_texture->data[i] = global_texture[i];
+    memcpy(spr_texture->data, global_texture, size);
     return NULL;
 }
 
