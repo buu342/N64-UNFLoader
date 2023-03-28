@@ -178,12 +178,14 @@ bool device_testdebug_64drive(ftdi_context_t* cart)
 
 void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 {
+    int    i;
     u32    ram_addr = 0x0;
-    int	   bytes_left = size;
+    u32    newsize = calc_padsize(size);
+    int	   bytes_left = newsize;
     int	   bytes_done = 0;
     int	   bytes_do;
     int	   chunk = 0;
-    u8*    rom_buffer = (u8*) malloc(sizeof(u8) * 4*1024*1024);
+    u8*    rom_buffer = (u8*) malloc(sizeof(u8)*newsize);
     time_t upload_time = clock();
     DWORD  cmps;
 
@@ -191,24 +193,24 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     if (rom_buffer == NULL)
         terminate("Unable to allocate memory for buffer.");
 
+    // Read the ROM into the buffer
+    fseek(file, 0, SEEK_SET);
+    fread(rom_buffer, size, 1, file);
+    if (global_z64)
+        for (i=0; i<(int)size; i+=2)
+            SWAP(rom_buffer[i], rom_buffer[i+1]);
+    fseek(file, 0, SEEK_SET);
+
     // Handle CIC
     if (global_cictype == -1)
     {
         int cic = -1;
-        int j;
         u8* bootcode = (u8*)malloc(4032);
         if (bootcode == NULL)
             terminate("Unable to allocate memory for bootcode buffer.");
 
         // Read the bootcode and store it
-        fseek(file, 0x40, SEEK_SET);
-        fread(bootcode, 1, 4032, file);
-        fseek(file, 0, SEEK_SET);
-
-        // Byteswap if needed
-        if (global_z64)
-            for (j=0; j<4032; j+=2)
-                SWAP(bootcode[j], bootcode[j+1]);
+        memcpy(bootcode, rom_buffer+0x40, 4032);
 
         // Pick the CIC from the bootcode
         cic = cic_from_hash(romhash(bootcode, 4032));
@@ -299,7 +301,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, 0);
     for ( ; ; )
     {
-        int i, ch;
+        int ch;
 
         // Decide how many bytes to send
         if (bytes_left >= chunk)
@@ -327,8 +329,6 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         // Try to send chunks
         for (i=0; i<2; i++)
         {
-            int j;
-
             // If we failed the first time, clear the USB and try again
             if (i == 1)
             {
@@ -339,11 +339,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
             // Send the chunk to RAM
             device_sendcmd_64drive(cart, DEV_CMD_LOADRAM, false, NULL, 2, ram_addr, (bytes_do & 0xffffff) | 0 << 24);
-            fread(rom_buffer, bytes_do, 1, file);
-            if (global_z64)
-                for (j=0; j<bytes_do; j+=2)
-                    SWAP(rom_buffer[j], rom_buffer[j+1]);
-            FT_Write(cart->handle, rom_buffer, bytes_do, &cart->bytes_written);
+            FT_Write(cart->handle, rom_buffer+bytes_done, bytes_do, &cart->bytes_written);
 
             // If we managed to write, don't try again
             if (cart->bytes_written)
