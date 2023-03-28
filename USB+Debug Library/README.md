@@ -14,7 +14,6 @@ Simply include the `usb.c` and `usb.h` in your project. If you intend to use the
 You must call `usb_initialize()` once before doing anything else. The library features a read and write function for USB communication. You can edit `usb.h` to configure some aspects of the library.
 To write to USB, simply call `usb_write` and fill in the required data accordingly. An application must be running on the PC which can service the incoming data, such as UNFLoader in debug mode.
 To be able to read from USB, you must first call `usb_poll`. If it returns a nonzero value, then there is data available for you to read using `usb_read` and other similar functions. You can find information about the incoming data by using the `USBHEADER_GETX` helper macros. Polling should be done once per game loop.
-If you are using a 64Drive, and the data reading seems to behave intermittently, then open `usb.c` and increase the value of `D64_POLLTIME` until it works consistently.
 <details><summary>Included functions list</summary>
 <p>
     

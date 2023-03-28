@@ -48,7 +48,7 @@ All known issues are mentioned in the [issues page](https://github.com/buu342/N6
 * fraser and NetworkFusion for all the help provided during the development of this project as well as their support.
 * NetworkFusion for lending me his remote test rig for the ED64-V3 and ED64-X7, as well as setting up the azure pipeline system and helping organize this repo.
 * danbolt for helping test this on Debian, as well as providing changes to get the tool compiling under macOS.
-* Polprzewodnikowy for implementing support for his SC64, as well as setting up GitHub actions.
+* Polprzewodnikowy for implementing support for his SC64, as well as setting up GitHub actions and providing some fixes/improvements to the library.
 * CrashOveride for ensuring the samples compile on his Linux libultra port.
 * The folk at N64Brew for being patient with me and helping test the program! Especially command_tab, NetworkFusion, CrashOveride, gravatos, PerKimba, manfried, Wiseguy, Zygal, kivan117, and Kokiri. You guys are the reason this project was possible!
 
