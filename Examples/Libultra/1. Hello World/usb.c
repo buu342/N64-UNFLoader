@@ -30,7 +30,7 @@ https://github.com/buu342/N64-UNFLoader
 
 // Size alignment helper
 #ifndef ALIGN
-    #define	ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
+    #define    ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
 #endif
 
 
@@ -40,7 +40,9 @@ https://github.com/buu342/N64-UNFLoader
 
 #ifdef LIBDRAGON
     // Useful
-    #define MIN(a, b) ((a) < (b) ? (a) : (b))
+    #ifndef MIN
+        #define MIN(a, b) ((a) < (b) ? (a) : (b))
+    #endif
     #ifndef TRUE
         #define TRUE 1
     #endif
@@ -56,25 +58,24 @@ https://github.com/buu342/N64-UNFLoader
     #define KSEG1 0xA0000000
     
     // Memory translation stuff
-    #define	PHYS_TO_K1(x)       ((u32)(x)|KSEG1)
-    #define	IO_WRITE(addr,data) (*(vu32 *)PHYS_TO_K1(addr)=(u32)(data))
-    #define	IO_READ(addr)       (*(vu32 *)PHYS_TO_K1(addr))
+    #define PHYS_TO_K1(x)       ((u32)(x)|KSEG1)
+    #define IO_WRITE(addr,data) (*(vu32 *)PHYS_TO_K1(addr)=(u32)(data))
+    #define IO_READ(addr)       (*(vu32 *)PHYS_TO_K1(addr))
     
     // PI registers
-    #define PI_BASE_REG   0x04600000
-    #define PI_STATUS_REG (PI_BASE_REG+0x10)
-    #define	PI_STATUS_ERROR		0x04
-    #define	PI_STATUS_IO_BUSY	0x02
-    #define	PI_STATUS_DMA_BUSY	0x01
-    
-    #define PI_BSD_DOM1_LAT_REG	(PI_BASE_REG+0x14)
-    #define PI_BSD_DOM1_PWD_REG	(PI_BASE_REG+0x18)
-    #define PI_BSD_DOM1_PGS_REG	(PI_BASE_REG+0x1C)
-    #define PI_BSD_DOM1_RLS_REG	(PI_BASE_REG+0x20)
-    #define PI_BSD_DOM2_LAT_REG	(PI_BASE_REG+0x24)
-    #define PI_BSD_DOM2_PWD_REG	(PI_BASE_REG+0x28)
-    #define PI_BSD_DOM2_PGS_REG	(PI_BASE_REG+0x2C)
-    #define PI_BSD_DOM2_RLS_REG	(PI_BASE_REG+0x30)
+    #define PI_BASE_REG         0x04600000
+    #define PI_STATUS_REG       (PI_BASE_REG+0x10)
+    #define PI_BSD_DOM1_LAT_REG (PI_BASE_REG+0x14)
+    #define PI_BSD_DOM1_PWD_REG (PI_BASE_REG+0x18)
+    #define PI_BSD_DOM1_PGS_REG (PI_BASE_REG+0x1C)
+    #define PI_BSD_DOM1_RLS_REG (PI_BASE_REG+0x20)
+    #define PI_BSD_DOM2_LAT_REG (PI_BASE_REG+0x24)
+    #define PI_BSD_DOM2_PWD_REG (PI_BASE_REG+0x28)
+    #define PI_BSD_DOM2_PGS_REG (PI_BASE_REG+0x2C)
+    #define PI_BSD_DOM2_RLS_REG (PI_BASE_REG+0x30)
+    #define PI_STATUS_ERROR     0x04
+    #define PI_STATUS_IO_BUSY   0x02
+    #define PI_STATUS_DMA_BUSY  0x01
 #endif
 
 
@@ -203,12 +204,12 @@ https://github.com/buu342/N64-UNFLoader
 *********************************/
 
 #ifdef LIBDRAGON
-    typedef uint8_t  u8;	
+    typedef uint8_t  u8;
     typedef uint16_t u16;
     typedef uint32_t u32;
     typedef uint64_t u64;
     
-    typedef int8_t  s8;	
+    typedef int8_t  s8;
     typedef int16_t s16;
     typedef int32_t s32;
     typedef int64_t s64;
@@ -267,7 +268,7 @@ int usb_dataleft = 0;
 int usb_readblock = -1;
 
 #ifndef LIBDRAGON
-// Message globals
+    // Message globals
     #if !USE_OSRAW
         OSMesg      dmaMessageBuf;
         OSIoMesg    dmaIOMessageBuf;
@@ -288,37 +289,19 @@ int usb_readblock = -1;
 
 
 /*********************************
-          USB functions
+      I/O Wrapper Functions
 *********************************/
 
-/*==============================
-    usb_io/dma_read/write
-    PI I/O wrapper functions for libdragon and libultra API
-==============================*/
+#ifndef LIBDRAGON
 
-#ifdef LIBDRAGON
-    static inline u32 usb_io_read(u32 pi_address)
-    {
-        return io_read(pi_address);
-    }
+    /*==============================
+        usb_io_read
+        Reads a 32-bit value from a 
+        given address using the PI.
+        @param  The address to read from (2 byte aligned)
+        @return The 4 byte value that was read
+    ==============================*/
 
-    static inline void usb_io_write(u32 pi_address, u32 value)
-    {
-        io_write(pi_address, value);
-    }
-
-    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
-    {
-        data_cache_hit_writeback_invalidate(ram_address, size);
-        dma_read(ram_address, pi_address, size);
-    }
-
-    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
-    {
-        data_cache_hit_writeback(ram_address, size);
-        dma_write(ram_address, pi_address, size);
-    }
-#else
     static inline u32 usb_io_read(u32 pi_address)
     {
         u32 value;
@@ -330,6 +313,15 @@ int usb_readblock = -1;
         return value;
     }
 
+
+    /*==============================
+        usb_io_write
+        Writes a 32-bit value to a 
+        given address using the PI.
+        @param  The address to write to (2 byte aligned)
+        @param  The 4 byte value to write
+    ==============================*/
+
     static inline void usb_io_write(u32 pi_address, u32 value)
     {
         #if USE_OSRAW
@@ -338,6 +330,16 @@ int usb_readblock = -1;
             osPiWriteIo(pi_address, value);
         #endif
     }
+
+
+    /*==============================
+        usb_dma_read
+        Reads arbitrarily sized data from a
+        given address using DMA.
+        @param  The buffer to read into (8 byte aligned)
+        @param  The address to read from (2 byte aligned)
+        @param  The size of the data to read (2 byte aligned)
+    ==============================*/
 
     static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
     {
@@ -351,6 +353,16 @@ int usb_readblock = -1;
         #endif
     }
 
+
+    /*==============================
+        usb_dma_write
+        writes arbitrarily sized data to a
+        given address using DMA.
+        @param  The buffer to read from (8 byte aligned)
+        @param  The address to write to (2 byte aligned)
+        @param  The size of the data to write (2 byte aligned)
+    ==============================*/
+
     static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
     {
         osWritebackDCache(ram_address, size);
@@ -361,8 +373,72 @@ int usb_readblock = -1;
             osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
     }
+#else
+
+    /*==============================
+        usb_io_read
+        Reads a 32-bit value from a 
+        given address using the PI.
+        @param  The address to read from
+        @return The 4 byte value that was read
+    ==============================*/
+
+    static inline u32 usb_io_read(u32 pi_address)
+    {
+        return io_read(pi_address);
+    }
+
+
+    /*==============================
+        usb_io_write
+        Writes a 32-bit value to a 
+        given address using the PI.
+        @param  The address to write to
+        @param  The 4 byte value to write
+    ==============================*/
+
+    static inline void usb_io_write(u32 pi_address, u32 value)
+    {
+        io_write(pi_address, value);
+    }
+
+
+    /*==============================
+        usb_dma_read
+        Reads arbitrarily sized data from a
+        given address using DMA.
+        @param  The buffer to read into
+        @param  The address to read from
+        @param  The size of the data to read
+    ==============================*/
+
+    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
+    {
+        data_cache_hit_writeback_invalidate(ram_address, size);
+        dma_read(ram_address, pi_address, size);
+    }
+
+
+    /*==============================
+        usb_dma_write
+        writes arbitrarily sized data to a
+        given address using DMA.
+        @param  The buffer to read from
+        @param  The address to write to
+        @param  The size of the data to write
+    ==============================*/
+
+    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
+    {
+        data_cache_hit_writeback(ram_address, size);
+        dma_write(ram_address, pi_address, size);
+    }
 #endif
 
+
+/*********************************
+          USB functions
+*********************************/
 
 /*==============================
     usb_initialize
@@ -370,7 +446,7 @@ int usb_readblock = -1;
     @returns 1 if the USB initialization was successful, 0 if not
 ==============================*/
 
-char usb_initialize()
+char usb_initialize(void)
 {
     // Initialize the debug related globals
     memset(usb_buffer, 0, BUFFER_SIZE);
@@ -415,7 +491,7 @@ char usb_initialize()
     Checks if the game is running on a 64Drive, EverDrive or a SC64.
 ==============================*/
 
-static void usb_findcart()
+static void usb_findcart(void)
 {
     u32 buff __attribute__((aligned(8)));
     
@@ -490,7 +566,7 @@ static void usb_findcart()
     @return The CART macro that corresponds to the identified flashcart
 ==============================*/
 
-char usb_getcart()
+char usb_getcart(void)
 {
     return usb_cart;
 }
@@ -527,7 +603,7 @@ void usb_write(int datatype, const void* data, int size)
     @return The data header, or 0
 ==============================*/
 
-u32 usb_poll()
+u32 usb_poll(void)
 {
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
@@ -640,7 +716,7 @@ void usb_rewind(int nbytes)
     Purges the incoming USB data
 ==============================*/
 
-void usb_purge()
+void usb_purge(void)
 {
     usb_dataleft = 0;
     usb_datatype = 0;
@@ -659,7 +735,11 @@ void usb_purge()
     @return 0 if success or -1 if failure
 ==============================*/
 
+#ifndef LIBDRAGON
 static s32 usb_64drive_wait(void)
+#else
+s32 usb_64drive_wait(void)
+#endif
 {
     u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
 
@@ -710,8 +790,7 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 
     // Start USB write
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
-    // Align size to 32-bits due to bugs in the firmware
-    usb_io_write(D64_REG_USBP1R1, USBHEADER_CREATE(datatype, ALIGN(size, 4)));
+    usb_io_write(D64_REG_USBP1R1, USBHEADER_CREATE(datatype, ALIGN(size, 4))); // Align size to 32-bits due to bugs in the firmware
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
 
     // Spin until the write buffer is free
@@ -728,7 +807,7 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 /*==============================
     usb_64drive_cui_poll
     Checks if there is data waiting to be read from USB FIFO
-    @return 0 if no data is waiting, otherwise there is data in USB FIFO
+    @return 0 if no data is waiting, 1 if otherwise
 ==============================*/
 
 static u32 usb_64drive_cui_poll(void)
@@ -741,7 +820,7 @@ static u32 usb_64drive_cui_poll(void)
 /*==============================
     usb_64drive_cui_read
     Reads data from USB FIFO to buffer in the 64drive
-    @param Offset in CARTROM memory space
+    @param  Offset in CARTROM memory space
     @return USB header (datatype + size)
 ==============================*/
 
@@ -892,7 +971,7 @@ static void usb_64drive_read(void)
     Spins until the EverDrive's DMA is ready
 ==============================*/
 
-static void usb_everdrive_wait_pidma() 
+static void usb_everdrive_wait_pidma(void) 
 {
     u32 status __attribute__((aligned(8)));
     do
@@ -1021,7 +1100,7 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
     @return 1 on success, 0 on failure
 ==============================*/
 
-static u8 usb_everdrive_usbbusy() 
+static u8 usb_everdrive_usbbusy(void) 
 {
     u32 timeout = 0;
     u32 val __attribute__((aligned(8))) = 0;
@@ -1045,7 +1124,7 @@ static u8 usb_everdrive_usbbusy()
     @return 1 if it can read, 0 if not
 ==============================*/
 
-static u8 usb_everdrive_canread() 
+static u8 usb_everdrive_canread(void) 
 {
     u32 val __attribute__((aligned(8)));
     u32 status = ED_USBSTAT_POWER;
@@ -1169,7 +1248,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
     @return The data header, or 0
 ==============================*/
 
-static u32 usb_everdrive_poll()
+static u32 usb_everdrive_poll(void)
 {
     char buff[16] __attribute__((aligned(8)));
     int len;
@@ -1237,7 +1316,7 @@ static u32 usb_everdrive_poll()
     Reads bytes from the EverDrive ROM into the global buffer with the block offset
 ==============================*/
 
-static void usb_everdrive_read()
+static void usb_everdrive_read(void)
 {
     // Set up DMA transfer between RDRAM and the PI
     usb_dma_read(usb_buffer, ED_BASE + DEBUG_ADDRESS + usb_readblock, BUFFER_SIZE);
@@ -1251,13 +1330,17 @@ static void usb_everdrive_read()
 /*==============================
     usb_sc64_execute_cmd
     Executes specified command in SC64 controller
-    @param Command ID to execute
-    @param 2 element array of 32 bit arguments to pass with command, use NULL when argument values are not needed
-    @param 2 element array of 32 bit values to read command result, use NULL when result values are not needed
+    @param  Command ID to execute
+    @param  2 element array of 32 bit arguments to pass with command, use NULL when argument values are not needed
+    @param  2 element array of 32 bit values to read command result, use NULL when result values are not needed
     @return Error status, non-zero means there was error during command execution
 ==============================*/
 
+#ifndef LIBDRAGON
 static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+#else
+u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+#endif
 {
     u32 sr;
 
@@ -1293,7 +1376,7 @@ static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
 /*==============================
     usb_sc64_set_writable
     Enable ROM (SDRAM) writes in SC64
-    @param A boolean with whether to enable or disable
+    @param  A boolean with whether to enable or disable
     @return Previous value of setting
 ==============================*/
 
