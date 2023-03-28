@@ -212,7 +212,7 @@ void progressbar_draw(const char* text, short color, float percent)
 uint64_t time_miliseconds()
 {
     #ifndef LINUX
-        return (uint64_t)GetTickCount64();
+        return (uint64_t)GetTickCount();
     #else
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
