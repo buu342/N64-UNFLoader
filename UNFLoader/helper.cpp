@@ -181,7 +181,7 @@ void progressbar_draw(const char* text, short color, float percent)
     for(i=0; i<blocks_done; i++) 
     {
         #ifndef LINUX
-            log_colored("%c", color, 219);
+            log_colored(u8"\u2588", color);
         #else
             log_colored("\xe2\x96\x88", color);
         #endif
@@ -189,7 +189,7 @@ void progressbar_draw(const char* text, short color, float percent)
     for(; i<prog_size; i++) 
     {
         #ifndef LINUX
-            log_colored("%c", color, 176);
+            log_colored(u8"\u2591", color);
         #else
             log_colored("\xe2\x96\x91", color);
         #endif

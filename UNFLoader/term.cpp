@@ -662,7 +662,7 @@ static void handle_input()
             if (local_showcurs)
             {
                 #ifndef LINUX
-                    wprintw(local_inputwin, "%c", 219);
+                    wprintw(local_inputwin, u8"\u2588");
                 #else
                     wprintw(local_inputwin, "\xe2\x96\x88");
                 #endif
