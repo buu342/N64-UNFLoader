@@ -76,6 +76,10 @@ https://github.com/buu342/N64-UNFLoader
     #define PI_STATUS_ERROR     0x04
     #define PI_STATUS_IO_BUSY   0x02
     #define PI_STATUS_DMA_BUSY  0x01
+    
+    // Data alignment
+    #define OS_DCACHE_ROUNDUP_ADDR(x) (void *)(((((u32)(x)+0xf)/0x10)*0x10))
+    #define OS_DCACHE_ROUNDUP_SIZE(x) (u32)(((((u32)(x)+0xf)/0x10)*0x10))
 #endif
 
 
@@ -261,7 +265,8 @@ void (*funcPointer_read)();
 
 // USB globals
 static s8 usb_cart = CART_NONE;
-static u8 __attribute__((aligned(16))) usb_buffer[BUFFER_SIZE];
+static u8 usb_buffer_align[BUFFER_SIZE+16]; // IDO doesn't support GCC's __attribute__((aligned(x))), so this is a workaround
+static u8* usb_buffer;
 int usb_datatype = 0;
 int usb_datasize = 0;
 int usb_dataleft = 0;
@@ -449,6 +454,7 @@ int usb_readblock = -1;
 char usb_initialize(void)
 {
     // Initialize the debug related globals
+    usb_buffer = (u8*)OS_DCACHE_ROUNDUP_ADDR(usb_buffer_align);
     memset(usb_buffer, 0, BUFFER_SIZE);
         
     #ifndef LIBDRAGON
@@ -493,7 +499,7 @@ char usb_initialize(void)
 
 static void usb_findcart(void)
 {
-    u32 buff __attribute__((aligned(8)));
+    u32 buff;
     
     // Before we do anything, check that we are using an emulator
     #if CHECK_EMULATOR
@@ -973,13 +979,14 @@ static void usb_64drive_read(void)
 
 static void usb_everdrive_wait_pidma(void) 
 {
-    u32 status __attribute__((aligned(8)));
+    u32  statusaligned[16] ;
+    u32* status = (u32*)OS_DCACHE_ROUNDUP_ADDR(statusaligned);
     do
     {
-        status = *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_STATUS);
-        status &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
+        (*status) = *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_STATUS);
+        (*status) &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
     }
-    while (status);
+    while ((*status));
 }
 
 
@@ -1034,7 +1041,10 @@ static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len)
 
 static void usb_everdrive_readreg(u32 reg, u32* result) 
 {
-    usb_everdrive_readdata(result, ED_GET_REGADD(reg), sizeof(u32));
+    u32 alignedbuff[16];
+    u32* buff = (u32*)OS_DCACHE_ROUNDUP_ADDR(alignedbuff);
+    usb_everdrive_readdata(buff, ED_GET_REGADD(reg), sizeof(u32));
+    (*result) = (*buff);
 }
 
 
@@ -1089,8 +1099,10 @@ static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len)
 
 static void usb_everdrive_writereg(u64 reg, u32 value) 
 {
-    u32 val __attribute__((aligned(8))) = value;
-    usb_everdrive_writedata(&val, ED_GET_REGADD(reg), sizeof(u32));
+    u32  alignedval[16];
+    u32* val = OS_DCACHE_ROUNDUP_ADDR(alignedval);
+    (*val) = value;
+    usb_everdrive_writedata(val, ED_GET_REGADD(reg), sizeof(u32));
 }
 
 
@@ -1103,7 +1115,7 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 static u8 usb_everdrive_usbbusy(void) 
 {
     u32 timeout = 0;
-    u32 val __attribute__((aligned(8))) = 0;
+    u32 val = 0;
     while ((val & ED_USBSTAT_ACT) != 0)
     {
         usb_everdrive_readreg(ED_REG_USBCFG, &val);
@@ -1126,7 +1138,7 @@ static u8 usb_everdrive_usbbusy(void)
 
 static u8 usb_everdrive_canread(void) 
 {
-    u32 val __attribute__((aligned(8)));
+    u32 val;
     u32 status = ED_USBSTAT_POWER;
     
     // Read the USB register and check its status
@@ -1250,9 +1262,10 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 
 static u32 usb_everdrive_poll(void)
 {
-    char buff[16] __attribute__((aligned(8)));
-    int len;
-    int offset = 0;
+    int   len;
+    int   offset = 0;
+    char  buffaligned[32];
+    char* buff = (char*)OS_DCACHE_ROUNDUP_ADDR(buffaligned);
     
     // Wait for the USB to be ready
     if (!usb_everdrive_usbbusy())
