@@ -28,11 +28,6 @@ https://github.com/buu342/N64-UNFLoader
 // Data header related
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
-// Size alignment helper
-#ifndef ALIGN
-    #define ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
-#endif
-
 
 /*********************************
    Libultra macros for libdragon
@@ -42,6 +37,9 @@ https://github.com/buu342/N64-UNFLoader
     // Useful
     #ifndef MIN
         #define MIN(a, b) ((a) < (b) ? (a) : (b))
+    #endif
+    #ifndef ALIGN
+        #define ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
     #endif
     #ifndef TRUE
         #define TRUE 1
