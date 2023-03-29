@@ -30,7 +30,7 @@ https://github.com/buu342/N64-UNFLoader
 
 // Size alignment helper
 #ifndef ALIGN
-    #define    ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
+    #define ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
 #endif
 
 
@@ -100,8 +100,8 @@ https://github.com/buu342/N64-UNFLoader
           64Drive macros
 *********************************/
 
-#define D64_COMMAND_TIMEOUT         10000
-#define D64_WRITE_TIMEOUT           10000
+#define D64_COMMAND_TIMEOUT         1000
+#define D64_WRITE_TIMEOUT           1000
 
 #define D64_BASE                    0x10000000
 #define D64_REGS_BASE               0x18000000
@@ -171,7 +171,7 @@ https://github.com/buu342/N64-UNFLoader
             SC64 macros
 *********************************/
 
-#define SC64_WRITE_TIMEOUT          10000
+#define SC64_WRITE_TIMEOUT          1000
 
 #define SC64_BASE                   0x10000000
 #define SC64_REGS_BASE              0x1FFF0000
@@ -439,6 +439,49 @@ int usb_readblock = -1;
         dma_write(ram_address, pi_address, size);
     }
 #endif
+
+
+/*********************************
+         Timeout helpers
+*********************************/
+
+/*==============================
+    usb_timeout_start
+    Returns current value of COUNT coprocessor 0 register
+    @return C0_COUNT value
+==============================*/
+
+static u32 usb_timeout_start(void)
+{
+#ifndef LIBDRAGON
+    return osGetCount();
+#else
+    return get_ticks();
+#endif
+}
+
+
+/*==============================
+    usb_timeout_check
+    Checks if timeout occurred
+    @param Starting value obtained from usb_timeout_start
+    @param Timeout duration specified in milliseconds
+    @return 1 if timeout occurred, otherwise 0
+==============================*/
+
+static u32 usb_timeout_check(u32 start_ticks, u32 duration)
+{
+#ifndef LIBDRAGON
+    u64 current_ticks = (u64)osGetCount();
+    u64 timeout_ticks = OS_USEC_TO_CYCLES((u64)duration * 1000);
+#else
+    u64 current_ticks = (u64)get_ticks();
+    u64 timeout_ticks = (u64)TICKS_FROM_MS(duration);
+#endif
+    if (current_ticks < start_ticks)
+        current_ticks += 0x100000000;
+    return current_ticks >= (start_ticks + timeout_ticks);
+}
 
 
 /*********************************
@@ -747,13 +790,14 @@ static s32 usb_64drive_wait(void)
 s32 usb_64drive_wait(void)
 #endif
 {
-    u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
+    u32 timeout;
 
     // Wait until the cartridge interface is ready
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if(timeout++ > D64_COMMAND_TIMEOUT)
+        if (usb_timeout_check(timeout, D64_COMMAND_TIMEOUT))
             return -1;
     }
     while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
@@ -792,7 +836,7 @@ static void usb_64drive_set_writable(u32 enable)
 
 static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 {
-    u32 timeout = 0;
+    u32 timeout;
 
     // Start USB write
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
@@ -800,10 +844,11 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
 
     // Spin until the write buffer is free
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if (timeout++ > D64_WRITE_TIMEOUT)
+        if (usb_timeout_check(timeout, D64_WRITE_TIMEOUT))
             return;
     }
     while((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) != D64_CUI_WRITE_IDLE);
@@ -1416,10 +1461,10 @@ static u32 usb_sc64_set_writable(u32 enable)
 
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
-    u32 timeout = 0;
     u32 left = size;
     u32 pi_address = SC64_BASE + DEBUG_ADDRESS;
     u32 writable_restore;
+    u32 timeout;
     u32 args[2];
     u32 result[2];
 
@@ -1458,10 +1503,11 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         return; // Return if USB write was unsuccessful
 
     // Wait for transfer to end
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if (timeout++ > SC64_WRITE_TIMEOUT)
+        if (usb_timeout_check(timeout, SC64_WRITE_TIMEOUT))
             return;
         usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
     }
