@@ -193,14 +193,6 @@ static void parse_args(std::list<char*>* args)
     if (args->empty())
         return;
 
-    // If the first character is not a dash, assume a ROM path
-    if (args->front()[0] != '-')
-    {
-        if (!device_setrom(args->front()))
-            terminate("'%s' is not a file.");
-        return;
-    }
-
     // Handle the rest of the program arguments
     for (it = args->begin(); it != args->end(); ++it)
     {
@@ -298,7 +290,16 @@ static void parse_args(std::list<char*>* args)
                 term_allowinput(false);
                 break;
             default:
-                terminate("Unknown command '%s'", command);
+                if (device_getrom() == NULL)
+                {
+                    if (nextarg_isvalid(it, args))
+                    {
+                        if (!device_setrom(*it))
+                            terminate("'%s' is not a file.", *it);
+                    }
+                }
+                else
+                    terminate("Unknown command '%s'", command);
                 break;
         }
     }
