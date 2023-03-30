@@ -28,11 +28,6 @@ https://github.com/buu342/N64-UNFLoader
 // Data header related
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
-// Size alignment helper
-#ifndef ALIGN
-    #define    ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
-#endif
-
 
 /*********************************
    Libultra macros for libdragon
@@ -42,6 +37,9 @@ https://github.com/buu342/N64-UNFLoader
     // Useful
     #ifndef MIN
         #define MIN(a, b) ((a) < (b) ? (a) : (b))
+    #endif
+    #ifndef ALIGN
+        #define ALIGN(value, align) (((value) + ((typeof(value))(align) - 1)) & ~((typeof(value))(align) - 1))
     #endif
     #ifndef TRUE
         #define TRUE 1
@@ -100,8 +98,8 @@ https://github.com/buu342/N64-UNFLoader
           64Drive macros
 *********************************/
 
-#define D64_COMMAND_TIMEOUT         10000
-#define D64_WRITE_TIMEOUT           10000
+#define D64_COMMAND_TIMEOUT         1000
+#define D64_WRITE_TIMEOUT           1000
 
 #define D64_BASE                    0x10000000
 #define D64_REGS_BASE               0x18000000
@@ -171,7 +169,7 @@ https://github.com/buu342/N64-UNFLoader
             SC64 macros
 *********************************/
 
-#define SC64_WRITE_TIMEOUT          10000
+#define SC64_WRITE_TIMEOUT          1000
 
 #define SC64_BASE                   0x10000000
 #define SC64_REGS_BASE              0x1FFF0000
@@ -378,6 +376,7 @@ int usb_readblock = -1;
             osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
     }
+    
 #else
 
     /*==============================
@@ -439,6 +438,51 @@ int usb_readblock = -1;
         dma_write(ram_address, pi_address, size);
     }
 #endif
+
+
+/*********************************
+         Timeout helpers
+*********************************/
+
+/*==============================
+    usb_timeout_start
+    Returns current value of COUNT coprocessor 0 register
+    @return C0_COUNT value
+==============================*/
+
+static u32 usb_timeout_start(void)
+{
+#ifndef LIBDRAGON
+    return osGetCount();
+#else
+    return get_ticks();
+#endif
+}
+
+
+/*==============================
+    usb_timeout_check
+    Checks if timeout occurred
+    @param Starting value obtained from usb_timeout_start
+    @param Timeout duration specified in milliseconds
+    @return TRUE if timeout occurred, otherwise FALSE
+==============================*/
+
+static char usb_timeout_check(u32 start_ticks, u32 duration)
+{
+#ifndef LIBDRAGON
+    u64 current_ticks = (u64)osGetCount();
+    u64 timeout_ticks = OS_USEC_TO_CYCLES((u64)duration * 1000);
+#else
+    u64 current_ticks = (u64)get_ticks();
+    u64 timeout_ticks = (u64)TICKS_FROM_MS(duration);
+#endif
+    if (current_ticks < start_ticks)
+        current_ticks += 0x100000000ULL;
+    if (current_ticks >= (start_ticks + timeout_ticks))
+        return TRUE;
+    return FALSE;
+}
 
 
 /*********************************
@@ -738,28 +782,29 @@ void usb_purge(void)
 /*==============================
     usb_64drive_wait
     Wait until the 64Drive CI is ready
-    @return 0 if success or -1 if failure
+    @return FALSE if success or TRUE if failure
 ==============================*/
 
 #ifndef LIBDRAGON
-static s32 usb_64drive_wait(void)
+static char usb_64drive_wait(void)
 #else
-s32 usb_64drive_wait(void)
+char usb_64drive_wait(void)
 #endif
 {
-    u32 timeout = 0; // I wanted to use osGetTime() but that requires the VI manager
+    u32 timeout;
 
     // Wait until the cartridge interface is ready
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if(timeout++ > D64_COMMAND_TIMEOUT)
-            return -1;
+        if (usb_timeout_check(timeout, D64_COMMAND_TIMEOUT))
+            return TRUE;
     }
     while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
 
     // Success
-    return 0;
+    return FALSE;
 }
 
 
@@ -792,7 +837,7 @@ static void usb_64drive_set_writable(u32 enable)
 
 static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 {
-    u32 timeout = 0;
+    u32 timeout;
 
     // Start USB write
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
@@ -800,10 +845,11 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_WRITE);
 
     // Spin until the write buffer is free
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if (timeout++ > D64_WRITE_TIMEOUT)
+        if (usb_timeout_check(timeout, D64_WRITE_TIMEOUT))
             return;
     }
     while((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) != D64_CUI_WRITE_IDLE);
@@ -813,13 +859,15 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 /*==============================
     usb_64drive_cui_poll
     Checks if there is data waiting to be read from USB FIFO
-    @return 0 if no data is waiting, 1 if otherwise
+    @return TRUE if data is waiting, FALSE if otherwise
 ==============================*/
 
-static u32 usb_64drive_cui_poll(void)
+static char usb_64drive_cui_poll(void)
 {
     // Check if we have data waiting in buffer
-    return (usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA;
+    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -843,7 +891,8 @@ static u32 usb_64drive_cui_read(u32 offset)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
 
     // Wait until data is received
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
+        ;
 
     // Get datatype and bytes remaining
     header = usb_io_read(D64_REG_USBP0R0);
@@ -860,7 +909,8 @@ static u32 usb_64drive_cui_read(u32 offset)
         usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
 
         // Wait until data is received
-        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
+        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
+            ;
 
         // Calculate total transfer length
         size += left;
@@ -870,7 +920,12 @@ static u32 usb_64drive_cui_read(u32 offset)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
 
     // Wait until USB FIFO is disarmed
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
+        ;
+        
+    // Due to a 64drive bug, we need to ignore the last 512 bytes of the transfer if it's larger than 512 bytes
+    if (size > 512)
+        size -= 512;
 
     // Return data header (datatype and size)
     return (datatype | size);
@@ -1109,10 +1164,10 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 /*==============================
     usb_everdrive_usbbusy
     Spins until the USB is no longer busy
-    @return 1 on success, 0 on failure
+    @return FALSE on success, TRUE on failure
 ==============================*/
 
-static u8 usb_everdrive_usbbusy(void) 
+static char usb_everdrive_usbbusy(void) 
 {
     u32 timeout = 0;
     u32 val = 0;
@@ -1123,20 +1178,20 @@ static u8 usb_everdrive_usbbusy(void)
         if (timeout > 8192)
         {
             usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
-            return 0;
+            return TRUE;
         }
     } 
-    return 1;
+    return FALSE;
 }
 
 
 /*==============================
     usb_everdrive_canread
     Checks if the EverDrive's USB can read
-    @return 1 if it can read, 0 if not
+    @return TRUE if it can read, FALSE if not
 ==============================*/
 
-static u8 usb_everdrive_canread(void) 
+static char usb_everdrive_canread(void) 
 {
     u32 val;
     u32 status = ED_USBSTAT_POWER;
@@ -1144,7 +1199,9 @@ static u8 usb_everdrive_canread(void)
     // Read the USB register and check its status
     usb_everdrive_readreg(ED_REG_USBCFG, &val);
     status = val & (ED_USBSTAT_POWER | ED_USBSTAT_RXF);
-    return status == ED_USBSTAT_POWER;
+    if (status == ED_USBSTAT_POWER)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -1171,7 +1228,7 @@ static void usb_everdrive_readusb(void* buffer, int size)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
 
         // Wait for the FPGA to transfer the data to its internal buffer, or stop on timeout
-        if (!usb_everdrive_usbbusy())
+        if (usb_everdrive_usbbusy())
             return;
 
         // Read from the internal buffer and store it in our buffer
@@ -1242,7 +1299,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         
         // Set USB to write mode with the new address and wait for USB to end (or stop if it times out)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
-        if (!usb_everdrive_usbbusy())
+        if (usb_everdrive_usbbusy())
             return;
         
         // Keep track of what we've read so far
@@ -1268,7 +1325,7 @@ static u32 usb_everdrive_poll(void)
     char* buff = (char*)OS_DCACHE_ROUNDUP_ADDR(buffaligned);
     
     // Wait for the USB to be ready
-    if (!usb_everdrive_usbbusy())
+    if (usb_everdrive_usbbusy())
         return 0;
     
     // Check if the USB is ready to be read
@@ -1306,7 +1363,7 @@ static u32 usb_everdrive_poll(void)
     }
     
     // Read the CMP Signal
-    if (!usb_everdrive_usbbusy())
+    if (usb_everdrive_usbbusy())
         return 0;
     usb_everdrive_readusb(buff, 16);
     if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
@@ -1346,13 +1403,13 @@ static void usb_everdrive_read(void)
     @param  Command ID to execute
     @param  2 element array of 32 bit arguments to pass with command, use NULL when argument values are not needed
     @param  2 element array of 32 bit values to read command result, use NULL when result values are not needed
-    @return Error status, non-zero means there was error during command execution
+    @return TRUE if there was error during command execution, otherwise FALSE
 ==============================*/
 
 #ifndef LIBDRAGON
-static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+static char usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
 #else
-u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+char usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
 #endif
 {
     u32 sr;
@@ -1382,7 +1439,9 @@ u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
     }
 
     // Return error status
-    return sr & SC64_SR_CMD_ERROR;
+    if (sr & SC64_SR_CMD_ERROR)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -1400,7 +1459,8 @@ static u32 usb_sc64_set_writable(u32 enable)
 
     args[0] = SC64_CFG_ROM_WRITE_ENABLE;
     args[1] = enable;
-    usb_sc64_execute_cmd(SC64_CMD_CONFIG_SET, args, result);
+    if (usb_sc64_execute_cmd(SC64_CMD_CONFIG_SET, args, result))
+        return 0;
 
     return result[1];
 }
@@ -1416,10 +1476,10 @@ static u32 usb_sc64_set_writable(u32 enable)
 
 static void usb_sc64_write(int datatype, const void* data, int size)
 {
-    u32 timeout = 0;
     u32 left = size;
     u32 pi_address = SC64_BASE + DEBUG_ADDRESS;
     u32 writable_restore;
+    u32 timeout;
     u32 args[2];
     u32 result[2];
 
@@ -1458,10 +1518,11 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         return; // Return if USB write was unsuccessful
 
     // Wait for transfer to end
+    timeout = usb_timeout_start();
     do
     {
         // Took too long, abort
-        if (timeout++ > SC64_WRITE_TIMEOUT)
+        if (usb_timeout_check(timeout, SC64_WRITE_TIMEOUT))
             return;
         usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
     }
