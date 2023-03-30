@@ -464,7 +464,7 @@ static u32 usb_timeout_start(void)
     Checks if timeout occurred
     @param Starting value obtained from usb_timeout_start
     @param Timeout duration specified in milliseconds
-    @return 1 if timeout occurred, otherwise 0
+    @return TRUE if timeout occurred, otherwise FALSE
 ==============================*/
 
 static u32 usb_timeout_check(u32 start_ticks, u32 duration)
@@ -477,8 +477,10 @@ static u32 usb_timeout_check(u32 start_ticks, u32 duration)
     u64 timeout_ticks = (u64)TICKS_FROM_MS(duration);
 #endif
     if (current_ticks < start_ticks)
-        current_ticks += 0x100000000;
-    return current_ticks >= (start_ticks + timeout_ticks);
+        current_ticks += 0x100000000ULL;
+    if (current_ticks >= (start_ticks + timeout_ticks))
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -779,7 +781,7 @@ void usb_purge(void)
 /*==============================
     usb_64drive_wait
     Wait until the 64Drive CI is ready
-    @return 0 if success or -1 if failure
+    @return FALSE if success or TRUE if failure
 ==============================*/
 
 #ifndef LIBDRAGON
@@ -796,12 +798,12 @@ s32 usb_64drive_wait(void)
     {
         // Took too long, abort
         if (usb_timeout_check(timeout, D64_COMMAND_TIMEOUT))
-            return -1;
+            return TRUE;
     }
     while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
 
     // Success
-    return 0;
+    return FALSE;
 }
 
 
@@ -1152,7 +1154,7 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 /*==============================
     usb_everdrive_usbbusy
     Spins until the USB is no longer busy
-    @return 1 on success, 0 on failure
+    @return FALSE on success, TRUE on failure
 ==============================*/
 
 static u8 usb_everdrive_usbbusy(void) 
@@ -1166,10 +1168,10 @@ static u8 usb_everdrive_usbbusy(void)
         if (timeout > 8192)
         {
             usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
-            return 0;
+            return TRUE;
         }
     } 
-    return 1;
+    return FALSE;
 }
 
 
@@ -1214,7 +1216,7 @@ static void usb_everdrive_readusb(void* buffer, int size)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
 
         // Wait for the FPGA to transfer the data to its internal buffer, or stop on timeout
-        if (!usb_everdrive_usbbusy())
+        if (usb_everdrive_usbbusy())
             return;
 
         // Read from the internal buffer and store it in our buffer
@@ -1285,7 +1287,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         
         // Set USB to write mode with the new address and wait for USB to end (or stop if it times out)
         usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
-        if (!usb_everdrive_usbbusy())
+        if (usb_everdrive_usbbusy())
             return;
         
         // Keep track of what we've read so far
@@ -1311,7 +1313,7 @@ static u32 usb_everdrive_poll(void)
     char* buff = (char*)OS_DCACHE_ROUNDUP_ADDR(buffaligned);
     
     // Wait for the USB to be ready
-    if (!usb_everdrive_usbbusy())
+    if (usb_everdrive_usbbusy())
         return 0;
     
     // Check if the USB is ready to be read
@@ -1349,7 +1351,7 @@ static u32 usb_everdrive_poll(void)
     }
     
     // Read the CMP Signal
-    if (!usb_everdrive_usbbusy())
+    if (usb_everdrive_usbbusy())
         return 0;
     usb_everdrive_readusb(buff, 16);
     if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
@@ -1389,7 +1391,7 @@ static void usb_everdrive_read(void)
     @param  Command ID to execute
     @param  2 element array of 32 bit arguments to pass with command, use NULL when argument values are not needed
     @param  2 element array of 32 bit values to read command result, use NULL when result values are not needed
-    @return Error status, non-zero means there was error during command execution
+    @return TRUE if there was error during command execution, otherwise FALSE
 ==============================*/
 
 #ifndef LIBDRAGON
@@ -1425,7 +1427,9 @@ u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
     }
 
     // Return error status
-    return sr & SC64_SR_CMD_ERROR;
+    if (sr & SC64_SR_CMD_ERROR)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -1443,7 +1447,8 @@ static u32 usb_sc64_set_writable(u32 enable)
 
     args[0] = SC64_CFG_ROM_WRITE_ENABLE;
     args[1] = enable;
-    usb_sc64_execute_cmd(SC64_CMD_CONFIG_SET, args, result);
+    if (usb_sc64_execute_cmd(SC64_CMD_CONFIG_SET, args, result))
+        return 0;
 
     return result[1];
 }
