@@ -467,7 +467,7 @@ static u32 usb_timeout_start(void)
     @return TRUE if timeout occurred, otherwise FALSE
 ==============================*/
 
-static u32 usb_timeout_check(u32 start_ticks, u32 duration)
+static char usb_timeout_check(u32 start_ticks, u32 duration)
 {
 #ifndef LIBDRAGON
     u64 current_ticks = (u64)osGetCount();
@@ -785,9 +785,9 @@ void usb_purge(void)
 ==============================*/
 
 #ifndef LIBDRAGON
-static s32 usb_64drive_wait(void)
+static char usb_64drive_wait(void)
 #else
-s32 usb_64drive_wait(void)
+char usb_64drive_wait(void)
 #endif
 {
     u32 timeout;
@@ -858,13 +858,15 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 /*==============================
     usb_64drive_cui_poll
     Checks if there is data waiting to be read from USB FIFO
-    @return 0 if no data is waiting, 1 if otherwise
+    @return TRUE if data is waiting, FALSE if otherwise
 ==============================*/
 
-static u32 usb_64drive_cui_poll(void)
+static char usb_64drive_cui_poll(void)
 {
     // Check if we have data waiting in buffer
-    return (usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA;
+    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -1157,7 +1159,7 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
     @return FALSE on success, TRUE on failure
 ==============================*/
 
-static u8 usb_everdrive_usbbusy(void) 
+static char usb_everdrive_usbbusy(void) 
 {
     u32 timeout = 0;
     u32 val = 0;
@@ -1178,10 +1180,10 @@ static u8 usb_everdrive_usbbusy(void)
 /*==============================
     usb_everdrive_canread
     Checks if the EverDrive's USB can read
-    @return 1 if it can read, 0 if not
+    @return TRUE if it can read, FALSE if not
 ==============================*/
 
-static u8 usb_everdrive_canread(void) 
+static char usb_everdrive_canread(void) 
 {
     u32 val;
     u32 status = ED_USBSTAT_POWER;
@@ -1189,7 +1191,9 @@ static u8 usb_everdrive_canread(void)
     // Read the USB register and check its status
     usb_everdrive_readreg(ED_REG_USBCFG, &val);
     status = val & (ED_USBSTAT_POWER | ED_USBSTAT_RXF);
-    return status == ED_USBSTAT_POWER;
+    if (status == ED_USBSTAT_POWER)
+        return TRUE;
+    return FALSE;
 }
 
 
@@ -1395,9 +1399,9 @@ static void usb_everdrive_read(void)
 ==============================*/
 
 #ifndef LIBDRAGON
-static u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+static char usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
 #else
-u32 usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
+char usb_sc64_execute_cmd(u8 cmd, u32 *args, u32 *result)
 #endif
 {
     u32 sr;
