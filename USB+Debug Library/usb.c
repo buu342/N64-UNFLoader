@@ -376,6 +376,7 @@ int usb_readblock = -1;
             osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
     }
+    
 #else
 
     /*==============================
@@ -890,7 +891,8 @@ static u32 usb_64drive_cui_read(u32 offset)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
 
     // Wait until data is received
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
+        ;
 
     // Get datatype and bytes remaining
     header = usb_io_read(D64_REG_USBP0R0);
@@ -907,7 +909,8 @@ static u32 usb_64drive_cui_read(u32 offset)
         usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
 
         // Wait until data is received
-        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA);
+        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
+            ;
 
         // Calculate total transfer length
         size += left;
@@ -917,7 +920,12 @@ static u32 usb_64drive_cui_read(u32 offset)
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
 
     // Wait until USB FIFO is disarmed
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
+        ;
+        
+    // Due to a 64drive bug, we need to ignore the last 512 bytes of the transfer if it's larger than 512 bytes
+    if (size > 512)
+        size -= 512;
 
     // Return data header (datatype and size)
     return (datatype | size);

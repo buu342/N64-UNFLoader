@@ -413,7 +413,7 @@ void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32
 
     // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
     if (size > 512 && (size%512) != 0)
-        newsize = (size-(size%512))+512;
+        newsize = (size-(size%512))+512+512; // The extra 512 is to workaround a 64Drive bug
     else if (size % 4 != 0)
         newsize = (size & ~3) + 4;
     else
