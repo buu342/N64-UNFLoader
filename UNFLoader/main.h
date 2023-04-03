@@ -36,6 +36,10 @@
     #define CH_ENTER     '\n'
     #define CH_BACKSPACE '\b'
 
+    #define DEFAULT_TERMCOLS 80
+    #define DEFAULT_TERMROWS 40
+    #define DEFAULT_HISTORYSIZE 1000
+
 
     /*********************************
                  Typedefs
@@ -67,5 +71,9 @@
     extern bool    global_closefail;
     extern char*   global_filename;
     extern WINDOW* global_window;
+    extern int     global_termsize[2];
+    extern int     global_padpos;
+    extern bool    global_scrolling;
+    extern bool    global_stackprints;
 
 #endif

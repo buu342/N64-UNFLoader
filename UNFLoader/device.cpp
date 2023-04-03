@@ -86,12 +86,12 @@ void device_find(int automode)
             break;
         }
 
-        // Look for SummerCart64
+        // Look for SC64
         if ((automode == CART_NONE || automode == CART_SC64) && device_test_sc64(cart, i))
         {
             device_set_sc64(cart, i);
             if (automode == CART_NONE)
-                pdprint_replace("SummerCart64 autodetected!\n", CRDEF_PROGRAM);
+                pdprint_replace("SC64 autodetected!\n", CRDEF_PROGRAM);
             break;
         }
     }
@@ -179,7 +179,7 @@ void device_set_everdrive(ftdi_context_t* cart, int index)
 
 /*==============================
     device_set_sc64
-    Marks the cart as being SummerCart64
+    Marks the cart as being SC64
     @param A pointer to the cart context
     @param The index of the cart
 ==============================*/
@@ -241,7 +241,11 @@ void device_sendrom(char* rompath)
         global_filename = rompath;
 
         // Read the ROM header to check if its byteswapped
-        fread(rom_header, 4, 1, file);
+        if (fread(rom_header, 1, 4, file) != 4)
+        {
+            device_close();
+            terminate("Unable to read 4 bytes from '%s'.\n", rompath);
+        }
         if (!(rom_header[0] == 0x80 && rom_header[1] == 0x37 && rom_header[2] == 0x12 && rom_header[3] == 0x40))
             global_z64 = true;
 
@@ -251,6 +255,22 @@ void device_sendrom(char* rompath)
         filesize = ftell(file);
         fseek(file, 0, SEEK_SET);
 
+        if (filesize < 0)
+        {
+            device_close();
+            terminate("Unable to get file size of '%s'.\n", rompath);
+        }
+
+        // Check if the file was modified on Windows (since stat is broken on XP...)
+        #ifndef LINUX
+            LARGE_INTEGER lt;
+            WIN32_FILE_ATTRIBUTE_DATA fdata;
+            GetFileAttributesExA(rompath, GetFileExInfoStandard, &fdata);
+            lt.LowPart = fdata.ftLastWriteTime.dwLowDateTime;
+            lt.HighPart = (long)fdata.ftLastWriteTime.dwHighDateTime;
+            finfo.st_mtime = (time_t)(lt.QuadPart*1e-7);
+        #endif
+
         // If the file was not modified
         if (!resend && lastmod != 0 && lastmod == finfo.st_mtime)
         {
@@ -258,6 +278,7 @@ void device_sendrom(char* rompath)
 
             // Close the file and wait for three seconds
             fclose(file);
+            timeout(0);
             while (count < 30)
             {
                 int ch;
@@ -288,8 +309,9 @@ void device_sendrom(char* rompath)
                     break;
                 }
             }
+            timeout(-1);
 
-            // Restart the while loop
+            // Restart the for loop
             if (!resend)
                 clearerr(file);
             continue;
@@ -309,7 +331,9 @@ void device_sendrom(char* rompath)
             pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM);
 
         // Send the ROM
+        timeout(0);
         funcPointer_sendrom(&local_usb, file, filesize);
+        timeout(-1);
 
         // Close the file pipe and start the timeout
         fclose(file);
@@ -401,4 +425,3 @@ void device_close()
     funcPointer_close(&local_usb);
     pdprint("USB connection closed.\n", CRDEF_PROGRAM);
 }
-

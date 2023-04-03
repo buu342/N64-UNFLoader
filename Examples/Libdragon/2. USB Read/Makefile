@@ -8,7 +8,7 @@ CODECFILES = main.c
 CODEHFILES = 
 
 DEBUG_MODE = 1 # Remember to change debug.h as well to match!
-DEBUGFILES = usb.c
+DEBUGFILES = # None
 
 REGISTRATION = "UNFLEXAM2" B U2 I
 

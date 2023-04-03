@@ -3,6 +3,8 @@
 
 Handles USB I/O.
 ***************************************************************/
+
+#include <limits.h>
 #pragma warning(push, 0)
     #include "Include/lodepng.h"
 #pragma warning(pop)
@@ -45,6 +47,8 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
 static int debug_headerdata[HEADER_SIZE];
 static char** cmd_history;
 static int cmd_count = 0;
+static int   print_stackcount = 0;
+static char* print_lastmessage = NULL;
 
 
 /*==============================
@@ -60,7 +64,7 @@ void debug_main(ftdi_context_t *cart)
     char *outbuff, *inbuff;
     u16 cursorpos = 0;
     DWORD pending = 0;
-    WINDOW* inputwin = newwin(1, getmaxx(stdscr), getmaxy(stdscr)-1, 0);
+    WINDOW* inputwin = newwin(1, global_termsize[1], global_termsize[0]-1, 0);
 
     // Check if this cart supports debug mode
     if (!device_testdebug())
@@ -76,7 +80,7 @@ void debug_main(ftdi_context_t *cart)
         pdprint("Debug mode started. Press ESC to stop.\n\n", CRDEF_INPUT);
     timeout(0);
     curs_set(0);
-    keypad(stdscr, TRUE);
+    keypad(inputwin, TRUE);
 
     // Initialize our buffers
     outbuff = (char*) malloc(BUFFER_SIZE);
@@ -104,7 +108,6 @@ void debug_main(ftdi_context_t *cart)
     switch (cart->carttype)
     {
         case CART_EVERDRIVE: alignment = 16; break;
-        case CART_SC64: alignment = 4; break;
         default: alignment = 0;
     }
 
@@ -127,31 +130,66 @@ void debug_main(ftdi_context_t *cart)
                 pdprint("Receiving %d bytes\n", CRDEF_INFO, pending);
             #endif
 
-            // Ensure we have valid data by reading the header
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
-                terminate("Unexpected DMA header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
-
-            // Get information about the incoming data
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            info = swap_endian(outbuff[3] << 24 | outbuff[2] << 16 | outbuff[1] << 8 | outbuff[0]);
-
-            // Decide what to do with the received data
-            debug_decidedata(cart, info, outbuff, &read);
-
-            // Read the completion signal
-            FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
-            read += cart->bytes_read;
-            if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
-                terminate("Did not receive completion signal: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
-
-            // Ensure byte alignment by reading X amount of bytes needed
-            if (alignment != 0 && (read % alignment) != 0)
+            // SC64 doesn't follow same debug protocol as 64drive/Everdrive
+            if (cart->carttype == CART_SC64)
             {
-                int left = alignment - (read % alignment);
-                FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
+                u32 packet_size;
+
+                // Ensure we have valid data by reading the header
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'P' || outbuff[1] != 'K' || outbuff[2] != 'T' || outbuff[3] != 'U')
+                    terminate("Unexpected PKT header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Get packet size
+                FT_Read(cart->handle, &packet_size, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                packet_size = swap_endian(packet_size);
+
+                // Get information about the incoming data
+                FT_Read(cart->handle, &info, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                info = swap_endian(info);
+
+                // Check if packet size matches data length specified in information
+                if (packet_size != ((info & 0xFFFFFF) + 4))
+                    terminate("Packet size doesn't match size specified in header");
+
+                // Decide what to do with the received data
+                debug_decidedata(cart, info, outbuff, &read);
+
+                // Check if debug_decidedata consumed whole packet
+                if (read != (packet_size + 8))
+                    terminate("Function debug_decidedate didn't consume whole packet: %d != %d", read, (packet_size + 8));
+            }
+            else
+            {
+                // Ensure we have valid data by reading the header
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'D' || outbuff[1] != 'M' || outbuff[2] != 'A' || outbuff[3] != '@')
+                    terminate("Unexpected DMA header: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Get information about the incoming data
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                info = swap_endian(outbuff[3] << 24 | outbuff[2] << 16 | outbuff[1] << 8 | outbuff[0]);
+
+                // Decide what to do with the received data
+                debug_decidedata(cart, info, outbuff, &read);
+
+                // Read the completion signal
+                FT_Read(cart->handle, outbuff, 4, &cart->bytes_read);
+                read += cart->bytes_read;
+                if (outbuff[0] != 'C' || outbuff[1] != 'M' || outbuff[2] != 'P' || outbuff[3] != 'H')
+                    terminate("Did not receive completion signal: %c %c %c %c.", outbuff[0], outbuff[1], outbuff[2], outbuff[3]);
+
+                // Ensure byte alignment by reading X amount of bytes needed
+                if (alignment != 0 && (read % alignment) != 0)
+                {
+                    int left = alignment - (read % alignment);
+                    FT_Read(cart->handle, outbuff, left, &cart->bytes_read);
+                }
             }
         }
 
@@ -177,11 +215,72 @@ void debug_main(ftdi_context_t *cart)
     // Clean up everything
     free(outbuff);
     free(inbuff);
+    if (print_lastmessage != NULL)
+        free(print_lastmessage);
 
+    print_stackcount = 0;
+    print_lastmessage = NULL;
+    global_scrolling = false;
     wclear(inputwin);
     wrefresh(inputwin);
     delwin(inputwin);
     curs_set(0);
+}
+
+
+/*==============================
+    debug_putconsole
+    Puts text on the console, stacking if necessary
+    @param The message to print
+    @param The color to use
+    @param The size of the string we're printing
+    @param Whether to replace the previous line or not
+==============================*/
+
+static void debug_putconsole(char* printmessage, short color, u32 strsize, bool replace)
+{
+    // Stack duplicate prints
+    if (global_stackprints)
+    {
+        // If we received the same message, then increment the stack count and print that it was duplicated
+        if (print_lastmessage != NULL && !strcmp(printmessage, print_lastmessage))
+        {
+            print_stackcount++;
+            if (print_stackcount == 1)
+                pdprint("Previous message duplicated 1 time(s)\n", CRDEF_INFO);
+            else
+                pdprint_replace("Previous message duplicated %d time(s)\n", CRDEF_INFO, print_stackcount);
+            return;
+        }
+        else // Otherwise, store the new line
+        {
+            print_stackcount = 0;
+            if (print_lastmessage != NULL)
+                free(print_lastmessage);
+            print_lastmessage = (char*)malloc(sizeof(char) * strsize);
+            strcpy(print_lastmessage, printmessage);
+        }
+    }
+
+    // Print the text
+    if (replace)
+        pdprint_replace("%s", color, printmessage);
+    else
+        pdprint("%s", color, printmessage);
+}
+
+
+/*==============================
+    debug_clearconsolestack
+    Clear's the console message duplicate memory to prevent stacking
+==============================*/
+
+static void debug_clearconsolestack()
+{
+    if (print_lastmessage != NULL)
+        free(print_lastmessage);
+    print_stackcount = 0;
+    print_lastmessage = NULL;
 }
 
 
@@ -196,6 +295,7 @@ void debug_main(ftdi_context_t *cart)
 
 void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
 {
+    char refresh = false;
     char cmd_changed = 0;
     static char blinkerstate = 1;
     static clock_t blinkertime = 0;
@@ -209,6 +309,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         if (curcmd > cmd_count)
             curcmd = 0;
         cmd_changed = 1;
+        refresh = true;
     }
     else if (ch == KEY_UP)
     {
@@ -216,17 +317,32 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         if (curcmd < 0)
             curcmd = cmd_count;
         cmd_changed = 1;
+        refresh = true;
     }
     else if (ch == KEY_LEFT && (*cursorpos) > 0)
     {
         (*cursorpos)--;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch == KEY_RIGHT && (*cursorpos) < size)
     {
         (*cursorpos)++;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
+
+    // Handle the scrolling keys
+    if (ch == KEY_PPAGE)
+        scrollpad(-1);
+    else if(ch == KEY_NPAGE)
+        scrollpad(1);
+    else if (ch == KEY_END)
+        scrollpad(INT_MAX);
+    else if (ch == KEY_HOME)
+        scrollpad(INT_MIN);
 
     // If the up or down arrow was pressed
     if (cmd_changed)
@@ -245,6 +361,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             size = slen;
         }
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
     }
 
     // Decide what to do on other key presses
@@ -275,6 +392,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         (*cursorpos) = 0;
         size = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch == CH_BACKSPACE || ch == 263)
     {
@@ -293,6 +412,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
             (*cursorpos)--;
             curcmd = 0;
             blinkerstate = 1;
+            blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+            refresh = true;
         }
     }
     else if (ch == KEY_DC && (*cursorpos) != size) // DEL key
@@ -309,6 +430,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         buffer[size] = 0;
         curcmd = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     else if (ch != ERR && isascii(ch) && ch > 0x1F && size < BUFFER_SIZE)
     {
@@ -324,6 +447,8 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         size++;
         curcmd = 0;
         blinkerstate = 1;
+        blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
 
     // Display what we've written
@@ -335,6 +460,7 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
     {
         blinkerstate = !blinkerstate;
         blinkertime = clock() + (clock_t)((float)CLOCKS_PER_SEC*BLINKRATE);
+        refresh = true;
     }
     if (blinkerstate)
     {
@@ -343,7 +469,10 @@ void debug_textinput(WINDOW* inputwin, char* buffer, u16* cursorpos, int ch)
         mvwaddch(inputwin, y, (*cursorpos), ACS_BLOCK);
         wmove(inputwin, y, x);
     }
-    wrefresh(inputwin);
+    
+    // Refresh the input bar window
+    if (refresh)
+        wrefresh(inputwin);
 }
 
 
@@ -364,7 +493,7 @@ void debug_appendfilesend(char* data, u32 size)
         int charcount = 0;
         int filesize = 0;
         char sizestring[8];
-        char* filepath = (char*)malloc(512);
+        char* filepath = (char*)malloc(BUFFER_SIZE);
         char* lastat;
         char* fileend = strchr(++filestart, '@');
 
@@ -447,6 +576,7 @@ void debug_appendfilesend(char* data, u32 size)
     if (filestart != NULL)
         free(finaldata);
     pdprint_replace("Sent command '%s'\n", CRDEF_INFO, data);
+    debug_clearconsolestack();
 }
 
 
@@ -506,6 +636,7 @@ void debug_filesend(const char* filename)
     // Send the data to the connected flashcart
     device_senddata(DATATYPE_RAWBINARY, buffer, size);
     pdprint_replace("Sent file '%s'\n", CRDEF_INFO, fixed);
+    debug_clearconsolestack();
     free(buffer);
     free(copy);
     fclose(fp);
@@ -551,6 +682,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
 {
     int total = 0;
     int left = size;
+    char* printmessage = (char*)malloc(sizeof(char)*size);
 
     // Ensure the data fits within our buffer
     if (left > BUFFER_SIZE)
@@ -561,7 +693,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
     {
         // Read from the USB and print it
         FT_Read(cart->handle, buffer, left, &cart->bytes_read);
-        pdprint("%.*s", CRDEF_PRINT, cart->bytes_read, buffer);
+        sprintf(printmessage + total, "%.*s", cart->bytes_read, buffer);
 
         // Store the amount of bytes read
         (*read) += cart->bytes_read;
@@ -572,6 +704,10 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
         if (left > BUFFER_SIZE)
             left = BUFFER_SIZE;
     }
+
+    // Print the text to the console
+    debug_putconsole(printmessage, CRDEF_PRINT, size, false);
+    free(printmessage);
 }
 
 
@@ -641,6 +777,7 @@ void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* r
 
     // Close the file and free the memory used for the filename
     pdprint("Wrote %d bytes to %s.\n", CRDEF_INFO, size, filename);
+    debug_clearconsolestack();
     fclose(fp);
     free(filename);
     free(extraname);
@@ -780,6 +917,7 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
     // Close the file and free the dynamic memory used
     lodepng_encode32_file(filename, image, w, h);
     pdprint("Wrote %dx%d pixels to %s.\n", CRDEF_INFO, w, h, filename);
+    debug_clearconsolestack();
     free(image);
     free(filename);
     free(extraname);

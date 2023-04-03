@@ -49,11 +49,16 @@ time_t  global_timeouttime = 0;
 bool    global_closefail   = false;
 char*   global_filename    = NULL;
 WINDOW* global_window      = NULL;
+int     global_termsize[2] = {DEFAULT_TERMROWS, DEFAULT_TERMCOLS};
+int     global_padpos      = 0;
+bool    global_scrolling   = false;
+bool    global_stackprints = true;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
 static char* local_rom = NULL;
 static bool  local_autodetect = true;
+static int   local_historysize = DEFAULT_HISTORYSIZE;
 
 
 
@@ -76,18 +81,21 @@ int main(int argc, char* argv[])
     start_color();
     use_default_colors();
     noecho();
+    keypad(stdscr, TRUE);
 
     // Setup our console
-    scrollok(stdscr, 1);
-    idlok(stdscr, 1);
-    resize_term(40, 80);
-    global_window = newpad(1000, 80);
+    global_window = newpad(local_historysize + global_termsize[0], global_termsize[1]);
+    scrollok(global_window, TRUE);
+    idlok(global_window, TRUE);
+    resize_term(global_termsize[0], global_termsize[1]);
+    keypad(global_window, TRUE);
 
     // Initialize the colors
     init_pair(CR_RED, COLOR_RED, -1);
     init_pair(CR_GREEN, COLOR_GREEN, -1);
     init_pair(CR_BLUE, COLOR_BLUE, -1);
     init_pair(CR_YELLOW, COLOR_YELLOW, -1);
+    init_pair(CR_MAGENTA, -1, COLOR_MAGENTA);
 
     // Start the program
     show_title();
@@ -203,17 +211,43 @@ void parse_args(int argc, char* argv[])
         }
         else if (!strcmp(command, "-a")) // Disable automatic header parsing
             local_autodetect = false;
-        else if (!strcmp(command, "-h")) // Set terminal height
+        else if (!strcmp(command, "-w")) // Set terminal size
         {
             i++;
 
             // If we have an argument after this one, then set the terminal height, otherwise terminate
             if (i<argc && argv[i][0] != '-')
-                resize_term(strtol(argv[i], NULL, 0), 80);
+            {
+                i++;
+                global_termsize[0] = strtol(argv[i], NULL, 0);
+
+                // If we have an argument after this one, then set the terminal width, otherwise terminate
+                if (i < argc && argv[i][0] != '-')
+                {
+                    global_termsize[1] = strtol(argv[i], NULL, 0);
+                    resize_term(global_termsize[0], global_termsize[1]);
+                    wresize(global_window, local_historysize + global_termsize[0], global_termsize[1]);
+                }
+                else
+                    terminate("Missing parameter(s) for command '%s'.", command);
+            }
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
-        else if (!strcmp(command, "-w")) // Disable terminal colors command
+        else if (!strcmp(command, "-h")) // Set command history size
+        {
+            i++;
+
+            // If we have an argument after this one, then set the terminal height, otherwise terminate
+            if (i < argc && argv[i][0] != '-')
+            {
+                local_historysize = strtol(argv[i], NULL, 0);
+                wresize(global_window, local_historysize + global_termsize[0], global_termsize[1]);
+            }
+            else
+                terminate("Missing parameter(s) for command '%s'.", command);
+        }
+        else if (!strcmp(command, "-b")) // Disable terminal colors command
             global_usecolors = false;
         else if (!strcmp(command, "-e")) // Export directory
         {
@@ -232,6 +266,8 @@ void parse_args(int argc, char* argv[])
             else
                 terminate("Missing parameter(s) for command '%s'.", command);
         }
+        else if (!strcmp(command, "-m")) // Debug message stacking
+        global_stackprints = false;
         else if (!strcmp(command, "-l")) // Listen mode
         {
             global_listenmode = true;
@@ -338,7 +374,7 @@ void show_title()
         char str[2];
         str[0] = title[i];
         str[1] = '\0';
-        pdprint(str, 1+(i)%TOTAL_COLORS);
+        pdprint(str, 1+(i)%(TOTAL_COLORS-1));
     }
 
     // Print other stuff
@@ -363,8 +399,8 @@ void list_args()
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE1, "64Drive HW1");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_64DRIVE2, "64Drive HW2");
     pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_EVERDRIVE, "EverDrive 3.0 or X7");
-    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_SC64, "SummerCart64");
-    pdprint("  -c <int>\t\t   Set CIC emulation (64Drive HW2/SummerCart64 only).\n", CRDEF_PROGRAM);
+    pdprint("  \t %d - %s\n", CRDEF_PROGRAM, CART_SC64, "SC64");
+    pdprint("  -c <int>\t\t   Set CIC emulation (64Drive HW2 only).\n", CRDEF_PROGRAM);
     pdprint("  \t 0 - %s\t 1 - %s\n", CRDEF_PROGRAM, "6101 (NTSC)", "6102 (NTSC)");
     pdprint("  \t 2 - %s\t 3 - %s\n", CRDEF_PROGRAM, "7101 (NTSC)", "7102 (PAL)");
     pdprint("  \t 4 - %s\t\t 5 - %s\n", CRDEF_PROGRAM, "x103 (All)", "x105 (All)");
@@ -375,11 +411,13 @@ void list_args()
     pdprint("  \t 5 - %s\t 6 - %s\n", CRDEF_PROGRAM, "SRAM 768Kbit", "FlashRAM 1Mbit (PokeStdm2)");
     pdprint("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n", CRDEF_PROGRAM);
     pdprint("  -l\t\t\t   Listen mode (reupload ROM when changed).\n", CRDEF_PROGRAM);
+    pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
     pdprint("  -e <directory>\t   File export directory (Folder must exist!).\n", CRDEF_PROGRAM);
     pdprint(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n", CRDEF_PROGRAM);
-    pdprint("  -h <int>\t\t   Force terminal height (number of rows).\n", CRDEF_PROGRAM);
-    pdprint("  -t <seconds>\t\t   Enable timeout (disables key press checks).\n", CRDEF_PROGRAM);
-    pdprint("  -w\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
+    pdprint("  -w <int> <int>\t   Force terminal size (number rows + columns).\n", CRDEF_PROGRAM);
+    pdprint("  -h <int>\t\t   Max window history (default %d).\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    pdprint("  -m \t\t\t   Always show duplicate prints in debug mode.\n", CRDEF_PROGRAM, DEFAULT_HISTORYSIZE);
+    pdprint("  -b\t\t\t   Disable terminal colors.\n", CRDEF_PROGRAM);
     pdprint("\n", CRDEF_PROGRAM);
 }
 
@@ -401,7 +439,7 @@ void show_help()
     pdprint("Which category are you interested in?\n"
             " 1 - Uploading ROMs on the 64Drive\n"
             " 2 - Uploading ROMs on the EverDrive\n"
-            " 3 - Uploading ROMs on the SummerCart64\n"
+            " 3 - Uploading ROMs on the SC64\n"
             " 4 - Using Listen mode\n"
             " 5 - Using Debug mode\n", CRDEF_PROGRAM);
 
@@ -434,7 +472,7 @@ void show_help()
                     " 4) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
             break;
         case '3':
-            pdprint(" 1) Plug the SummerCart64 USB into your PC, ensuring the console is turned OFF.\n"
+            pdprint(" 1) Plug the SC64 USB into your PC.\n"
                     " 2) Run this program to upload a ROM. Example:\n" 
                     " \t unfloader.exe -r myrom.n64\n"
                     " 3) Once the upload process is finished, your ROM should execute.\n", CRDEF_PROGRAM);
@@ -444,7 +482,9 @@ void show_help()
                     "saves you the trouble of having to restart this program every recompile of your\n"
                     "homebrew. It is on YOU to ensure the cart is prepared to receive another ROM.\n"
                     "That means that the console must be switched OFF if you're using the 64Drive or\n"
-                    "the SummerCart64, or be in the menu if you're using an EverDrive.\n", CRDEF_PROGRAM);
+                    "be in the menu if you're using an EverDrive. In SC64 case ROM can be uploaded\n"
+                    "while console is running but if currently running code is actively accessing\n"
+                    "ROM space this can result in glitches or even crash, proceed with caution.\n", CRDEF_PROGRAM);
             break;
         case '5':
             pdprint("In order to use the debug mode, the N64 ROM that you are executing must already\n"

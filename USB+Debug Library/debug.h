@@ -1,10 +1,10 @@
 #ifndef UNFL_DEBUG_H
 #define UNFL_DEBUG_H
-
+    
     /*********************************
              Settings macros
     *********************************/
-
+    
     // Settings
     #define DEBUG_MODE        1   // Enable/Disable debug mode
     #define DEBUG_INIT_MSG    1   // Print a message when debug mode has initialized
@@ -78,6 +78,16 @@
         
         
         /*==============================
+            debug_64drivebutton
+            Assigns a function to be executed when the 64drive button is pressed.
+            @param The function pointer to execute
+            @param Whether or not to execute the function only on pressing (ignore holding the button down)
+        ==============================*/
+        
+        extern void debug_64drivebutton(void(*execute)(), char onpress);
+        
+        
+        /*==============================
             debug_pollcommands
             Check the USB for incoming commands.
         ==============================*/
@@ -90,11 +100,11 @@
             Adds a command for the USB to read.
             @param The command name
             @param The command description
-            @param The function pointer to execute                                                                                  
+            @param The function pointer to execute
         ==============================*/
         
         extern void debug_addcommand(char* command, char* description, char*(*execute)());
-
+        
         
         /*==============================
             debug_parsecommand
@@ -122,7 +132,7 @@
         ==============================*/
         
         extern void debug_printcommands();
-
+        
         
         // Ignore this, use the macro instead
         extern void _debug_assert(const char* expression, const char* file, int line);
@@ -142,6 +152,7 @@
         #define debug_parsecommand(a) NULL
         #define debug_sizecommand() 0
         #define debug_printcommands()
+        #define debug_64drivebutton(a, b)
         #define usb_initialize() 0
         #define usb_getcart() 0
         #define usb_write(a, b, c)

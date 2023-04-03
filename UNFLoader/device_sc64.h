@@ -5,20 +5,6 @@
 
 
     /*********************************
-                  Macros
-    *********************************/
-
-    #define    DEV_CMD_CONFIG               'C'
-    #define    DEV_CMD_WRITE                'W'
-    #define    DEV_CMD_DEBUG_WRITE          'D'
-
-    #define    DEV_CONFIG_SAVE_TYPE         4
-    #define    DEV_CONFIG_CIC_SEED          5
-    #define    DEV_CONFIG_TV_TYPE           6
-    #define    DEV_CONFIG_SKIP_BOOTLOADER   9
-
-
-    /*********************************
             Function Prototypes
     *********************************/
 

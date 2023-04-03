@@ -1,7 +1,7 @@
 /***************************************************************
                        device_sc64.cpp
 
-Handles SummerCart64 USB communication.
+Handles SC64 USB communication.
 https://github.com/Polprzewodnikowy/SummerCollection
 
 ***************************************************************/
@@ -12,11 +12,30 @@ https://github.com/Polprzewodnikowy/SummerCollection
 
 
 /*********************************
+              Macros
+*********************************/
+
+#define CMD_VERSION_GET             'v'
+#define CMD_CONFIG_SET              'C'
+#define CMD_MEMORY_WRITE            'M'
+#define CMD_DEBUG_WRITE             'U'
+
+#define VERSION_V2                  0x32764353
+
+#define CFG_ID_BOOT_MODE            5
+#define CFG_ID_SAVE_TYPE            6
+
+#define BOOT_MODE_ROM               1
+
+#define MEMORY_ADDRESS_SDRAM        0x00000000
+
+
+/*********************************
         Function Prototypes
 *********************************/
 
-static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg2, bool reply);
-static void device_check_reply_sc64(ftdi_context_t* cart, u8 cmd);
+static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg2);
+static u32 device_check_reply_sc64(ftdi_context_t* cart, u8 cmd);
 
 
 /*==============================
@@ -28,7 +47,8 @@ static void device_check_reply_sc64(ftdi_context_t* cart, u8 cmd);
     @param Second argument value
 ==============================*/
 
-static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg2, bool reply) {
+static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg2)
+{
     u8 buff[12];
     DWORD bytes_processed;
 
@@ -41,15 +61,9 @@ static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg
     *(u32 *)(&buff[8]) = swap_endian(arg2);
 
     // Send command and parameters
-    testcommand(FT_Write(cart->handle, buff, sizeof(buff), &bytes_processed), "Error: Unable to write command to SummerCart64.\n");
-    if (bytes_processed != sizeof(buff)) {
-        terminate("Error: Actual bytes written amount is different than desired.\n");
-    }
-
-    // Check reply if command doesn't require any data
-    if (reply) {
-        device_check_reply_sc64(cart, cmd);
-    }
+    testcommand(FT_Write(cart->handle, buff, sizeof(buff), &bytes_processed), "Error: Unable to write command to SC64.\n");
+    if (bytes_processed != sizeof(buff))
+        terminate("Actual bytes written amount is different than desired.\n");
 }
 
 
@@ -58,29 +72,39 @@ static void device_send_cmd_sc64(ftdi_context_t* cart, u8 cmd, u32 arg1, u32 arg
     Checks if last command was successful
     @param A pointer to the cart context
     @param Command value to be checked
+    @returns Packet data size
 ==============================*/
 
-static void device_check_reply_sc64(ftdi_context_t* cart, u8 cmd) {
+static u32 device_check_reply_sc64(ftdi_context_t* cart, u8 cmd)
+{
     u8 buff[4];
-    DWORD bytes_processed;
+    DWORD read;
+    u32 packet_size;
 
-    testcommand(FT_Read(cart->handle, buff, sizeof(buff), &bytes_processed), "Error: Unable to read completion signal.\n");
-    if (bytes_processed != sizeof(buff) || memcmp(buff, "CMP", 3) != 0 || buff[3] != cmd) {
-        terminate("Error: Did not receive completion signal.\n");
-    } 
+    // Check completion signal
+    testcommand(FT_Read(cart->handle, buff, sizeof(buff), &read), "Error: Unable to read completion signal.\n");
+    if (read != sizeof(buff) || memcmp(buff, "CMP", 3) != 0 || buff[3] != cmd)
+        terminate("Did not receive completion signal.\n");
+
+    // Get packet size
+    testcommand(FT_Read(cart->handle, &packet_size, 4, &read), "Error: Unable to read packet size.\n");
+    if (read != 4)
+        terminate("Couldn't read packet size.\n");
+
+    return swap_endian(packet_size);
 }
 
 
 /*==============================
     device_test_sc64
-    Checks whether the device passed as an argument is SummerCart64
+    Checks whether the device passed as an argument is SC64
     @param A pointer to the cart context
     @param The index of the cart
 ==============================*/
 
 bool device_test_sc64(ftdi_context_t* cart, int index)
 {
-    return (strcmp(cart->dev_info[index].Description, "SummerCart64") == 0 && cart->dev_info[index].ID == 0x04036014);
+    return (strcmp(cart->dev_info[index].Description, "SC64") == 0 && cart->dev_info[index].ID == 0x04036014);
 }
 
 
@@ -92,17 +116,60 @@ bool device_test_sc64(ftdi_context_t* cart, int index)
 
 void device_open_sc64(ftdi_context_t* cart)
 {
+    ULONG modem_status;
+    u32 packet_size;
+    u32 version;
+
     // Open the cart
     cart->status = FT_Open(cart->device_index, &cart->handle);
     if (cart->status != FT_OK || !cart->handle)
-        terminate("Error: Unable to open flashcart.\n");
+        terminate("Unable to open flashcart.\n");
 
     // Reset the cart and set its timeouts and latency timer
     testcommand(FT_ResetDevice(cart->handle), "Error: Unable to reset flashcart.\n");
     testcommand(FT_SetTimeouts(cart->handle, 5000, 5000), "Error: Unable to set flashcart timeouts.\n");
 
+    // Perform controller reset by setting DTR line and checking DSR line status
+    testcommand(FT_SetDtr(cart->handle), "Error: Unable to set DTR line");
+    for (int i = 0; i < 10; i++)
+    {
+        testcommand(FT_GetModemStatus(cart->handle, &modem_status), "Error: Unable to get modem status");
+        if (modem_status & 0x20)
+            break;
+        #ifndef LINUX
+            Sleep(10);
+        #else
+            usleep(10);
+        #endif
+    }
+    if (!(modem_status & 0x20))
+        terminate("Couldn't perform SC64 controller reset");
+
     // Purge USB contents
     testcommand(FT_Purge(cart->handle, FT_PURGE_RX | FT_PURGE_TX), "Error: Unable to purge USB contents.\n");
+
+    // Release reset
+    testcommand(FT_ClrDtr(cart->handle), "Error: Unable to clear DTR line");
+    for (int i = 0; i < 10; i++)
+    {
+        testcommand(FT_GetModemStatus(cart->handle, &modem_status), "Error: Unable to get modem status");
+        if (!(modem_status & 0x20))
+            break;
+        #ifndef LINUX
+            Sleep(10);
+        #else
+            usleep(10);
+        #endif
+    }
+    if (modem_status & 0x20)
+        terminate("Couldn't release SC64 controller reset");
+
+    // Check SC64 firmware version
+    device_send_cmd_sc64(cart, CMD_VERSION_GET, 0, 0);
+    packet_size = device_check_reply_sc64(cart, CMD_VERSION_GET);
+    testcommand(FT_Read(cart->handle, &version, 4, &cart->bytes_read), "Error: Couldn't get SC64 firmware version");
+    if (packet_size != 4 || cart->bytes_read != 4 || version != VERSION_V2)
+        terminate("Unknown SC64 firmware version");
 }
 
 
@@ -118,139 +185,99 @@ void device_sendrom_sc64(ftdi_context_t* cart, FILE* file, u32 size)
 {
     size_t chunk;
     u8* rom_buffer;
-    size_t bytes_left;
+    size_t left;
     time_t upload_time_start;
-    s32 cic;
-    s32 tv;
-    s32 skip;
     const char* save_names[] = {
         "EEPROM 4k",
         "EEPROM 16k",
         "SRAM 32k",
         "FlashRAM 128k",
         "SRAM banked 3x32k",
-        "FlashRAM 128k (Pokemon Stadium 2 special case)",
     };
-
-    // Align rom size to 2 bytes
-    size = size - (size % 2);
 
     // 256 kB chunk size
     chunk = 256 * 1024;
 
     // Allocate ROM buffer
     rom_buffer = (u8 *)malloc(chunk * sizeof(u8));
-    if (rom_buffer == NULL) {
-        terminate("Error: Unable to allocate memory for buffer.\n");
-    }
+    if (rom_buffer == NULL)
+        terminate("Unable to allocate memory for buffer.\n");
 
-    // Set unknown CIC and TV type as default
-    cic = -1;
-    tv = -1;
-    skip = 0;
-
-    // Set CIC and TV type if provided
-    if (global_cictype != -1 && cart->cictype == 0) {
-        switch (global_cictype) {
-            case 0:
-            case 6101: cic = 0x13F; tv = 0; break;
-            case 1:
-            case 6102: cic = 0x3F; tv = 0; break;
-            case 2:
-            case 7101: cic = 0x3F; tv = 1; break;
-            case 3:
-            case 7102: cic = 0x13F; tv = 1; break;
-            case 4:
-            case 103: cic = 0x78; tv = -1; break;
-            case 6103: cic = 0x78; tv = 0; break;
-            case 7103: cic = 0x78; tv = 1; break;
-            case 5:
-            case 105: cic = 0x91; tv = -1; break;
-            case 6105: cic = 0x91; tv = 0; break;
-            case 7105: cic = 0x91; tv = 1; break;
-            case 6:
-            case 106: cic = 0x85; tv = -1; break;
-            case 6106: cic = 0x85; tv = 0; break;
-            case 7106: cic = 0x85; tv = 1; break;
-            case 7: cic = 0xAC; tv = -1; break;
-            case 5101: cic = 0xAC; tv = 0; break;
-            case 8303: cic = 0xDD; tv = 0; break;
-            case 1234: skip = 1; break;
-            default: terminate("Unknown or unsupported CIC type '%d'.", global_cictype);
-        }
-        cart->cictype = global_cictype;
-        pdprint("CIC set to %d (cic_seed = %d, tv_type = %d, skip = %s).\n", CRDEF_PROGRAM, global_cictype, cic, tv, skip ? "yes" : "no");
-    }
-
-    // Commit CIC and TV settings
-    device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_CIC_SEED, (u32) cic, true);
-    device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_TV_TYPE, (u32) tv, true);
-    device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_SKIP_BOOTLOADER, (u32) skip, true);
+    // Set boot mode
+    device_send_cmd_sc64(cart, CMD_CONFIG_SET, CFG_ID_BOOT_MODE, BOOT_MODE_ROM);
+    if (device_check_reply_sc64(cart, CMD_CONFIG_SET) != 0)
+        terminate("SC64 config set command returned with unexpected reply");
 
     // Set savetype if provided
-    if (global_savetype > 0 && global_savetype <= 6) {
+    if (global_savetype > 0 && global_savetype <= 5)
         pdprint("Save type set to %d, %s.\n", CRDEF_PROGRAM, global_savetype, save_names[global_savetype - 1]);
-    } else {
+    else
         global_savetype = 0;
-    }
 
     // Commit save setting
-
-    device_send_cmd_sc64(cart, DEV_CMD_CONFIG, DEV_CONFIG_SAVE_TYPE, global_savetype, true);
+    device_send_cmd_sc64(cart, CMD_CONFIG_SET, CFG_ID_SAVE_TYPE, global_savetype);
+    if (device_check_reply_sc64(cart, CMD_CONFIG_SET) != 0)
+        terminate("SC64 config set command returned with unexpected reply");
 
     // Init progressbar
     pdprint("\n", CRDEF_PROGRAM);
-    progressbar_draw("Uploading ROM", CRDEF_PROGRAM, 0);
+    progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, 0);
 
     // Prepare variables
-    bytes_left = size;
+    left = size;
 
     // Get start time
     upload_time_start = clock();
 
     // Prepare cart for write
-    device_send_cmd_sc64(cart, DEV_CMD_WRITE, 0, size, false);
+    device_send_cmd_sc64(cart, CMD_MEMORY_WRITE, MEMORY_ADDRESS_SDRAM, size);
 
     // Loop until ROM has been fully written
-    do {
+    while (left > 0)
+    {
         // Calculate current chunk size
-        if (bytes_left < chunk) {
-            chunk = bytes_left;
+        if (left < chunk)
+            chunk = left;
+
+        // Check if ESC was pressed
+        int ch = getch();
+        if (ch == CH_ESCAPE)
+        {
+            pdprint_replace("ROM upload canceled by the user\n", CRDEF_PROGRAM);
+            free(rom_buffer);
+            return;
         }
 
         // Read ROM from file to buffer
         fread(rom_buffer, sizeof(u8), chunk, file);
-        if (global_z64) {
-            for (size_t i = 0; i < chunk; i += 2) {
-                SWAP(rom_buffer[i], rom_buffer[i + 1]);
-            }
-        }
+        if (global_z64)
+            for (size_t i=0; i<chunk; i+=2)
+                SWAP(rom_buffer[i], rom_buffer[i+1]);
 
         // Push data
-        testcommand(FT_Write(cart->handle, rom_buffer, chunk, &cart->bytes_written), "Error: Unable to write data to SummerCart64.\n");
+        testcommand(FT_Write(cart->handle, rom_buffer, chunk, &cart->bytes_written), "Error: Unable to write data to SC64.\n");
 
         // Break from loop if not all bytes has been sent
-        if (cart->bytes_written != chunk) {
+        if (cart->bytes_written != chunk)
             break;
-        }
 
         // Update bytes left
-        bytes_left -= cart->bytes_written;
+        left -= cart->bytes_written;
 
         // Update progressbar
-        progressbar_draw("Uploading ROM", CRDEF_PROGRAM, (size - bytes_left) / (float)size);
-    } while (bytes_left > 0);
+        progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, (size - left) / (float)size);
+    }
 
     // Free ROM buffer
     free(rom_buffer);
 
-    if (bytes_left > 0) {
-        // Throw error if upload was unsuccessful
-        terminate("Error: SummerCart64 timed out");
-    }
+    // Throw error if upload was unsuccessful
+    if (left > 0)
+        terminate("SC64 timed out");
 
     // Check if write was successful
-    device_check_reply_sc64(cart, DEV_CMD_WRITE);
+    if (device_check_reply_sc64(cart, CMD_MEMORY_WRITE) != 0)
+        terminate("SC64 memory write command returned with unexpected reply");
 
     // Print that we've finished
     double upload_time = (double)(clock() - upload_time_start) / CLOCKS_PER_SEC;
@@ -282,22 +309,19 @@ bool device_testdebug_sc64(ftdi_context_t* cart)
 
 void device_senddata_sc64(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    u32 transfer_size;
-
-    // Sanitize and align size
-    size &= 0x00FFFFFF;
-    transfer_size = size + size % 2;
+    // Sanitize datatype and size
+    datatype &= 0xFF;
+    size &= 0xFFFFFF;
 
     // Prepare cart for transfer
-    device_send_cmd_sc64(cart, DEV_CMD_DEBUG_WRITE, ((datatype & 0xFF) << 24) | size, transfer_size, false);
+    device_send_cmd_sc64(cart, CMD_DEBUG_WRITE, datatype, size);
 
-    // Push data
-    testcommand(FT_Write(cart->handle, data, transfer_size, &cart->bytes_written), "Error: Unable to write data to SummerCart64.\n");
+    // Transmit data
+    testcommand(FT_Write(cart->handle, data, size, &cart->bytes_written), "Error: Unable to write data to SC64.\n");
 
-    if (cart->bytes_written != transfer_size) {
-        // Throw error if transfer was unsuccessful
-        terminate("Error: SummerCart64 timed out");
-    }
+    // Throw error if transfer was unsuccessful
+    if (cart->bytes_written != size)
+        terminate("SC64 timed out");
 }
 
 
