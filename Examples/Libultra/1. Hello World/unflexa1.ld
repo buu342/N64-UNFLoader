@@ -31,7 +31,7 @@ SECTIONS
    
    BEGIN_SEG(code, 0x80000400) SUBALIGN(16)
    {
-      asm/entry.o(.text);
+      asm/entry.o(.start);
       codesegment.o(.text);
 
       /* data */
