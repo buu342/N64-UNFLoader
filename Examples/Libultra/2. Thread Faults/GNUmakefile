@@ -10,7 +10,7 @@
 
 ASMFILES    = asm/entry.s asm/rom_header.s
 ASMOBJECTS  =	$(ASMFILES:.s=.o)
-CODECFILES  = nuboot.c main.c graphic.c stage00.c spr_chuck.c spr_arena.c
+CODECFILES  = main.c graphic.c stage00.c spr_chuck.c spr_arena.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c usb.c
@@ -29,7 +29,7 @@ CP_LD_SCRIPT	= unflexa2_cp.ld
 
 NUSYSINC  = /usr/include/n64/nusys
 NUSYSLIB  = /usr/lib/n64/nusys
-#NUOBJ		= $(NUSYSLIB)/nusys_rom.o
+NUOBJ	  = $(NUSYSLIB)/nusys.o
 
 ################################################################
 #                         Make Commands                        #

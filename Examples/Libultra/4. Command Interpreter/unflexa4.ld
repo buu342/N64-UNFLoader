@@ -48,7 +48,7 @@ SECTIONS
    BEGIN_SEG(code, NU_SPEC_BOOT_ADDR) SUBALIGN(16)
    {
       /* text */
-      asm/entry.o(.text);
+      asm/entry.o(.start);
       codesegment.o(.text);
       /usr/lib/n64/PR/rspboot.o(.text);
       /usr/lib/n64/PR/gspF3DEX2.fifo.o(.text);
