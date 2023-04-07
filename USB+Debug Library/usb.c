@@ -137,6 +137,8 @@ https://github.com/buu342/N64-UNFLoader
          EverDrive macros
 *********************************/
 
+#define ED_TIMEOUT        1000
+
 #define ED_BASE           0x10000000
 #define ED_BASE_ADDRESS   0x1F800000
 #define ED_GET_REGADD(reg)   (0xA0000000 | ED_BASE_ADDRESS | (reg))
@@ -1055,35 +1057,7 @@ static void usb_everdrive_wait_pidma(void)
 
 static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len) 
 {
-    // Correct the PI address
-    pi_address &= 0x1FFFFFFF;
-
-    // Set up DMA transfer between RDRAM and the PI
-    #ifdef LIBDRAGON
-        data_cache_hit_writeback_invalidate(buff, len);
-        disable_interrupts();
-        // Write the data to the PI
-        usb_everdrive_wait_pidma();
-        IO_WRITE(PI_STATUS_REG, 3);
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_WRITELENGTH) = len-1;
-        usb_everdrive_wait_pidma();
-        // Enable system interrupts
-        enable_interrupts();
-    #else
-        osInvalDCache(buff, len);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_READ, 
-                         pi_address, buff, 
-                         len);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, 
-                         pi_address, buff, 
-                         len, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    #endif
+    usb_dma_read(buff, pi_address&0x1FFFFFFF, len);
 }
 
 
@@ -1114,34 +1088,7 @@ static void usb_everdrive_readreg(u32 reg, u32* result)
 static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len) 
 {
     // Correct the PI address
-    pi_address &= 0x1FFFFFFF;
-    
-    // Set up DMA transfer between RDRAM and the PI
-    #ifdef LIBDRAGON
-        data_cache_hit_writeback(buff, len);
-        disable_interrupts();
-        // Write the data to the PI
-        usb_everdrive_wait_pidma();
-        IO_WRITE(PI_STATUS_REG, 3);
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_RAMADDRESS) = (u32)buff;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_PIADDRESS) = pi_address;
-        *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_READLENGTH) = len-1;
-        usb_everdrive_wait_pidma();
-        // Enable system interrupts
-        enable_interrupts();
-    #else
-        osWritebackDCache(buff, len);
-        #if USE_OSRAW
-            osPiRawStartDma(OS_WRITE, 
-                         pi_address, buff, 
-                         len);
-        #else
-            osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, 
-                         pi_address, buff, 
-                         len, &dmaMessageQ);
-            (void)osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
-        #endif
-    #endif
+    usb_dma_write(buff, pi_address&0x1FFFFFFF, len);
 }
 
 
@@ -1169,18 +1116,18 @@ static void usb_everdrive_writereg(u64 reg, u32 value)
 
 static char usb_everdrive_usbbusy(void) 
 {
-    u32 timeout = 0;
-    u32 val = 0;
-    while ((val & ED_USBSTAT_ACT) != 0)
+    u32 val;
+    u32 timeout = usb_timeout_start();
+    do
     {
         usb_everdrive_readreg(ED_REG_USBCFG, &val);
-        timeout++;
-        if (timeout > 8192)
+        if (usb_timeout_check(timeout, ED_TIMEOUT))
         {
             usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
             return TRUE;
         }
-    } 
+    }
+    while ((val & ED_USBSTAT_ACT) != 0);
     return FALSE;
 }
 
