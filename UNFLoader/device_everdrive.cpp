@@ -51,17 +51,26 @@ DeviceError device_test_everdrive(CartDevice* cart)
     // Search the devices
     for (uint32_t i=0; i<device_count; i++)
     {
-        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+        // Look for an EverDrive
         if (strcmp(device_info[i].Description, "FT245R USB FIFO") == 0 && device_info[i].ID == 0x04036001)
         {
             FT_HANDLE temphandle;
             DWORD bytes_written;
             DWORD bytes_read;
-
             char send_buff[16];
             char recv_buff[16];
             memset(send_buff, 0, 16);
             memset(recv_buff, 0, 16);
+
+            // If we don't have a ROM, we probably just want debug mode, so assume that this is an ED
+            if (device_getrom() == NULL)
+            {
+                ED64Handle* fthandle = (ED64Handle*)malloc(sizeof(ED64Handle));
+                free(device_info);
+                fthandle->device_index = i;
+                cart->structure = fthandle;
+                return DEVICEERR_OK;
+            }
 
             // Define the command to send
             send_buff[0] = 'c';
