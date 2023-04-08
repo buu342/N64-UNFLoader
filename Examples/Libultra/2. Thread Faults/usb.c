@@ -139,15 +139,15 @@ https://github.com/buu342/N64-UNFLoader
 
 #define ED_TIMEOUT        1000
 
-#define ED_BASE           0x10000000
-#define ED_BASE_ADDRESS   0x1F800000
-#define ED_GET_REGADD(reg)   (0xA0000000 | ED_BASE_ADDRESS | (reg))
+#define ED_BASE            0x10000000
+#define ED_BASE_ADDRESS    0x1F800000
+#define ED_GET_REGADD(reg) ((0xA0000000 | ED_BASE_ADDRESS | (reg))&0x1FFFFFFF)
 
-#define ED_REG_USBCFG  0x0004
-#define ED_REG_VERSION 0x0014
-#define ED_REG_USBDAT  0x0400
-#define ED_REG_SYSCFG  0x8000
-#define ED_REG_KEY     0x8004
+#define ED_REG_USBCFG  ED_GET_REGADD(0x0004)
+#define ED_REG_VERSION ED_GET_REGADD(0x0014)
+#define ED_REG_USBDAT  ED_GET_REGADD(0x0400)
+#define ED_REG_SYSCFG  ED_GET_REGADD(0x8000)
+#define ED_REG_KEY     ED_GET_REGADD(0x8004)
 
 #define ED_USBMODE_RDNOP 0xC400
 #define ED_USBMODE_RD    0xC600
@@ -243,11 +243,9 @@ static void usb_64drive_write(int datatype, const void* data, int size);
 static u32  usb_64drive_poll(void);
 static void usb_64drive_read(void);
 
-static void usb_everdrive_readreg(u32 reg, u32* result);
 static void usb_everdrive_write(int datatype, const void* data, int size);
 static u32  usb_everdrive_poll(void);
 static void usb_everdrive_read(void);
-static void usb_everdrive_writereg(u64 reg, u32 value);
 
 static void usb_sc64_write(int datatype, const void* data, int size);
 static u32  usb_sc64_poll(void);
@@ -577,8 +575,8 @@ static void usb_findcart(void)
     
     // Since we didn't find a 64Drive let's assume we have an EverDrive
     // Write the key to unlock the registers, then read the version register
-    usb_everdrive_writereg(ED_REG_KEY, ED_REGKEY);
-    usb_everdrive_readreg(ED_REG_VERSION, &buff);
+    usb_io_write(ED_REG_KEY, ED_REGKEY);
+    buff = usb_io_read(ED_REG_VERSION);
 
     // EverDrive 2.5 not compatible
     if (buff == ED25_VERSION)
@@ -588,8 +586,8 @@ static void usb_findcart(void)
     if (buff == ED7_VERSION || buff == ED3_VERSION)
     {
         // Set the USB mode
-        usb_everdrive_writereg(ED_REG_SYSCFG, 0);
-        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+        usb_io_write(ED_REG_SYSCFG, 0);
+        usb_io_write(ED_REG_USBCFG, ED_USBMODE_RDNOP);
         
         // Set the cart to EverDrive
         usb_cart = CART_EVERDRIVE;
@@ -1030,67 +1028,6 @@ static void usb_64drive_read(void)
 *********************************/
 
 /*==============================
-    usb_everdrive_readdata
-    Reads data from a specific address on the EverDrive
-    @param The buffer with the data
-    @param The register address to write to the PI
-    @param The size of the data
-==============================*/
-
-static void usb_everdrive_readdata(void* buff, u32 pi_address, u32 len) 
-{
-    usb_dma_read(buff, pi_address&0x1FFFFFFF, len);
-}
-
-
-/*==============================
-    usb_everdrive_readreg
-    Reads data from a specific register on the EverDrive
-    @param The register to read from
-    @param A pointer to write the read value to
-==============================*/
-
-static void usb_everdrive_readreg(u32 reg, u32* result) 
-{
-    u32 alignedbuff[16];
-    u32* buff = (u32*)OS_DCACHE_ROUNDUP_ADDR(alignedbuff);
-    usb_everdrive_readdata(buff, ED_GET_REGADD(reg), sizeof(u32));
-    (*result) = (*buff);
-}
-
-
-/*==============================
-    usb_everdrive_writedata
-    Writes data to a specific address on the EverDrive
-    @param A buffer with the data to write
-    @param The register address to write to the PI
-    @param The length of the data
-==============================*/
-
-static void usb_everdrive_writedata(void* buff, u32 pi_address, u32 len) 
-{
-    // Correct the PI address
-    usb_dma_write(buff, pi_address&0x1FFFFFFF, len);
-}
-
-
-/*==============================
-    usb_everdrive_writereg
-    Writes data to a specific register on the EverDrive
-    @param The register to write to
-    @param The value to write to the register
-==============================*/
-
-static void usb_everdrive_writereg(u64 reg, u32 value) 
-{
-    u32  alignedval[16];
-    u32* val = OS_DCACHE_ROUNDUP_ADDR(alignedval);
-    (*val) = value;
-    usb_everdrive_writedata(val, ED_GET_REGADD(reg), sizeof(u32));
-}
-
-
-/*==============================
     usb_everdrive_usbbusy
     Spins until the USB is no longer busy
     @return FALSE on success, TRUE on failure
@@ -1102,10 +1039,10 @@ static char usb_everdrive_usbbusy(void)
     u32 timeout = usb_timeout_start();
     do
     {
-        usb_everdrive_readreg(ED_REG_USBCFG, &val);
+        val = usb_io_read(ED_REG_USBCFG);
         if (usb_timeout_check(timeout, ED_TIMEOUT))
         {
-            usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+            usb_io_write(ED_REG_USBCFG, ED_USBMODE_RDNOP);
             return TRUE;
         }
     }
@@ -1126,7 +1063,7 @@ static char usb_everdrive_canread(void)
     u32 status = ED_USBSTAT_POWER;
     
     // Read the USB register and check its status
-    usb_everdrive_readreg(ED_REG_USBCFG, &val);
+    val = usb_io_read(ED_REG_USBCFG);
     status = val & (ED_USBSTAT_POWER | ED_USBSTAT_RXF);
     if (status == ED_USBSTAT_POWER)
         return TRUE;
@@ -1154,14 +1091,14 @@ static void usb_everdrive_readusb(void* buffer, int size)
         addr = BUFFER_SIZE - block;
         
         // Request to read from the USB
-        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_RD | addr); 
+        usb_io_write(ED_REG_USBCFG, ED_USBMODE_RD | addr);
 
         // Wait for the FPGA to transfer the data to its internal buffer, or stop on timeout
         if (usb_everdrive_usbbusy())
             return;
 
         // Read from the internal buffer and store it in our buffer
-        usb_everdrive_readdata(buffer, ED_GET_REGADD(ED_REG_USBDAT + addr), block); 
+        usb_dma_read(buffer, ED_REG_USBDAT + addr, block);
         buffer = (char*)buffer + block;
         size -= block;
     }
@@ -1223,11 +1160,11 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         baddr = BUFFER_SIZE - blocksend;
 
         // Set USB to write mode and send data through USB
-        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WRNOP);
-        usb_everdrive_writedata(usb_buffer, ED_GET_REGADD(ED_REG_USBDAT + baddr), blocksend);
+        usb_io_write(ED_REG_USBCFG, ED_USBMODE_WRNOP);
+        usb_dma_write(usb_buffer, ED_REG_USBDAT + baddr, blocksend);
         
         // Set USB to write mode with the new address and wait for USB to end (or stop if it times out)
-        usb_everdrive_writereg(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
+        usb_io_write(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
         if (usb_everdrive_usbbusy())
             return;
         
@@ -1286,7 +1223,7 @@ static u32 usb_everdrive_poll(void)
         usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
-        usb_everdrive_writedata(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, bytes_do);
+        usb_dma_write(usb_buffer, (ED_BASE + DEBUG_ADDRESS + offset)&0x1FFFFFFF, bytes_do);
         offset += bytes_do;
         len -= bytes_do;
     }
