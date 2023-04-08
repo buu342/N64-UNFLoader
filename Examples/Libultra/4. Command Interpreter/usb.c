@@ -1030,24 +1030,6 @@ static void usb_64drive_read(void)
 *********************************/
 
 /*==============================
-    usb_everdrive_wait_pidma
-    Spins until the EverDrive's DMA is ready
-==============================*/
-
-static void usb_everdrive_wait_pidma(void) 
-{
-    u32  statusaligned[16] ;
-    u32* status = (u32*)OS_DCACHE_ROUNDUP_ADDR(statusaligned);
-    do
-    {
-        (*status) = *(volatile unsigned long *)(N64_PI_ADDRESS + N64_PI_STATUS);
-        (*status) &= (PI_STATUS_DMA_BUSY | PI_STATUS_IO_BUSY);
-    }
-    while ((*status));
-}
-
-
-/*==============================
     usb_everdrive_readdata
     Reads data from a specific address on the EverDrive
     @param The buffer with the data
@@ -1236,8 +1218,8 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
             continue;
         }
         
-        // Ensure the data is 16 byte aligned and the block address is correct
-        blocksend = (block+offset)+15 - ((block+offset)+15)%16;
+        // Ensure the data is 2 byte aligned and the block address is correct
+        blocksend = (block+offset)+1 - ((block+offset)+1)%2;
         baddr = BUFFER_SIZE - blocksend;
 
         // Set USB to write mode and send data through USB
@@ -1280,7 +1262,7 @@ static u32 usb_everdrive_poll(void)
         return 0;
     
     // Read the first 8 bytes that are being received and check if they're valid
-    usb_everdrive_readusb(buff, 16);
+    usb_everdrive_readusb(buff, 8);
     if (buff[0] != 'D' || buff[1] != 'M' || buff[2] != 'A' || buff[3] != '@')
         return 0;
         
@@ -1290,8 +1272,8 @@ static u32 usb_everdrive_poll(void)
     usb_dataleft = usb_datasize;
     usb_readblock = -1;
     
-    // Get the aligned data size. Must be 16 byte aligned
-    len = usb_datasize + (16 - ((usb_datasize%16 == 0) ? 16 : usb_datasize%16));
+    // Get the aligned data size. Must be 2 byte aligned
+    len = usb_datasize + (2 - ((usb_datasize%2 == 0) ? 2 : usb_datasize%2));
     
     // While there's data to service
     while (len > 0) 
@@ -1312,7 +1294,7 @@ static u32 usb_everdrive_poll(void)
     // Read the CMP Signal
     if (usb_everdrive_usbbusy())
         return 0;
-    usb_everdrive_readusb(buff, 16);
+    usb_everdrive_readusb(buff, 4);
     if (buff[0] != 'C' || buff[1] != 'M' || buff[2] != 'P' || buff[3] != 'H')
     {
         // Something went wrong with the data
