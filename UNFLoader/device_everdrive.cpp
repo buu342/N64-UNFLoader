@@ -406,7 +406,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     byte     buffer[16];
     uint32_t header;
-    uint32_t newsize = size + (16 - ((size%16 == 0) ? 16 : size%16));
+    uint32_t newsize = size + (2 - ((size%2 == 0) ? 2 : size%2));
     byte*    datacopy = NULL;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = newsize;
@@ -423,7 +423,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     buffer[7] = header & 0xFF;
 
     // Send the DMA message
-    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+    if (FT_Write(fthandle->handle, buffer, 8, &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
 
     // Copy the data onto a temp variable
@@ -451,7 +451,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     buffer[1] = 'M';
     buffer[2] = 'P';
     buffer[3] = 'H';
-    if (FT_Write(fthandle->handle, buffer, 16, &fthandle->bytes_written) != FT_OK)
+    if (FT_Write(fthandle->handle, buffer, 4, &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
 
     // Free used up resources
@@ -529,11 +529,11 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
             return DEVICEERR_64D_BADCMP;
         totalread += fthandle->bytes_read;
 
-        // Ensure 16 byte alignment by reading X amount of bytes needed
-        if (totalread % 16 != 0)
+        // Ensure 2 byte alignment by reading X amount of bytes needed
+        if (totalread % 2 != 0)
         {
-            byte tempbuff[16];
-            int left = 16 - (totalread % 16);
+            byte tempbuff[2];
+            int left = 2 - (totalread % 2);
             if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
         }
