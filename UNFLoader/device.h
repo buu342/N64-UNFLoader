@@ -143,6 +143,7 @@
     
     // Helper functions
     #define  SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
+    #define  ALIGN(s, align) (((uint32_t)(s) + ((align)-1)) & ~((align)-1))
     uint32_t swap_endian(uint32_t val);
     uint32_t calc_padsize(uint32_t size);
     uint32_t romhash(byte* buff, uint32_t len);

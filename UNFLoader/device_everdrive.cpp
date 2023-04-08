@@ -406,7 +406,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     byte     buffer[16];
     uint32_t header;
-    uint32_t newsize = size + (2 - ((size%2 == 0) ? 2 : size%2));
+    uint32_t newsize = ALIGN(size, 2);
     byte*    datacopy = NULL;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = newsize;

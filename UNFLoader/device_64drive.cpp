@@ -439,11 +439,9 @@ DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte
 
     // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
     if (size > 512 && (size%512) != 0)
-        newsize = (size-(size%512))+512+512; // The extra 512 is to workaround a 64Drive bug
-    else if (size % 4 != 0)
-        newsize = (size & ~3) + 4;
+        newsize = ALIGN(size, 512) + 512; // The extra 512 is to workaround a 64Drive bug
     else
-        newsize = size;
+        newsize = ALIGN(size, 4);
 
     // Files must be smaller than 8MB
     if (newsize > 8*1024*1024)
