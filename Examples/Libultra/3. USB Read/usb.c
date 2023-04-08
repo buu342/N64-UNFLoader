@@ -60,21 +60,6 @@ https://github.com/buu342/N64-UNFLoader
     #define IO_WRITE(addr,data) (*(vu32 *)PHYS_TO_K1(addr)=(u32)(data))
     #define IO_READ(addr)       (*(vu32 *)PHYS_TO_K1(addr))
     
-    // PI registers
-    #define PI_BASE_REG         0x04600000
-    #define PI_STATUS_REG       (PI_BASE_REG+0x10)
-    #define PI_BSD_DOM1_LAT_REG (PI_BASE_REG+0x14)
-    #define PI_BSD_DOM1_PWD_REG (PI_BASE_REG+0x18)
-    #define PI_BSD_DOM1_PGS_REG (PI_BASE_REG+0x1C)
-    #define PI_BSD_DOM1_RLS_REG (PI_BASE_REG+0x20)
-    #define PI_BSD_DOM2_LAT_REG (PI_BASE_REG+0x24)
-    #define PI_BSD_DOM2_PWD_REG (PI_BASE_REG+0x28)
-    #define PI_BSD_DOM2_PGS_REG (PI_BASE_REG+0x2C)
-    #define PI_BSD_DOM2_RLS_REG (PI_BASE_REG+0x30)
-    #define PI_STATUS_ERROR     0x04
-    #define PI_STATUS_IO_BUSY   0x02
-    #define PI_STATUS_DMA_BUSY  0x01
-    
     // Data alignment
     #define OS_DCACHE_ROUNDUP_ADDR(x) (void *)(((((u32)(x)+0xf)/0x10)*0x10))
     #define OS_DCACHE_ROUNDUP_SIZE(x) (u32)(((((u32)(x)+0xf)/0x10)*0x10))
@@ -82,55 +67,42 @@ https://github.com/buu342/N64-UNFLoader
 
 
 /*********************************
-     Parallel Interface macros
-*********************************/
-
-#define N64_PI_ADDRESS    0xA4600000
-
-#define N64_PI_RAMADDRESS  0x00
-#define N64_PI_PIADDRESS   0x04
-#define N64_PI_READLENGTH  0x08
-#define N64_PI_WRITELENGTH 0x0C
-#define N64_PI_STATUS      0x10
-
-
-/*********************************
           64Drive macros
 *********************************/
 
-#define D64_COMMAND_TIMEOUT         1000
-#define D64_WRITE_TIMEOUT           1000
+#define D64_COMMAND_TIMEOUT       1000
+#define D64_WRITE_TIMEOUT         1000
 
-#define D64_BASE                    0x10000000
-#define D64_REGS_BASE               0x18000000
+#define D64_BASE                  0x10000000
+#define D64_REGS_BASE             0x18000000
 
-#define D64_REG_STATUS              (D64_REGS_BASE + 0x0200)
-#define D64_REG_COMMAND             (D64_REGS_BASE + 0x0208)
+#define D64_REG_STATUS            (D64_REGS_BASE + 0x0200)
+#define D64_REG_COMMAND           (D64_REGS_BASE + 0x0208)
 
-#define D64_REG_MAGIC               (D64_REGS_BASE + 0x02EC)
+#define D64_REG_MAGIC             (D64_REGS_BASE + 0x02EC)
 
-#define D64_REG_USBCOMSTAT          (D64_REGS_BASE + 0x0400)
-#define D64_REG_USBP0R0             (D64_REGS_BASE + 0x0404)
-#define D64_REG_USBP1R1             (D64_REGS_BASE + 0x0408)
+#define D64_REG_USBCOMSTAT        (D64_REGS_BASE + 0x0400)
+#define D64_REG_USBP0R0           (D64_REGS_BASE + 0x0404)
+#define D64_REG_USBP1R1           (D64_REGS_BASE + 0x0408)
 
-#define D64_CI_BUSY                 0x1000
+#define D64_CI_BUSY               0x1000
 
-#define D64_MAGIC                   0x55444556
+#define D64_MAGIC                 0x55444556
 
-#define D64_CI_ENABLE_ROMWR         0xF0
-#define D64_CI_DISABLE_ROMWR        0xF1
+#define D64_CI_ENABLE_ROMWR       0xF0
+#define D64_CI_DISABLE_ROMWR      0xF1
 
-#define D64_CUI_ARM                 0x0A
-#define D64_CUI_DISARM              0x0F
-#define D64_CUI_WRITE               0x08
+#define D64_CUI_ARM               0x0A
+#define D64_CUI_DISARM            0x0F
+#define D64_CUI_WRITE             0x08
 
-#define D64_CUI_ARM_MASK            0x0F
-#define D64_CUI_ARM_IDLE            0x00
-#define D64_CUI_ARM_UNARMED_DATA    0x02
+#define D64_CUI_ARM_MASK          0x0F
+#define D64_CUI_ARM_IDLE          0x00
+#define D64_CUI_ARM_UNARMED_DATA  0x02
 
-#define D64_CUI_WRITE_MASK          0xF0
-#define D64_CUI_WRITE_IDLE          0x00
-#define D64_CUI_WRITE_BUSY          0xF0
+#define D64_CUI_WRITE_MASK        0xF0
+#define D64_CUI_WRITE_IDLE        0x00
+#define D64_CUI_WRITE_BUSY        0xF0
 
 
 /*********************************
@@ -139,32 +111,31 @@ https://github.com/buu342/N64-UNFLoader
 
 #define ED_TIMEOUT        1000
 
-#define ED_BASE            0x10000000
-#define ED_BASE_ADDRESS    0x1F800000
-#define ED_GET_REGADD(reg) ((0xA0000000 | ED_BASE_ADDRESS | (reg))&0x1FFFFFFF)
+#define ED_BASE           0x10000000
+#define ED_BASE_ADDRESS   0x1F800000
 
-#define ED_REG_USBCFG  ED_GET_REGADD(0x0004)
-#define ED_REG_VERSION ED_GET_REGADD(0x0014)
-#define ED_REG_USBDAT  ED_GET_REGADD(0x0400)
-#define ED_REG_SYSCFG  ED_GET_REGADD(0x8000)
-#define ED_REG_KEY     ED_GET_REGADD(0x8004)
+#define ED_REG_USBCFG     (ED_BASE_ADDRESS | 0x0004)
+#define ED_REG_VERSION    (ED_BASE_ADDRESS | 0x0014)
+#define ED_REG_USBDAT     (ED_BASE_ADDRESS | 0x0400)
+#define ED_REG_SYSCFG     (ED_BASE_ADDRESS | 0x8000)
+#define ED_REG_KEY        (ED_BASE_ADDRESS | 0x8004)
 
-#define ED_USBMODE_RDNOP 0xC400
-#define ED_USBMODE_RD    0xC600
-#define ED_USBMODE_WRNOP 0xC000
-#define ED_USBMODE_WR    0xC200
+#define ED_USBMODE_RDNOP  0xC400
+#define ED_USBMODE_RD     0xC600
+#define ED_USBMODE_WRNOP  0xC000
+#define ED_USBMODE_WR     0xC200
 
-#define ED_USBSTAT_ACT   0x0200
-#define ED_USBSTAT_RXF   0x0400
-#define ED_USBSTAT_TXE   0x0800
-#define ED_USBSTAT_POWER 0x1000
-#define ED_USBSTAT_BUSY  0x2000
+#define ED_USBSTAT_ACT    0x0200
+#define ED_USBSTAT_RXF    0x0400
+#define ED_USBSTAT_TXE    0x0800
+#define ED_USBSTAT_POWER  0x1000
+#define ED_USBSTAT_BUSY   0x2000
 
-#define ED_REGKEY  0xAA55
+#define ED_REGKEY         0xAA55
 
-#define ED25_VERSION 0xED640007
-#define ED3_VERSION  0xED640008
-#define ED7_VERSION  0xED640013
+#define ED25_VERSION      0xED640007
+#define ED3_VERSION       0xED640008
+#define ED7_VERSION       0xED640013
 
 
 /*********************************
@@ -1223,7 +1194,7 @@ static u32 usb_everdrive_poll(void)
         usb_everdrive_readusb(usb_buffer, bytes_do);
         
         // Copy received block to ROM
-        usb_dma_write(usb_buffer, (ED_BASE + DEBUG_ADDRESS + offset)&0x1FFFFFFF, bytes_do);
+        usb_dma_write(usb_buffer, ED_BASE + DEBUG_ADDRESS + offset, bytes_do);
         offset += bytes_do;
         len -= bytes_do;
     }
