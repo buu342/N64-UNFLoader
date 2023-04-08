@@ -1219,7 +1219,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         }
         
         // Ensure the data is 2 byte aligned and the block address is correct
-        blocksend = (block+offset)+1 - ((block+offset)+1)%2;
+        blocksend = ALIGN((block+offset), 2);
         baddr = BUFFER_SIZE - blocksend;
 
         // Set USB to write mode and send data through USB
@@ -1273,7 +1273,7 @@ static u32 usb_everdrive_poll(void)
     usb_readblock = -1;
     
     // Get the aligned data size. Must be 2 byte aligned
-    len = usb_datasize + (2 - ((usb_datasize%2 == 0) ? 2 : usb_datasize%2));
+    len = ALIGN(usb_datasize, 2);
     
     // While there's data to service
     while (len > 0) 
