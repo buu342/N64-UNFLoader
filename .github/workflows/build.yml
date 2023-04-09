@@ -81,7 +81,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ env.LINUX_ARTIFACT_NAME }}
-          path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
+          path: |
+            ${{ env.BUILD_DIRECTORY }}/UNFLoader
+            ${{ env.BUILD_DIRECTORY }}/installer_linux.sh
 
   build-macos:
     runs-on: macos-latest

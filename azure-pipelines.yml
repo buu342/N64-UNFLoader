@@ -36,6 +36,9 @@ jobs:
       ls
       make -f Makefile
       #copy to artifacts directory
+      mkdir artifact
+      mv UNFLoader artifact
+      mv installer_linux.sh artifact
     displayName: 'Build Program'
     continueOnError: false
 
@@ -43,7 +46,7 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/UNFLoader' 
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/artifact/' 
       artifactName: 'unfloader-linux' 
       publishLocation: 'Container' # Options: container, filePath
       parallel: true # Optional
