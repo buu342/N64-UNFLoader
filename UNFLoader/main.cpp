@@ -46,6 +46,7 @@ static void show_help();
 
 // Program globals
 FILE* global_debugoutptr = NULL;
+bool  global_badpackets = true;
 std::atomic<bool> global_terminating (false);
 
 // Local globals
@@ -654,6 +655,7 @@ static void show_args()
     log_simple("  -w <int> <int>\t   Force terminal size (number rows + columns).\n");
     log_simple("  -h <int>\t\t   Max window history (default %d).\n", DEFAULT_HISTORYSIZE);
     log_simple("  -m\t\t\t   Always show duplicate prints in debug mode.\n");
+    log_simple("  -p\t\t\t   Do not terminate on bad USB packets.\n");
     log_simple("  -b\t\t\t   Disable ncurses.\n");
 }
 

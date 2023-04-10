@@ -21,6 +21,13 @@
 
 
 /*********************************
+              Macros
+*********************************/
+
+#define SHOULDIE(a) global_badpackets ? terminate(a) : log_colored(a, CRDEF_ERROR)
+
+
+/*********************************
              Globals
 *********************************/
 
@@ -471,7 +478,6 @@ char* trimwhitespace(char* str)
 }
 
 
-
 /*==============================
     handle_deviceerror
     Stops the program with a useful
@@ -517,13 +523,13 @@ void handle_deviceerror(DeviceError err)
             terminate("Unable to purge USB contents.");
             break;
         case DEVICEERR_READFAIL:
-            terminate("Unable to read from flashcart.");
+            SHOULDIE("Unable to read from flashcart.");
             break;
         case DEVICEERR_WRITEFAIL:
-            terminate("Unable to write to flashcart.");
+            SHOULDIE("Unable to write to flashcart.");
             break;
         case DEVICEERR_WRITEZERO:
-            terminate("Zero bytes were written to flashcart.");
+            SHOULDIE("Zero bytes were written to flashcart.");
             break;
         case DEVICEERR_CLOSEFAIL:
             terminate("Unable to close flashcart.");
@@ -544,19 +550,19 @@ void handle_deviceerror(DeviceError err)
             terminate("Unable to clear DTR line.");
             break;
         case DEVICEERR_TXREPLYMISMATCH:
-            terminate("Actual bytes written amount is different than desired.");
+            SHOULDIE("Actual bytes written amount is different than desired.");
             break;
         case DEVICEERR_READCOMPSIGFAIL:
-            terminate("Unable to read completion signal.");
+            SHOULDIE("Unable to read completion signal.");
             break;
         case DEVICEERR_NOCOMPSIG:
-            terminate("Did not receive completion signal.");
+            SHOULDIE("Did not receive completion signal.");
             break;
         case DEVICEERR_READPACKSIZEFAIL:
             terminate("Unable to read packet size.");
             break;
         case DEVICEERR_BADPACKSIZE:
-            terminate("Wrong read packet size.");
+            SHOULDIE("Wrong read packet size.");
             break;
         case DEVICEERR_MALLOCFAIL:
             terminate("Malloc failure.");
@@ -565,22 +571,22 @@ void handle_deviceerror(DeviceError err)
             log_replace("Upload cancelled by the user.\n", CRDEF_ERROR);
             return;
         case DEVICEERR_TIMEOUT:
-            terminate("Flashcart timed out.");
+            SHOULDIE("Flashcart timed out.");
             break;
         case DEVICEERR_POLLFAIL:
-            terminate("Flashcart polling failed.");
+            SHOULDIE("Flashcart polling failed.");
             break;
         case DEVICEERR_64D_8303USB:
             terminate("The 8303 CIC is not supported through USB.");
             break;
         case DEVICEERR_64D_BADCMP:
-            terminate("Received bad CMP signal.");
+            SHOULDIE("Received bad CMP signal.");
             break;
         case DEVICEERR_64D_CANTDEBUG:
             terminate("Please upgrade to firmware 2.05 or higher to access USB debugging.");
             break;
         case DEVICEERR_64D_BADDMA:
-            terminate("Unexpected DMA header.");
+            SHOULDIE("Unexpected DMA header.");
             break;
         case DEVICEERR_64D_DATATOOBIG:
             log_colored("Data must be under 8MB.\n", CRDEF_ERROR);

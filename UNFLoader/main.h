@@ -42,6 +42,7 @@
     *********************************/
 
     extern FILE*   global_debugoutptr;
+    extern bool    global_badpackets;
     extern std::atomic<bool> global_terminating;
 
 
