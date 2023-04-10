@@ -83,6 +83,10 @@ void debug_main()
     byte*    outbuff = NULL;
     uint32_t dataheader = 0;
 
+    // If no ROM was uploaded, assume async, and switch to latest protocol
+    if (device_getrom() == NULL)
+        device_setprotocol(USBPROTOCOL_LATEST);
+
     // Send data to USB if it exists
     while (!local_mesgqueue.empty())
     {
