@@ -26,11 +26,6 @@
     #define DATATYPE_SCREENSHOT 0x04
     #define DATATYPE_HEARTBEAT  0x05
     
-    extern int usb_datatype;
-    extern int usb_datasize;
-    extern int usb_dataleft;
-    extern int usb_readblock;
-    
     
     /*********************************
             Convenience macros
