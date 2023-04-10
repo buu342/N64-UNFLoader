@@ -972,4 +972,6 @@ void debug_handle_heartbeat(ftdi_context_t* cart, u32 size, char* buffer, u32* r
             terminate("Heartbeat version %d unsupported. Your UNFLoader is probably out of date.", heartbeat_version);
             break;
     }
+
+    pdprint("Received Heartbeat (version %d), switching to USB protocol %d\n", CRDEF_INFO, heartbeat_version, global_protocolversion);
 }
