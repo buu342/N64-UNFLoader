@@ -187,6 +187,7 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     int	   chunk = 0;
     u8*    rom_buffer = (u8*) malloc(sizeof(u8)*newsize);
     time_t upload_time = clock();
+    u8     cmps[4];
 
     // Check we managed to malloc
     if (rom_buffer == NULL)
@@ -227,9 +228,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             #endif
             
             // Read the CMP signal and ensure it's correct
-            FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-            if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETCIC)
-                terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+            FT_Read(cart->handle, cmps, 4, &cart->bytes_read);
+            if (cmps[0] != 'C' || cmps[1] != 'M' || cmps[2] != 'P' || cmps[3] != DEV_CMD_SETCIC)
+                terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", cmps[0], cmps[1], cmps[2], cmps[3]);
             if (cic == 303)
                 terminate("The 8303 CIC is not supported through USB");
             pdprint("CIC set to ", CRDEF_PROGRAM);
@@ -298,9 +299,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         #endif
         
         // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETCIC)
-            terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+        FT_Read(cart->handle, cmps, 4, &cart->bytes_read);
+        if (cmps[0] != 'C' || cmps[1] != 'M' || cmps[2] != 'P' || cmps[3] != DEV_CMD_SETCIC)
+            terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", cmps[0], cmps[1], cmps[2], cmps[3]);
     }
 
     // Set Savetype
@@ -317,9 +318,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         #endif
         
         // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETSAVE)
-            terminate("Received wrong CMPlete Save signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+        FT_Read(cart->handle, cmps, 4, &cart->bytes_read);
+        if (cmps[0] != 'C' || cmps[1] != 'M' || cmps[2] != 'P' || cmps[3] != DEV_CMD_SETSAVE)
+            terminate("Received wrong CMPlete Save signal: %c %c %c %02x.", cmps[0], cmps[1], cmps[2], cmps[3]);
     }
 
     // Decide a better, more optimized chunk size
@@ -396,9 +397,9 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         #endif
 
         // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_LOADRAM)
-            terminate("Received wrong CMPlete load signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
+        FT_Read(cart->handle, cmps, 4, &cart->bytes_read);
+        if (cmps[0] != 'C' || cmps[1] != 'M' || cmps[2] != 'P' || cmps[3] != DEV_CMD_LOADRAM)
+            terminate("Received wrong CMPlete load signal: %c %c %c %02x.", cmps[0], cmps[1], cmps[2], cmps[3]);
 
         // Keep track of how many bytes were uploaded
         bytes_left -= bytes_do;
