@@ -25,6 +25,9 @@ Handles USB I/O.
 #define PATH_SIZE   256
 #define HISTORY_SIZE 100
 
+#define USBPROTOCOL_VERSION 2
+#define HEARTBEAT_VERSION   1
+
 
 /*********************************
        Function Prototypes
@@ -948,14 +951,20 @@ void debug_handle_heartbeat(ftdi_context_t* cart, u32 size, char* buffer, u32* r
     (*read) = cart->bytes_read;
     header = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | (buffer[0]);
     header = swap_endian(header);
-    heartbeat_version = (u16)((header&0xFFFF0000)>>16);
-    global_protocolversion = (u16)(header&0x0000FFFF);
-    pdprint("Heartbeat %04x %04x\n", CRDEF_INFO, heartbeat_version, global_protocolversion);
+    heartbeat_version = (u16)(header&0x0000FFFF);
+    global_protocolversion = (u16)((header&0xFFFF0000)>>16);
+
+    // Ensure we support this protocol version
+    if (global_protocolversion > USBPROTOCOL_VERSION)
+        terminate("USB protocol %d unsupported. Your UNFLoader is probably out of date.", global_protocolversion);
 
     // Handle the heartbeat by reading more stuff based on the version
     // Currently, nothing here.
     switch(heartbeat_version)
     {
-        default: break;
+        case 0x01: break;
+        default:
+            terminate("Heartbeat version %d unsupported. Your UNFLoader is probably out of date.", heartbeat_version);
+            break;
     }
 }
