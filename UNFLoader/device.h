@@ -46,8 +46,15 @@
         DATATYPE_TEXT       = 0x01,
         DATATYPE_RAWBINARY  = 0x02,
         DATATYPE_HEADER     = 0x03,
-        DATATYPE_SCREENSHOT = 0x04
+        DATATYPE_SCREENSHOT = 0x04,
+        DATATYPE_HEARTBEAT  = 0x05
     } USBDataType;
+
+    typedef enum {
+        PROTOCOL_UNKNOWN    = 0x00,
+        PROTOCOL_VERSION1   = 0x01, // Unused
+        PROTOCOL_VERSION2   = 0x02,
+    } ProtocolVer;
 
     typedef enum {
         DEVICEERR_OK = 0,
@@ -100,10 +107,11 @@
     typedef uint8_t byte;
 
     typedef struct {
-        CartType carttype;
-        CICType  cictype;
-        SaveType savetype;
-        void*    structure;
+        CartType    carttype;
+        CICType     cictype;
+        SaveType    savetype;
+        ProtocolVer protocol;
+        void*       structure;
     } CartDevice;
 
 
@@ -140,6 +148,10 @@
     bool  device_uploadcancelled();
     void  device_setuploadprogress(float progress);
     float device_getuploadprogress();
+
+    // Protocol version handling
+    void        device_setprotocol(ProtocolVer version);
+    ProtocolVer device_getprotocol();
     
     // Helper functions
     #define  SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR

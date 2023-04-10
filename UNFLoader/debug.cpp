@@ -24,6 +24,10 @@
 #define HEADER_SIZE 16
 #define PATH_SIZE 512
 
+// Max supported protocol versions
+#define USBPROTOCOL_VERSION PROTOCOL_VERSION2
+#define HEARTBEAT_VERSION   1
+
 
 /*********************************
             Structures
@@ -53,6 +57,7 @@ static void debug_handle_text(uint32_t size, byte* buffer);
 static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
 static void debug_handle_screenshot(uint32_t size, byte* buffer);
+static void debug_handle_heartbeat(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -129,6 +134,7 @@ void debug_main()
                 case DATATYPE_RAWBINARY:  debug_handle_rawbinary(size, outbuff); break;
                 case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
                 case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
+                case DATATYPE_HEARTBEAT:  debug_handle_heartbeat(size, outbuff); break;
                 default:                  terminate("Unknown data type '%x'.", (uint32_t)command);
             }
 
@@ -272,6 +278,42 @@ static void debug_handle_screenshot(uint32_t size, byte* buffer)
     log_colored("Wrote %dx%d pixels to '%s'.\n", CRDEF_INFO, w, h, filename);
     free(image);
     free(filename);
+}
+
+/*==============================
+    debug_handle_heartbeat
+    Handles DATATYPE_HEARTBEAT
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_heartbeat(uint32_t size, byte* buffer)
+{
+    uint32_t header;
+    uint16_t heartbeat_version;
+
+    if (size < 4)
+        terminate("Error: Malformed heartbeat received");
+
+    // Read the heartbeat header
+    header = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | (buffer[0]);
+    header = swap_endian(header);
+    heartbeat_version = (uint16_t)(header&0x0000FFFF);
+    device_setprotocol((ProtocolVer)((header&0xFFFF0000)>>16));
+
+    // Ensure we support this protocol version
+    if (device_getprotocol() > USBPROTOCOL_VERSION)
+        terminate("USB protocol %d unsupported. Your UNFLoader is probably out of date.", device_getprotocol());
+
+    // Handle the heartbeat by reading more stuff based on the version
+    // Currently, nothing here.
+    switch(heartbeat_version)
+    {
+        case 0x01: break;
+        default:
+            terminate("Heartbeat version %d unsupported. Your UNFLoader is probably out of date.", heartbeat_version);
+            break;
+    }
 }
 
 

@@ -69,6 +69,7 @@ void device_initialize()
     local_cart.carttype = CART_NONE;
     local_cart.cictype  = CIC_NONE;
     local_cart.savetype = SAVE_NONE;
+    local_cart.protocol = PROTOCOL_UNKNOWN;
 }
 
 
@@ -570,6 +571,30 @@ void device_setuploadprogress(float progress)
 float device_getuploadprogress()
 {
     return local_uploadprogress.load();
+}
+
+
+/*==============================
+    device_setprotocol
+    Sets the communication protocol version
+    @param The protocol version
+==============================*/
+
+void device_setprotocol(ProtocolVer version)
+{
+    local_cart.protocol = version;
+}
+
+
+/*==============================
+    device_getprotocol
+    Gets the communication protocol version
+    @return The protocol version
+==============================*/
+
+ProtocolVer device_getprotocol()
+{
+    return local_cart.protocol;
 }
 
 
