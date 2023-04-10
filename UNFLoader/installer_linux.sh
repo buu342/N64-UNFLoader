@@ -134,8 +134,8 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{serial}==\"SC64xxxxxx\", OWNER=\"${USERNAME}\"" >> ${TARGET}
-                        echo "ACTION==\"bind\", ATTRS{serial}==\"SC64xxxxxx\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
+                        echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy\", OWNER=\"${USERNAME}\"" >> ${TARGET}
+                        echo "ACTION==\"bind\", ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
