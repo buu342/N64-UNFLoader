@@ -271,18 +271,17 @@ int usb_readblock = -1;
       I/O Wrapper Functions
 *********************************/
 
-#ifndef LIBDRAGON
+/*==============================
+    usb_io_read
+    Reads a 32-bit value from a 
+    given address using the PI.
+    @param  The address to read from
+    @return The 4 byte value that was read
+==============================*/
 
-    /*==============================
-        usb_io_read
-        Reads a 32-bit value from a 
-        given address using the PI.
-        @param  The address to read from (2 byte aligned)
-        @return The 4 byte value that was read
-    ==============================*/
-
-    static inline u32 usb_io_read(u32 pi_address)
-    {
+static inline u32 usb_io_read(u32 pi_address)
+{
+    #ifndef LIBDRAGON
         u32 value;
         #if USE_OSRAW
             osPiRawReadIo(pi_address, &value);
@@ -290,38 +289,46 @@ int usb_readblock = -1;
             osPiReadIo(pi_address, &value);
         #endif
         return value;
-    }
+    #else
+        return io_read(pi_address);
+    #endif
+}
 
 
-    /*==============================
-        usb_io_write
-        Writes a 32-bit value to a 
-        given address using the PI.
-        @param  The address to write to (2 byte aligned)
-        @param  The 4 byte value to write
-    ==============================*/
+/*==============================
+    usb_io_write
+    Writes a 32-bit value to a 
+    given address using the PI.
+    @param  The address to write to
+    @param  The 4 byte value to write
+==============================*/
 
-    static inline void usb_io_write(u32 pi_address, u32 value)
-    {
+static inline void usb_io_write(u32 pi_address, u32 value)
+{
+    #ifndef LIBDRAGON
         #if USE_OSRAW
             osPiRawWriteIo(pi_address, value);
         #else
             osPiWriteIo(pi_address, value);
         #endif
-    }
+    #else
+        io_write(pi_address, value);
+    #endif
+}
 
 
-    /*==============================
-        usb_dma_read
-        Reads arbitrarily sized data from a
-        given address using DMA.
-        @param  The buffer to read into (8 byte aligned)
-        @param  The address to read from (2 byte aligned)
-        @param  The size of the data to read (2 byte aligned)
-    ==============================*/
+/*==============================
+    usb_dma_read
+    Reads arbitrarily sized data from a
+    given address using DMA.
+    @param  The buffer to read into
+    @param  The address to read from
+    @param  The size of the data to read
+==============================*/
 
-    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
-    {
+static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
+{
+    #ifndef LIBDRAGON
         osWritebackDCache(ram_address, size);
         osInvalDCache(ram_address, size);
         #if USE_OSRAW
@@ -330,20 +337,25 @@ int usb_readblock = -1;
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, pi_address, ram_address, size, &dmaMessageQ);
             osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
-    }
+    #else
+        data_cache_hit_writeback_invalidate(ram_address, size);
+        dma_read(ram_address, pi_address, size);
+    #endif
+}
 
 
-    /*==============================
-        usb_dma_write
-        writes arbitrarily sized data to a
-        given address using DMA.
-        @param  The buffer to read from (8 byte aligned)
-        @param  The address to write to (2 byte aligned)
-        @param  The size of the data to write (2 byte aligned)
-    ==============================*/
+/*==============================
+    usb_dma_write
+    writes arbitrarily sized data to a
+    given address using DMA.
+    @param  The buffer to read from
+    @param  The address to write to
+    @param  The size of the data to write
+==============================*/
 
-    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
-    {
+static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
+{
+    #ifndef LIBDRAGON
         osWritebackDCache(ram_address, size);
         #if USE_OSRAW
             osPiRawStartDma(OS_WRITE, pi_address, ram_address, size);
@@ -351,69 +363,11 @@ int usb_readblock = -1;
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, pi_address, ram_address, size, &dmaMessageQ);
             osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
         #endif
-    }
-    
-#else
-
-    /*==============================
-        usb_io_read
-        Reads a 32-bit value from a 
-        given address using the PI.
-        @param  The address to read from
-        @return The 4 byte value that was read
-    ==============================*/
-
-    static inline u32 usb_io_read(u32 pi_address)
-    {
-        return io_read(pi_address);
-    }
-
-
-    /*==============================
-        usb_io_write
-        Writes a 32-bit value to a 
-        given address using the PI.
-        @param  The address to write to
-        @param  The 4 byte value to write
-    ==============================*/
-
-    static inline void usb_io_write(u32 pi_address, u32 value)
-    {
-        io_write(pi_address, value);
-    }
-
-
-    /*==============================
-        usb_dma_read
-        Reads arbitrarily sized data from a
-        given address using DMA.
-        @param  The buffer to read into
-        @param  The address to read from
-        @param  The size of the data to read
-    ==============================*/
-
-    static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
-    {
-        data_cache_hit_writeback_invalidate(ram_address, size);
-        dma_read(ram_address, pi_address, size);
-    }
-
-
-    /*==============================
-        usb_dma_write
-        writes arbitrarily sized data to a
-        given address using DMA.
-        @param  The buffer to read from
-        @param  The address to write to
-        @param  The size of the data to write
-    ==============================*/
-
-    static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
-    {
+    #else
         data_cache_hit_writeback(ram_address, size);
         dma_write(ram_address, pi_address, size);
-    }
-#endif
+    #endif
+}
 
 
 /*********************************
