@@ -189,7 +189,14 @@ DeviceError device_testdebug_64drive(CartDevice* cart)
 {
     uint32_t result;
     N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
-    DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_GETVER, true, &result, 0);
+    DeviceError err;
+    
+    // If we're not loading a ROM, then don't run the version command as it can cause problems if receiving data first
+    if (device_getrom() == NULL)
+        return DEVICEERR_OK;
+
+    // Send the version command
+    err = device_sendcmd_64drive(fthandle, DEV_CMD_GETVER, true, &result, 0);
     if (err != DEVICEERR_OK)
         return err;
 
@@ -271,7 +278,8 @@ DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bo
 
         // Check that we received the signal that the operation completed
         if (memcmp(recv_buff, &expected, 4) != 0)
-            return DEVICEERR_NOCOMPSIG;
+            if (command != DEV_CMD_GETVER)
+                return DEVICEERR_NOCOMPSIG;
     }
 
     // Success
