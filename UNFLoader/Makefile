@@ -1,12 +1,13 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
-CODEFILES=main.cpp helper.cpp device.cpp debug.cpp \
-	device_64drive.cpp \
-	device_everdrive.cpp \
-	device_sc64.cpp
+CODEFILES = main.cpp helper.cpp term.cpp debug.cpp \
+            device.cpp \
+            device_64drive.cpp \
+            device_everdrive.cpp \
+            device_sc64.cpp
 CODEOBJECTS =	$(CODEFILES:.cpp=.o)
-LIBFILES=Include/lodepng.cpp
+LIBFILES = Include/lodepng.cpp
 LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CXX=g++
@@ -14,11 +15,11 @@ CXX=g++
 ifeq ($(OS_NAME),Darwin)
 	DEPENDENCIES := -lncurses -lftd2xx -lpthread
 else
-	DEPENDENCIES := -lncurses -lftd2xx -lpthread -lrt 
+	DEPENDENCIES := -lncursesw -lftd2xx -lpthread -lrt 
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED
+CFLAGS=-D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11
 
 default: $(APP)
 

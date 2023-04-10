@@ -1,57 +1,27 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="Include">
-      <UniqueIdentifier>{e8adead4-a90e-42cd-ab76-2ea0c16bedf4}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="debug.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="device.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="device_64drive.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="helper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="device_sc64.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="device_everdrive.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <ClCompile Include="debug.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="helper.cpp" />
+    <ClCompile Include="term.cpp" />
     <ClCompile Include="include\lodepng.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Include</Filter>
     </ClCompile>
+    <ClCompile Include="device.cpp" />
+    <ClCompile Include="device_64drive.cpp" />
+    <ClCompile Include="device_everdrive.cpp" />
+    <ClCompile Include="device_sc64.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="debug.h">
-      <Filter>Source Files</Filter>
+    <ClInclude Include="debug.h" />
+    <ClInclude Include="helper.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="term.h" />
+    <ClInclude Include="include\panel.h">
+      <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="device.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="device_64drive.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="helper.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="main.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\curses.h">
+    <ClInclude Include="include\lodepng.h">
       <Filter>Include</Filter>
     </ClInclude>
     <ClInclude Include="include\curspriv.h">
@@ -60,28 +30,26 @@
     <ClInclude Include="include\ftd2xx.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="Include\panel.h">
+    <ClInclude Include="include\curses.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="helper_internal.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Include\lodepng.h">
-      <Filter>Include</Filter>
-    </ClInclude>
-    <ClInclude Include="device_everdrive.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="device_sc64.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
+    <ClInclude Include="device.h" />
+    <ClInclude Include="device_64drive.h" />
+    <ClInclude Include="device_everdrive.h" />
+    <ClInclude Include="device_sc64.h" />
+    <ClInclude Include="term_internal.h" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="include\ftd2xx.lib">
-      <Filter>Include</Filter>
-    </Library>
     <Library Include="include\pdcurses.lib">
       <Filter>Include</Filter>
     </Library>
+    <Library Include="include\ftd2xx.lib">
+      <Filter>Include</Filter>
+    </Library>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Include">
+      <UniqueIdentifier>{d38ee22a-45ca-42e1-bc7d-048d756773b7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

@@ -1,432 +1,386 @@
-/***************************************************************
-                            helper.cpp
-                               
-Useful functions to use in conjunction with the program
-***************************************************************/
-
 #include "main.h"
-#include "device.h"
 #include "helper.h"
+#include "term.h"
+#include "device.h"
+#include "debug.h"
+#include <ctype.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifndef LINUX
+    #include "Include/curses.h"
+    #include "Include/curspriv.h"
+    #include "Include/panel.h"
+#else
+    #include <curses.h>
+    #include <sys/time.h>
+    #include <termios.h>
+#endif
+#include <thread>
+#include <chrono>
+
+
+/*********************************
+              Macros
+*********************************/
+
+#define SHOULDIE(a) global_badpackets ? terminate(a) : log_colored(a, CRDEF_ERROR)
 
 
 /*********************************
              Globals
 *********************************/
 
-static char* local_printhistory[PRINT_HISTORY_SIZE];
-
-
-/*==============================
-    __pdprint
-    Prints text using PDCurses. Don't use directly.
-    @param A color pair to use (use the CR_ macros)
-    @param A string to print
-    @param Variadic arguments to print as well
-==============================*/
-
-void __pdprint(short color, const char* str, ...)
-{
-    int i;
-    va_list args;
-    va_start(args, str);
-
-    // Disable all the colors
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_window, COLOR_PAIR(i+1));
-
-    // If a color is specified, use it
-    if (global_usecolors && color != CR_NONE)
-        wattron(global_window, COLOR_PAIR(color));
-
-    // Print the string
-    vw_printw(global_window, str, args);
-    refresh_pad();
-
-    va_end(args);
-
-    // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        va_start(args, str);
-        vfprintf(global_debugoutptr, str, args);
-        va_end(args);
-    }
-}
-
-
-/*==============================
-    __pdprintw
-    Prints text using PDCurses to a specific window. Don't use directly.
-    @param The window to print to
-    @param A color pair to use (use the CR_ macros)
-    @param Whether to allow logging
-    @param A string to print
-    @param Variadic arguments to print as well
-==============================*/
-
-void __pdprintw(WINDOW *win, short color, char log, const char* str, ...)
-{
-    int i;
-    va_list args;
-    va_start(args, str);
-
-    // Disable all the colors
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(win, COLOR_PAIR(i+1));
-
-    // If a color is specified, use it
-    if (global_usecolors && color != CR_NONE)
-        wattron(win, COLOR_PAIR(color));
-
-    // Print the string
-    vw_printw(win, str, args);
-    if (log)
-    {
-        wrefresh(win);
-        refresh_pad();
-    }
-
-    va_end(args);
-
-    // Print to the output debug file if it exists
-    if (log && global_debugoutptr != NULL)
-    {
-        va_start(args, str);
-        vfprintf(global_debugoutptr, str, args);
-        va_end(args);
-    }
-}
-
-
-/*==============================
-    __pdprint_v
-    va_list version of pdprint. Don't use directly.
-    @param A color pair to use (use the CR_ macros)
-    @param A string to print
-    @param va_list with the arguments to print
-==============================*/
-
-static void __pdprint_v(short color, const char* str, va_list args)
-{
-    int i;
-    va_list args_debugout;
-
-    // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        va_copy(args_debugout, args);
-        vfprintf(global_debugoutptr, str, args_debugout);
-        va_end(args_debugout);
-    }
-
-    // Disable all the colors
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_window, COLOR_PAIR(i+1));
-
-    // If a color is specified, use it
-    if (global_usecolors && color != CR_NONE)
-        wattron(global_window, COLOR_PAIR(color));
-
-    // Print the string
-    vw_printw(global_window, str, args);
-    refresh_pad();
-}
-
-
-/*==============================
-    __pdprint_replace
-    Same as pdprint but overwrites the previous line. Don't use directly.
-    @param A color pair to use (use the CR_ macros)
-    @param A string to print
-    @param Variadic arguments to print as well
-==============================*/
-
-void __pdprint_replace(short color, const char* str, ...)
-{
-    int i, xpos, ypos;
-    va_list args;
-    va_start(args, str);
-
-    // Disable all the colors
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_window, COLOR_PAIR(i+1));
-
-    // If a color is specified, use it
-    if (global_usecolors && color != CR_NONE)
-        wattron(global_window, COLOR_PAIR(color));
-
-    // Move the cursor back a line
-    getyx(global_window, ypos, xpos);
-    wmove(global_window, ypos-1, 0);
-
-    // Print the string
-    vw_printw(global_window, str, args);
-    refresh_pad();
-
-    va_end(args);
-
-    // Print to the output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        va_start(args, str);
-        vfprintf(global_debugoutptr, str, args);
-        va_end(args);
-    }
-}
+// Useful constants for converting between enums and strings
+const char* cart_strings[] = {"64Drive HW1", "64Drive HW2", "EverDrive", "SC64"}; // In order of the CartType enums
+const int   cart_strcount = sizeof(cart_strings)/sizeof(cart_strings[0]);
+const char* cic_strings[] = {"6101", "6102", "7101", "7102", "X103", "X105", "X106", "5101"}; // In order of the CICType enums
+const int   cic_strcount = sizeof(cic_strings)/sizeof(cic_strings[0]);
+const char* save_strings[] = {"EEPROM 4Kbit", "EEPROM 16Kbit", "SRAM 256Kbit", "FlashRAM 1Mbit", "SRAM 768Kbit", "FlashRAM 1Mbit (PokeStdm2)"}; // In order of the SaveType enums
+const int   save_strcount = sizeof(save_strings)/sizeof(save_strings[0]);
 
 
 /*==============================
     terminate
     Stops the program and prints "Press any key to continue..."
+    (if using curses)
     @param A string to print
     @param Variadic arguments to print as well
 ==============================*/
 
 void terminate(const char* reason, ...)
 {
-    int i;
     va_list args;
     va_start(args, reason);
 
     // Print why we're ending
     if (reason != NULL && strcmp(reason, ""))
     {
-        pdprint("Error: ", CRDEF_ERROR);
-        __pdprint_v(CRDEF_ERROR, reason, args);
+        char temp[255];
+        vsprintf(temp, reason, args);
+        log_colored("Error: %s", CRDEF_ERROR, temp);
     }
-    pdprint("\n\n", CRDEF_ERROR);
+    log_colored("\n", CRDEF_ERROR);
     va_end(args);
 
     // Close output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        fclose(global_debugoutptr);
-        global_debugoutptr = NULL;
-    }
+    if (debug_getdebugout() != NULL)
+        debug_closedebugout();
 
-    // Close the device if it's open
-    if (device_isopen() && !global_closefail)
-    {
-        global_closefail = true; // Prevent infinite loop
+    // Close the flashcart if it's open
+    if (device_isopen())
         device_close();
-    }
 
     // Pause the program
-    if (global_timeout == 0)
+    if (term_isusingcurses())
     {
-        pdprint("Press any key to continue...", CRDEF_INPUT);
-        getchar();
-    }
-    else
-        handle_timeout();
+        uint64_t start = time_miliseconds();
+        term_allowinput(false);
+        if (get_timeout() != -1 && term_isusingcurses())
+            log_colored("Press any key to continue, or wait for timeout.\n", CRDEF_INPUT);
+        else if (get_timeout() != -1)
+            log_colored("Program exiting in %d seconds.\n", CRDEF_INPUT, get_timeout());
+        else
+            log_colored("Press any key to continue...\n", CRDEF_INPUT);
 
-    // End the program
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_window, COLOR_PAIR(i+1));
-    endwin();
+        // Pause until timeout or a key is pressed
+        while (!term_waskeypressed() && (get_timeout() == -1 || (get_timeout() != -1 && (time_miliseconds()-start)/1000 < (uint32_t)get_timeout())))
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    // End
+    global_terminating = true;
+    term_end();
+    #ifndef LINUX
+        TerminateProcess(GetCurrentProcess(), 0);
+    #else
+        exit(0);
+    #endif
+}
+
+
+/*==============================
+    pauseprogram
+    Pauses the program and prints "Press any key to continue..."
+    without curses
+==============================*/
+
+void pauseprogram()
+{
+    log_colored("Press any key to continue...\n", CRDEF_INPUT);
+    #ifndef LINUX
+        system("pause > nul");
+    #else
+        struct termios info, orig;
+        tcgetattr(0, &info);
+        tcgetattr(0, &orig);
+        info.c_lflag &= ~(ICANON | ECHO);
+        info.c_cc[VMIN] = 1;
+        info.c_cc[VTIME] = 0;
+        tcsetattr(0, TCSANOW, &info);
+        getchar();
+        tcsetattr(0, TCSANOW, &orig);
+    #endif
+
+    // End
+    global_terminating = true;
     exit(-1);
 }
 
 
 /*==============================
-    terminate_v
-    va_list version of terminate
-    @param A string to print
-    @param Variadic arguments to print as well
+    progressthread
+    Draws the upload progress bar
+    in a separate thread
+    @param The message to print next to the progress bar
 ==============================*/
 
-static void terminate_v(const char* reason, va_list args)
+void progressthread(const char* msg)
 {
-    int i;
+    int esclevel = get_escapelevel();
+    float lastprog = 0;
 
-    // Print why we're ending
-    if (reason != NULL && strcmp(reason, ""))
+    // Wait for the upload to finish
+    while(device_getuploadprogress() < 99.99f && !device_uploadcancelled())
     {
-        pdprint("Error: ", CRDEF_ERROR);
-        __pdprint_v(CRDEF_ERROR, reason, args);
-    }
-    pdprint("\n\n", CRDEF_ERROR);
+        // If the device was closed, stop
+        if (!device_isopen())
+            return;
 
-    // Close output debug file if it exists
-    if (global_debugoutptr != NULL)
-    {
-        fclose(global_debugoutptr);
-        global_debugoutptr = NULL;
-    }
+        // Draw the progress bar
+        if (device_getuploadprogress() != lastprog)
+        {
+            progressbar_draw(msg, CRDEF_INPUT, device_getuploadprogress() / 100.0f);
+            lastprog = device_getuploadprogress();
+        }
 
-    // Close the device if it's open
-    if (device_isopen() && !global_closefail)
-    {
-        global_closefail = true; // Prevent infinite loop
-        device_close();
-    }
+        // Handle upload cancelling
+        if (get_escapelevel() < esclevel)
+        {
+            device_cancelupload();
+            break;
+        }
 
-    // Pause the program
-    if (global_timeout == 0)
-    {
-        pdprint("Press any key to continue...", CRDEF_INPUT);
-        getchar();
-    }
-    else
-        handle_timeout();
-
-    // End the program
-    for (i=0; i<TOTAL_COLORS; i++)
-        wattroff(global_window, COLOR_PAIR(i+1));
-    endwin();
-    exit(-1);
-}
-
-
-/*==============================
-    refresh_pad
-    Forces a refresh of the pad
-==============================*/
-
-void refresh_pad()
-{
-    int xpos, ypos;
-    getyx(global_window, ypos, xpos);
-    if (!global_scrolling)
-    {
-        if (ypos >= global_termsize[0] - 1)
-            global_padpos = ypos - global_termsize[0] + 1;
-    }
-
-    // Refresh the pad itself
-    prefresh(global_window, global_padpos, 0, 0, 0, global_termsize[0]-1, global_termsize[1]-1);
-
-    // Render the scroll text
-    if (global_scrolling)
-    {
-        int textlen;
-        char scrolltext[40 + 1];
-        WINDOW* scrolltextwin;
-
-        // Initialize the scroll text and the window to render the text to
-        sprintf(scrolltext, "%d/%d", global_padpos, ypos-global_termsize[0]+1);
-        textlen = strlen(scrolltext);
-        scrolltextwin = newwin(1, textlen, global_termsize[0] - 2, global_termsize[1] - textlen);
-
-        // Set the scroll text color
-        if (global_usecolors)
-            wattron(scrolltextwin, COLOR_PAIR(CRDEF_SPECIAL));
-
-        // Print the scroll text
-        wprintw(scrolltextwin, "%s", scrolltext);
-        wrefresh(scrolltextwin);
-        delwin(scrolltextwin);
+        // Sleep for a bit to be kind to the CPU
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
 
 /*==============================
-    scrollpad
-    Scrolls the window by a given amount
-    @param The amount to scroll the pad by
-==============================*/
-
-void scrollpad(int amount)
-{
-    int xpos, ypos;
-    int maxscrolldown;
-    getyx(global_window, ypos, xpos);
-    maxscrolldown = ypos - global_termsize[0] + 1;
-
-    // Reposition the pad
-    global_padpos += amount;
-    if (global_padpos < 0)
-        global_padpos = 0;
-    if (global_padpos > maxscrolldown)
-        global_padpos = maxscrolldown;
-    global_scrolling = (global_padpos != maxscrolldown);
-
-    // Refresh the pad to see the changes
-    refresh_pad();
-}
-
-
-/*==============================
-    testcommand
-    Terminates the program if the command fails
-    @param The return value from an FTDI function
-    @param Text to print if the command failed
-    @param Variadic arguments to print as well
-==============================*/
-
-void testcommand(FT_STATUS status, const char* reason, ...)
-{
-    va_list args;
-    va_start(args, reason);
-
-    // Test the command
-    if (status != FT_OK)
-        terminate_v(reason, args);
-    va_end(args);
-}
-
-
-/*==============================
-    swap_endian
-    Swaps the endianess of the data
-    @param   The data to swap the endianess of
-    @returns The data with endianess swapped
-==============================*/
-
-u32 swap_endian(u32 val)
-{
-	return ((val<<24) ) | 
-		   ((val<<8)  & 0x00ff0000) |
-		   ((val>>8)  & 0x0000ff00) | 
-		   ((val>>24) );
-}
-
-
-/*==============================
-    progressbar
+    progressbar_draw
     Draws a fancy progress bar
     @param The text to print before the progress bar
-    @param The percentage of completion
+    @param The color to draw the progress bar with
+    @param The percentage of completion, from 0 to 1
 ==============================*/
 
 void progressbar_draw(const char* text, short color, float percent)
 {
     int i;
     int prog_size = 16;
-	int blocks_done = (int)(percent*prog_size);
+    int blocks_done = (int)(percent*prog_size);
 
     // Print the head of the progress bar
-    pdprint_replace("%s [", color, text);
+    log_replace("%s [", color, text);
 
     // Draw the progress bar itself
     for(i=0; i<blocks_done; i++) 
-        waddch(global_window, ACS_BLOCK);
+    {
+        #ifndef LINUX
+            log_colored(u8"\u2588", color);
+        #else
+            log_colored("\xe2\x96\x88", color);
+        #endif
+    }
     for(; i<prog_size; i++) 
-        waddch(global_window, ACS_BOARD);
+    {
+        #ifndef LINUX
+            log_colored(u8"\u2591", color);
+        #else
+            log_colored("\xe2\x96\x91", color);
+        #endif
+    }
 
     // Print the butt of the progress bar
-    pdprint("] %d%%\n", color, (int)(percent*100.0f));
+    log_colored("] %.02f%%\n", color, percent*100.0f);
 }
 
 
 /*==============================
-    calc_padsize
-    Returns the correct size a ROM should be. Code taken from:
-    https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
-    @param The current ROM filesize
-    @returns the correct ROM filesize
+    time_miliseconds
+    Retrieves the current system
+    time in miliseconds.
+    Needed because clock() wasn't
+    working properly???
+    @return The time in miliseconds
 ==============================*/
 
-u32 calc_padsize(u32 size)
+uint64_t time_miliseconds()
 {
-    size--;
-    size |= size >> 1;
-    size |= size >> 2;
-    size |= size >> 4;
-    size |= size >> 8;
-    size |= size >> 16;
-    size++;
-    return size;
+    #ifndef LINUX
+        return (uint64_t)GetTickCount();
+    #else
+        struct timespec ts;
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return (uint64_t)(ts.tv_nsec / 1000000) + ((uint64_t)ts.tv_sec * 1000ull);
+    #endif
+}
+
+
+/*==============================
+    cart_strtotype
+    Reads a string and converts it 
+    to a valid CartType enum
+    @param  The string with the cart 
+            to parse
+    @return The CartType enum
+==============================*/
+
+CartType cart_strtotype(const char* cartstring)
+{
+    // If the cart string is a single number, then it's pretty easy to get the cart enum
+    if (cartstring[0] >= ('0'+((int)CART_64DRIVE1)) && cartstring[0] <= ('0'+((int)CART_SC64)) && cartstring[1] == '\0')
+        return (CartType)(cartstring[0]-'0');
+
+    // Check if the user, for some reason, wrote the entire cart string out
+    for (int i=0; i<cart_strcount; i++)
+        if (!strcmp(cart_strings[i], cartstring))
+            return (CartType)(i+1);
+
+    // Otherwise, stop
+    terminate("Unknown flashcart type '%s'", cartstring);
+    return CART_NONE; // Doesn't actually return since terminate stops the program first
+}
+
+
+/*==============================
+    cart_typetostr
+    Reads a CartType enum and converts it
+    to a nice string. Assumes a non-NONE
+    CartType is given!
+    @param  The enum with the cart 
+            to convert
+    @return The cart name stringified
+==============================*/
+
+const char* cart_typetostr(CartType cartenum)
+{
+    return cart_strings[(int)cartenum-1];
+}
+
+
+/*==============================
+    cic_strtotype
+    Reads a string and converts it 
+    to a valid CICType enum
+    @param  The string with the CIC 
+            to parse
+    @return The CICType enum
+==============================*/
+
+CICType cic_strtotype(const char* cicstring)
+{
+    // If the CIC string is a single number, then it's pretty easy to get the CIC enum
+    if (cicstring[0] >= ('0'+((int)CIC_6101)) && cicstring[0] <= ('0'+((int)CIC_5101)) && cicstring[1] == '\0')
+    {
+        return (CICType)(cicstring[0]-'0');
+    }
+
+    // Check if the user, for some reason, wrote the entire CIC string out
+    for (int i=0; i<cic_strcount; i++)
+        if (!strcmp(cic_strings[i], cicstring))
+            return (CICType)i;
+
+    // Otherwise, stop
+    terminate("Unknown CIC '%s'", cicstring);
+    return CIC_NONE; // Doesn't actually return since terminate stops the program first
+}
+
+
+/*==============================
+    cic_typetostr
+    Reads a CICType enum and converts it
+    to a nice string. Assumes a non-NONE
+    CICType is given!
+    @param  The enum with the CIC 
+            to convert
+    @return The CIC name stringified
+==============================*/
+
+const char* cic_typetostr(CICType cicenum)
+{
+    return cic_strings[(int)cicenum];
+}
+
+
+/*==============================
+    save_strtotype
+    Reads a string and converts it 
+    to a valid SaveType enum
+    @param  The string with the save type
+            to parse
+    @return The SaveType enum
+==============================*/
+
+SaveType save_strtotype(const char* savestring)
+{
+    // If the save string is a single number, then it's pretty easy to get the save enum
+    if (savestring[0] >= ('0'+((int)SAVE_EEPROM4K)) && savestring[0] <= ('0'+((int)SAVE_FLASHRAMPKMN)) && savestring[1] == '\0')
+        return (SaveType)(savestring[0]-'0');
+
+    // Check if the user, for some reason, wrote the entire save string out
+    for (int i=0; i<save_strcount; i++)
+        if (!strcmp(save_strings[i], savestring))
+            return (SaveType)(i+1);
+
+    // Otherwise, stop
+    terminate("Unknown save type '%s'", savestring);
+    return SAVE_NONE; // Doesn't actually return since terminate stops the program first
+}
+
+
+/*==============================
+    save_typetostr
+    Reads a SaveType enum and converts it
+    to a nice string. Assumes a non-NONE
+    SaveType is given!
+    @param  The enum with the save type
+            to convert
+    @return The save type name stringified
+==============================*/
+
+const char* save_typetostr(SaveType saveenum)
+{
+    return save_strings[(int)saveenum-1];
+}
+
+
+/*==============================
+    file_lastmodtime
+    Gets the last modification time of
+    a file. This is usually done via stat,
+    but it is broken on WinXP:
+    https://stackoverflow.com/questions/32452777/visual-c-2015-express-stat-not-working-on-windows-xp
+    @param  Path to the file to check the 
+            timestamp of
+    @return The file modification time
+==============================*/
+
+time_t file_lastmodtime(const char* path)
+{
+    struct stat finfo;
+    #ifndef LINUX
+        LARGE_INTEGER lt;
+        WIN32_FILE_ATTRIBUTE_DATA fdata;
+        GetFileAttributesExA(path, GetFileExInfoStandard, &fdata);
+        lt.LowPart = fdata.ftLastWriteTime.dwLowDateTime;
+        lt.HighPart = (long)fdata.ftLastWriteTime.dwHighDateTime;
+        finfo.st_mtime = (time_t)(lt.QuadPart*1e-7);
+    #else
+        stat(path, &finfo);
+    #endif
+    return finfo.st_mtime;
 }
 
 
@@ -434,15 +388,18 @@ u32 calc_padsize(u32 size)
     gen_filename
     Generates a unique ending for a filename
     Remember to free the memory when finished!
-    @returns The unique string
+    @param  The filename
+    @param  The file extension
+    @return The unique string
 ==============================*/
 
 #define DATESIZE 64//7*2+1
-char* gen_filename()
+char* gen_filename(const char* filename, const char* fileext)
 {
     static int increment = 0;
     static int lasttime = 0;
-    char* str = (char*) malloc(DATESIZE);
+    char* finalname = NULL;
+    char* extraname = NULL;
     int curtime = 0;
     time_t t = time(NULL);
     struct tm tm;
@@ -461,65 +418,200 @@ char* gen_filename()
     else
         increment++;
 
-    // Generate the string and return it
-    sprintf(str, "%02d%02d%02d%02d%02d%02d%02d", 
+    // Generate the unique string
+    extraname = (char*)malloc(DATESIZE);
+    if (extraname == NULL)
+        return NULL;
+    sprintf(extraname, "%02d%02d%02d%02d%02d%02d%02d", 
                  (tmp->tm_year+1900)%100, tmp->tm_mon+1, tmp->tm_mday, tmp->tm_hour, tmp->tm_min, tmp->tm_sec, increment%100);
+
+    // Generate the final name
+    if (debug_getbinaryout() != NULL)
+    {
+        finalname = (char*)calloc(snprintf(NULL, 0, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext) + 1, 1);
+        if (finalname == NULL)
+            return NULL;
+        sprintf(finalname, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext);
+    }
+    else
+    {
+        finalname = (char*)calloc(snprintf(NULL, 0, "%s-%s.%s", filename, extraname, fileext) + 1, 1);
+        if (finalname == NULL)
+            return NULL;
+        sprintf(finalname, "%s-%s.%s", filename, extraname, fileext);
+    }
+    free(extraname);
+    return finalname;
+}
+
+
+/*==============================
+    trimwhitespace
+    Removes the trailing whitespace from
+    the start and end of a string.
+    @param  The filename
+    @param  The file extension
+    @return The starting pointer of the string
+==============================*/
+
+char* trimwhitespace(char* str)
+{
+    char* end;
+    size_t size = strlen(str);
+
+    // Ignore zero length strings
+    if (size == 0)
+        return str;
+
+    // Trim whitespace at the back of the string
+    end = str + size - 1;
+    while (end >= str && isspace(*end))
+        end--;
+    *(end + 1) = '\0';
+
+    // Find the first non-whitespace character
+    while (*str && isspace(*str))
+        str++;
+
+    // Return the new starting pointer
     return str;
 }
 
 
 /*==============================
-    romhash
-    Returns an int with a simple hash of the inputted data
-    @param The data to hash
-    @param The size of the data
-    @returns The hash number
+    handle_deviceerror
+    Stops the program with a useful
+    error message if the deive encounters
+    an error
 ==============================*/
 
-u32 romhash(u8 *buff, u32 len) 
+void handle_deviceerror(DeviceError err)
 {
-    u32 i;
-    u32 hash=0;
-    for (i=0; i<len; i++)
-        hash += buff[i];
-    return hash;
-}
-
-/*==============================
-    cic_from_hash
-    Returns a CIC value from the hash number
-    @param The hash number
-    @returns The global_cictype value
-==============================*/
-
-s16 cic_from_hash(u32 hash)
-{
-    switch (hash)
+    switch(err)
     {
-        case 0x033A27: return 0;
-        case 0x034044: return 1;
-        case 0x03421E: return 3;
-        case 0x0357D0: return 4;
-        case 0x047A81: return 5;
-        case 0x0371CC: return 6;
-        case 0x02ABB7: return 7;
-        case 0x04F90E: return 303;
+        case DEVICEERR_USBBUSY:
+            terminate("USB Device not ready.");
+            break;
+        case DEVICEERR_NODEVICES:
+            terminate("No FTDI USB devices found.");
+            break;
+        case DEVICEERR_CARTFINDFAIL:
+            if (device_getcart() == CART_NONE)
+            {
+                #ifndef LINUX
+                    terminate("No flashcart detected");
+                #else
+                    terminate("No flashcart detected. Are you running sudo?");
+                #endif
+            }
+            else
+                terminate("Requested flashcart not detected.");
+            break;
+        case DEVICEERR_CANTOPEN:
+            terminate("Could not open USB device.");
+            break;
+        case DEVICEERR_RESETFAIL:
+            terminate("Unable to reset USB device.");
+            break;
+        case DEVICEERR_RESETPORTFAIL:
+            terminate("Unable to reset USB port.");
+            break;
+        case DEVICEERR_TIMEOUTSETFAIL:
+            terminate("Unable to set flashcart timeouts.");
+            break;
+        case DEVICEERR_PURGEFAIL:
+            terminate("Unable to purge USB contents.");
+            break;
+        case DEVICEERR_READFAIL:
+            SHOULDIE("Unable to read from flashcart.");
+            break;
+        case DEVICEERR_WRITEFAIL:
+            SHOULDIE("Unable to write to flashcart.");
+            break;
+        case DEVICEERR_WRITEZERO:
+            SHOULDIE("Zero bytes were written to flashcart.");
+            break;
+        case DEVICEERR_CLOSEFAIL:
+            terminate("Unable to close flashcart.");
+            break;
+        case DEVICEERR_FILEREADFAIL:
+            terminate("Unable to read ROM contents.");
+            break;
+        case DEVICEERR_BITMODEFAIL_RESET:
+            terminate("Unable to set reset bitmode.");
+            break;
+        case DEVICEERR_BITMODEFAIL_SYNCFIFO:
+            terminate("Unable to set syncfifo bitmode.");
+            break;
+        case DEVICEERR_SETDTRFAIL:
+            terminate("Unable to set DTR line.");
+            break;
+        case DEVICEERR_CLEARDTRFAIL:
+            terminate("Unable to clear DTR line.");
+            break;
+        case DEVICEERR_TXREPLYMISMATCH:
+            SHOULDIE("Actual bytes written amount is different than desired.");
+            break;
+        case DEVICEERR_READCOMPSIGFAIL:
+            SHOULDIE("Unable to read completion signal.");
+            break;
+        case DEVICEERR_NOCOMPSIG:
+            SHOULDIE("Did not receive completion signal.");
+            break;
+        case DEVICEERR_READPACKSIZEFAIL:
+            terminate("Unable to read packet size.");
+            break;
+        case DEVICEERR_BADPACKSIZE:
+            SHOULDIE("Wrong read packet size.");
+            break;
+        case DEVICEERR_MALLOCFAIL:
+            terminate("Malloc failure.");
+            return;
+        case DEVICEERR_UPLOADCANCELLED:
+            log_replace("Upload cancelled by the user.\n", CRDEF_ERROR);
+            return;
+        case DEVICEERR_TIMEOUT:
+            SHOULDIE("Flashcart timed out.");
+            break;
+        case DEVICEERR_POLLFAIL:
+            SHOULDIE("Flashcart polling failed.");
+            break;
+        case DEVICEERR_64D_8303USB:
+            terminate("The 8303 CIC is not supported through USB.");
+            break;
+        case DEVICEERR_64D_BADCMP:
+            SHOULDIE("Received bad CMP signal.");
+            break;
+        case DEVICEERR_64D_CANTDEBUG:
+            terminate("Please upgrade to firmware 2.05 or higher to access USB debugging.");
+            break;
+        case DEVICEERR_64D_BADDMA:
+            SHOULDIE("Unexpected DMA header.");
+            break;
+        case DEVICEERR_64D_DATATOOBIG:
+            log_colored("Data must be under 8MB.\n", CRDEF_ERROR);
+            return;
+        case DEVICEERR_SC64_CMDFAIL:
+            terminate("SC64 command response error");
+            break;
+        case DEVICEERR_SC64_COMMFAIL:
+            terminate("SC64 communication error");
+            break;
+        case DEVICEERR_SC64_CTRLRELEASEFAIL:
+            terminate("Couldn't release SC64 controller reset.");
+            break;
+        case DEVICEERR_SC64_CTRLRESETFAIL:
+            terminate("Couldn't perform SC64 controller reset.");
+            break;
+        case DEVICEERR_SC64_FIRMWARECHECKFAIL:
+            terminate("Couldn't get SC64 firmware version.");
+            break;
+        case DEVICEERR_SC64_FIRMWAREUNSUPPORTED:
+            terminate("Unsupported SC64 firmware version, please upgrade to firmware 2.14.0 or higher.");
+            break;
+        default:
+            if (err != DEVICEERR_OK && err != DEVICEERR_NOTCART)
+                log_colored("Unhandled device error '%d'.\n", CRDEF_ERROR, err);
+            return;
     }
-    return -1;
-}
-
-/*==============================
-    handle_timeout
-    Draws a fancy progress bar
-    @param The text to print before the progress bar
-    @param The percentage of completion
-==============================*/
-void handle_timeout()
-{
-    timeout(0);
-    if (global_timeouttime == 0)
-        global_timeouttime = time(NULL) + global_timeout;
-    pdprint("\nPress any key to continue, or wait for timeout.\n", CRDEF_INPUT);
-    while (getch() < 2 && global_timeouttime > time(NULL))
-        ;
 }

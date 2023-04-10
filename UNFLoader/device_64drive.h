@@ -2,6 +2,7 @@
 #define __DEVICE_64DRIVE_HEADER
 
     #include "device.h"
+    #include <stdbool.h>
 
 
     /*********************************
@@ -33,12 +34,16 @@
             Function Prototypes
     *********************************/
 
-    bool device_test_64drive1(ftdi_context_t* cart, int index);
-    bool device_test_64drive2(ftdi_context_t* cart, int index);
-    void device_open_64drive(ftdi_context_t* cart);
-    void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size);
-    bool device_testdebug_64drive(ftdi_context_t* cart);
-    void device_senddata_64drive(ftdi_context_t* cart, int datatype, char* data, u32 size);
-    void device_close_64drive(ftdi_context_t* cart);
+    DeviceError device_test_64drive1(CartDevice* cart);
+    DeviceError device_test_64drive2(CartDevice* cart);
+    DeviceError device_open_64drive(CartDevice* cart);
+    DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size);
+    uint32_t    device_maxromsize_64drive();
+    bool        device_shouldpadrom_64drive();
+    bool        device_explicitcic_64drive(byte* bootcode);
+    DeviceError device_testdebug_64drive(CartDevice* cart);
+    DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size);
+    DeviceError device_receivedata_64drive(CartDevice* cart, uint32_t* dataheader, byte** buff);
+    DeviceError device_close_64drive(CartDevice* cart);
 
 #endif

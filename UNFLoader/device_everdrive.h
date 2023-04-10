@@ -8,11 +8,15 @@
             Function Prototypes
     *********************************/
 
-    bool device_test_everdrive(ftdi_context_t* cart, int index);
-    void device_open_everdrive(ftdi_context_t* cart);
-    void device_sendrom_everdrive(ftdi_context_t* cart, FILE *file, u32 size);
-    bool device_testdebug_everdrive(ftdi_context_t* cart);
-    void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char *data, u32 size);
-    void device_close_everdrive(ftdi_context_t* cart);
+    DeviceError device_test_everdrive(CartDevice* cart);
+    DeviceError device_open_everdrive(CartDevice* cart);
+    DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size);
+    uint32_t    device_maxromsize_everdrive();
+    bool        device_shouldpadrom_everdrive();
+    bool        device_explicitcic_everdrive(byte* bootcode);
+    DeviceError device_testdebug_everdrive(CartDevice* cart);
+    DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size);
+    DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader, byte** buff);
+    DeviceError device_close_everdrive(CartDevice* cart);
 
 #endif

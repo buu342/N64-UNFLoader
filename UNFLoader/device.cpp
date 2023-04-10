@@ -1,116 +1,130 @@
 /***************************************************************
                            device.cpp
-                               
+
 Passes flashcart communication to more specific functions
 ***************************************************************/
 
-#include <sys/stat.h>
-#include "main.h"
-#include "helper.h"
-#include "debug.h"
 #include "device.h"
 #include "device_64drive.h"
 #include "device_everdrive.h"
 #include "device_sc64.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#ifndef LINUX
+    #include <shlwapi.h>
+#endif
+#include <atomic>
+#pragma comment(lib, "Include/FTD2XX.lib")
 
 
 /*********************************
         Function Pointers
 *********************************/
 
-void (*funcPointer_open)(ftdi_context_t*);
-void (*funcPointer_sendrom)(ftdi_context_t*, FILE *file, u32 size);
-bool (*funcPointer_testdebug)(ftdi_context_t*);
-void (*funcPointer_senddata)(ftdi_context_t*, int datatype, char *data, u32 size);
-void (*funcPointer_close)(ftdi_context_t*);
+DeviceError (*funcPointer_open)(CartDevice*);
+DeviceError (*funcPointer_sendrom)(CartDevice*, byte* rom, uint32_t size);
+DeviceError (*funcPointer_testdebug)(CartDevice*);
+bool        (*funcPointer_shouldpadrom)();
+bool        (*funcPointer_explicitcic)(byte* bootcode);
+uint32_t    (*funcPointer_maxromsize)();
+DeviceError (*funcPointer_senddata)(CartDevice*, USBDataType datatype, byte* data, uint32_t size);
+DeviceError (*funcPointer_receivedata)(CartDevice*, uint32_t* dataheader, byte** buff);
+DeviceError (*funcPointer_close)(CartDevice*);
+
+
+/*********************************
+        Function Prototypes
+*********************************/
+
+static void device_set_64drive1(CartDevice* cart);
+static void device_set_64drive2(CartDevice* cart);
+static void device_set_everdrive(CartDevice* cart);
+static void device_set_sc64(CartDevice* cart);
 
 
 /*********************************
              Globals
 *********************************/
 
-static ftdi_context_t local_usb = {0, };
+// File
+static char* local_rompath  = NULL;
+
+// Cart
+static CartDevice local_cart;
+
+// Upload
+std::atomic<bool> local_uploadcancelled (false);
+std::atomic<float> local_uploadprogress (0.0f);
+
+
+/*==============================
+    device_initialize
+    Initializes the device data structures
+==============================*/
+
+void device_initialize()
+{
+    memset(&local_cart, 0, sizeof(CartDevice));
+    local_cart.carttype = CART_NONE;
+    local_cart.cictype  = CIC_NONE;
+    local_cart.savetype = SAVE_NONE;
+    local_cart.protocol = PROTOCOL_VERSION1;
+}
 
 
 /*==============================
     device_find
     Finds the flashcart plugged in to USB
-    @param The cart to check for (CART_NONE for automatic checking)
+    @return The DeviceError enum
 ==============================*/
 
-void device_find(int automode)
+DeviceError device_find()
 {
-    int i;
-    ftdi_context_t *cart = &local_usb;
-
-    // Initialize FTD
-    if (automode == CART_NONE)
-        pdprint("Attempting flashcart autodetection.\n", CRDEF_PROGRAM);
-    testcommand(FT_CreateDeviceInfoList(&cart->devices), "USB Device not ready.");
-
-    // Check if the device exists
-    if (cart->devices == 0)
-        terminate("No devices found.");
-
-    // Allocate storage and get device info list
-    cart->dev_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*cart->devices);
-    FT_GetDeviceInfoList(cart->dev_info, &cart->devices);
-
-    // Search the devices
-    for(i=0; (unsigned)i < cart->devices; i++)
+    // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_64DRIVE1))
     {
-        // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
-        if ((automode == CART_NONE || automode == CART_64DRIVE1) && device_test_64drive1(cart, i))
-        {
-            device_set_64drive1(cart, i);
-            if (automode == CART_NONE) 
-                pdprint_replace("64Drive HW1 autodetected!\n", CRDEF_PROGRAM);
-            break;
-        }
+        DeviceError err = device_test_64drive1(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_64drive1(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for 64drive HW2 (FT232H Synchronous FIFO mode)
-        if ((automode == CART_NONE || automode == CART_64DRIVE2) && device_test_64drive2(cart, i))
-        {
-            device_set_64drive2(cart, i);
-            if (automode == CART_NONE) 
-                pdprint_replace("64Drive HW2 autodetected!\n", CRDEF_PROGRAM);
-            break;
-        }
+    // Look for 64drive HW2 (FT2232H Asynchronous FIFO mode)
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_64DRIVE2))
+    {
+        DeviceError err = device_test_64drive2(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_64drive2(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for an EverDrive
-        if ((automode == CART_NONE || automode == CART_EVERDRIVE) && device_test_everdrive(cart, i))
-        {
-            device_set_everdrive(cart, i);
-            if (automode == CART_NONE)
-                pdprint_replace("EverDrive autodetected!\n", CRDEF_PROGRAM);
-            break;
-        }
+    // Look for an EverDrive
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_EVERDRIVE))
+    {
+        DeviceError err = device_test_everdrive(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_everdrive(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+    }
 
-        // Look for SC64
-        if ((automode == CART_NONE || automode == CART_SC64) && device_test_sc64(cart, i))
-        {
-            device_set_sc64(cart, i);
-            if (automode == CART_NONE)
-                pdprint_replace("SC64 autodetected!\n", CRDEF_PROGRAM);
-            break;
-        }
+    // Look for SC64
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_SC64))
+    {
+        DeviceError err = device_test_sc64(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_sc64(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
     }
 
     // Finish
-    free(cart->dev_info);
-    if (cart->carttype == CART_NONE)
-    {
-        if (automode == CART_NONE)
-        {
-            #ifdef LINUX
-                terminate("No flashcart detected. Are you running sudo?");
-            #else
-                terminate("No flashcart detected.");
-            #endif
-        }
-        else
-            terminate("Requested flashcart not found.");
-    }
+    if (local_cart.carttype == CART_NONE)
+        return DEVICEERR_CARTFINDFAIL;
+    return DEVICEERR_OK;
 }
 
 
@@ -121,18 +135,20 @@ void device_find(int automode)
     @param The index of the cart
 ==============================*/
 
-void device_set_64drive1(ftdi_context_t* cart, int index)
+static void device_set_64drive1(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
-    cart->synchronous = 0;
     cart->carttype = CART_64DRIVE1;
 
     // Set function pointers
     funcPointer_open = &device_open_64drive;
+    funcPointer_maxromsize = &device_maxromsize_64drive;
+    funcPointer_shouldpadrom = &device_shouldpadrom_64drive;
+    funcPointer_explicitcic = &device_explicitcic_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
+    funcPointer_receivedata = &device_receivedata_64drive;
     funcPointer_close = &device_close_64drive;
 }
 
@@ -144,13 +160,10 @@ void device_set_64drive1(ftdi_context_t* cart, int index)
     @param The index of the cart
 ==============================*/
 
-void device_set_64drive2(ftdi_context_t* cart, int index)
+static void device_set_64drive2(CartDevice* cart)
 {
     // Do exactly the same as device_set_64drive1
-    device_set_64drive1(cart, index);
-
-    // But modify the important cart settings
-    cart->synchronous = 1;
+    device_set_64drive1(cart);
     cart->carttype = CART_64DRIVE2;
 }
 
@@ -162,17 +175,20 @@ void device_set_64drive2(ftdi_context_t* cart, int index)
     @param The index of the cart
 ==============================*/
 
-void device_set_everdrive(ftdi_context_t* cart, int index)
+static void device_set_everdrive(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
     cart->carttype = CART_EVERDRIVE;
 
     // Set function pointers
     funcPointer_open = &device_open_everdrive;
+    funcPointer_maxromsize = &device_maxromsize_everdrive;
+    funcPointer_shouldpadrom = &device_shouldpadrom_everdrive;
+    funcPointer_explicitcic = &device_explicitcic_everdrive;
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
     funcPointer_senddata = &device_senddata_everdrive;
+    funcPointer_receivedata = &device_receivedata_everdrive;
     funcPointer_close = &device_close_everdrive;
 }
 
@@ -184,17 +200,20 @@ void device_set_everdrive(ftdi_context_t* cart, int index)
     @param The index of the cart
 ==============================*/
 
-void device_set_sc64(ftdi_context_t* cart, int index)
+static void device_set_sc64(CartDevice* cart)
 {
     // Set cart settings
-    cart->device_index = index;
     cart->carttype = CART_SC64;
 
     // Set function pointers
     funcPointer_open = &device_open_sc64;
+    funcPointer_maxromsize = &device_maxromsize_sc64;
+    funcPointer_shouldpadrom = &device_shouldpadrom_sc64;
+    funcPointer_explicitcic = &device_explicitcic_sc64;
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
     funcPointer_senddata = &device_senddata_sc64;
+    funcPointer_receivedata = &device_receivedata_sc64;
     funcPointer_close = &device_close_sc64;
 }
 
@@ -202,185 +221,12 @@ void device_set_sc64(ftdi_context_t* cart, int index)
 /*==============================
     device_open
     Calls the function to open the flashcart
+    @param The device error, or OK
 ==============================*/
 
-void device_open()
+DeviceError device_open()
 {
-    funcPointer_open(&local_usb);
-    pdprint("USB connection opened.\n", CRDEF_PROGRAM);
-}
-
-
-/*==============================
-    device_sendrom
-    Opens the ROM and calls the function to send it to the flashcart
-    @param A string with the path to the ROM
-==============================*/
-
-void device_sendrom(char* rompath)
-{
-    bool escignore = false;
-    bool resend = false;
-    FILE *file;
-    int  filesize = 0; // I could use finfo, but it doesn't work in WinXP (more info below)
-    time_t lastmod = 0;
-    struct stat finfo;
-
-    for ( ; ; )
-    {
-        unsigned char rom_header[4];
-
-        // Open the ROM and get info about it 
-        file = fopen(rompath, "rb");
-        if (file == NULL)
-        {
-            device_close();
-            terminate("Unable to open file '%s'.\n", rompath);
-        }
-	    stat(rompath, &finfo);
-        global_filename = rompath;
-
-        // Read the ROM header to check if its byteswapped
-        if (fread(rom_header, 1, 4, file) != 4)
-        {
-            device_close();
-            terminate("Unable to read 4 bytes from '%s'.\n", rompath);
-        }
-        if (!(rom_header[0] == 0x80 && rom_header[1] == 0x37 && rom_header[2] == 0x12 && rom_header[3] == 0x40))
-            global_z64 = true;
-
-        // Get the filesize and reset the position
-        // Workaround for https://stackoverflow.com/questions/32452777/visual-c-2015-express-stat-not-working-on-windows-xp
-        fseek(file, 0, SEEK_END);
-        filesize = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        if (filesize < 0)
-        {
-            device_close();
-            terminate("Unable to get file size of '%s'.\n", rompath);
-        }
-
-        // Check if the file was modified on Windows (since stat is broken on XP...)
-        #ifndef LINUX
-            LARGE_INTEGER lt;
-            WIN32_FILE_ATTRIBUTE_DATA fdata;
-            GetFileAttributesExA(rompath, GetFileExInfoStandard, &fdata);
-            lt.LowPart = fdata.ftLastWriteTime.dwLowDateTime;
-            lt.HighPart = (long)fdata.ftLastWriteTime.dwHighDateTime;
-            finfo.st_mtime = (time_t)(lt.QuadPart*1e-7);
-        #endif
-
-        // If the file was not modified
-        if (!resend && lastmod != 0 && lastmod == finfo.st_mtime)
-        {
-            int count = 0;
-
-            // Close the file and wait for three seconds
-            fclose(file);
-            timeout(0);
-            while (count < 30)
-            {
-                int ch;
-                #ifndef LINUX
-                    Sleep(100);
-                #else
-                    usleep(100);
-                #endif
-                count++;
-                ch = getch();
-
-                // Disable ESC ignore if the key was released
-                if (ch == CH_ESCAPE && escignore)
-                    escignore = false;
-
-                // Check if ESC was pressed
-                if (ch == CH_ESCAPE && !escignore)
-                {
-                    pdprint("\nExiting listen mode.\n", CRDEF_PROGRAM);
-                    return;
-                }
-
-                // Check if R was pressed
-                if (ch == 'r')
-                {
-                    resend = true;
-                    pdprint("\nReuploading ROM by request.\n", CRDEF_PROGRAM);
-                    break;
-                }
-            }
-            timeout(-1);
-
-            // Restart the for loop
-            if (!resend)
-                clearerr(file);
-            continue;
-        }
-        else if (lastmod != 0)
-        {
-            pdprint("\nFile change detected. Reuploading ROM.\n", CRDEF_PROGRAM);
-            lastmod = finfo.st_mtime;
-        }
-
-        // Initialize lastmod
-        if (lastmod == 0)
-            lastmod = finfo.st_mtime;
-
-        // Complain if the ROM is too small
-        if (filesize < 1052672)
-            pdprint("ROM is smaller than 1MB, it might not boot properly.\n", CRDEF_PROGRAM);
-
-        // Send the ROM
-        timeout(0);
-        funcPointer_sendrom(&local_usb, file, filesize);
-        timeout(-1);
-
-        // Close the file pipe and start the timeout
-        fclose(file);
-        global_timeouttime = global_timeout + time(NULL);
-
-        // Start Debug Mode
-        if (global_debugmode) 
-        {
-            debug_main(&local_usb);
-            escignore = true;
-        }
-
-        // Break out of the while loop if not in listen mode
-        if (!global_listenmode)
-            break;
-
-        // Print that we're waiting for changes
-        pdprint("Waiting for file changes. Press ESC to stop. Press R to resend.\n", CRDEF_INPUT);
-        resend = false;
-    }
-}
-
-
-/*==============================
-    device_testdebug
-    Checks whether this cart can use debug mode
-    @param A pointer to the cart context
-    @returns true if this cart can use debug mode, false otherwise
-==============================*/
-
-bool device_testdebug()
-{
-    return funcPointer_testdebug(&local_usb);
-}
-
-
-/*==============================
-    device_senddata
-    Sends data to the flashcart via USB
-    @param The data to send
-    @param The number of bytes in the data
-    @returns 1 if success, 0 if failure
-==============================*/
-
-void device_senddata(int datatype, char* data, u32 size)
-{
-    funcPointer_senddata(&local_usb, datatype, data, size);
+    return funcPointer_open(&local_cart);
 }
 
 
@@ -392,36 +238,439 @@ void device_senddata(int datatype, char* data, u32 size)
 
 bool device_isopen()
 {
-    ftdi_context_t* cart = &local_usb;
-    return (cart->handle != NULL);
+    return (local_cart.structure != NULL);
 }
 
 
 /*==============================
-    device_getcarttype
-    Returns the type of the connected cart
-    @returns The cart type
+    device_maxromsize
+    Gets the max ROM size that 
+    the flashcart supports
+    @return The max ROM size
 ==============================*/
 
-DWORD device_getcarttype()
+uint32_t device_getmaxromsize()
 {
-    ftdi_context_t* cart = &local_usb;
-    return cart->carttype;
+    return funcPointer_maxromsize();
+}
+
+
+/*==============================
+    device_shouldpadrom
+    Checks whether the flashcart requires
+    that the ROM be padded to the nearest
+    power of two.
+    @param Whether to pad the ROM or not.
+==============================*/
+
+bool device_shouldpadrom()
+{
+    return funcPointer_shouldpadrom();
+}
+
+
+/*==============================
+    device_explicitcic
+    Checks whether the flashcart requires
+    that the CIC be set explicitly, and sets
+    it if so.
+    @param Whether the CIC was changed.
+==============================*/
+
+bool device_explicitcic()
+{
+    CICType oldcic = local_cart.cictype;
+    FILE* fp = fopen(local_rompath, "rb");
+    byte* bootcode = (byte*) malloc(4032);
+
+    // Check fopen/malloc worked
+    if (fp == NULL || bootcode == NULL)
+        return false;
+
+    // Read the bootcode
+    fseek(fp, 0x40, SEEK_SET);
+    if (fread(bootcode, 1, 4032, fp) != 4032)
+        return false;
+    fseek(fp, 0, SEEK_SET);
+
+    // Check the CIC
+    funcPointer_explicitcic(bootcode);
+    free(bootcode);
+    fclose(fp);
+    return oldcic != local_cart.cictype;
+}
+
+/*==============================
+    device_sendrom
+    Opens the ROM and calls the function to send it to the flashcart
+    @param The ROM FILE pointer
+    @param The size of the ROM in bytes
+==============================*/
+
+DeviceError device_sendrom(FILE* rom, uint32_t filesize)
+{
+    bool is_v64 = false;
+    uint32_t originalsize = filesize;
+    byte* rom_buffer;
+    DeviceError err;
+    
+    // Initialize upload checker globals
+    local_uploadcancelled = false;
+    local_uploadprogress = 0.0f;
+
+    // Pad the ROM if necessary
+    if (funcPointer_shouldpadrom() && filesize != calc_padsize(filesize))
+        filesize = calc_padsize(filesize);
+
+    // Check we managed to malloc
+    rom_buffer = (byte*) malloc(sizeof(byte)*filesize);
+    if (rom_buffer == NULL)
+        return DEVICEERR_MALLOCFAIL;
+
+    // Read the ROM into a buffer
+    fseek(rom, 0, SEEK_SET);
+    if (fread(rom_buffer, 1, originalsize, rom) != originalsize)
+        return DEVICEERR_FILEREADFAIL;
+    fseek(rom, 0, SEEK_SET);
+
+    // Check if we have a V64 ROM
+    if (!(rom_buffer[0] == 0x80 && rom_buffer[1] == 0x37 && rom_buffer[2] == 0x12 && rom_buffer[3] == 0x40))
+        is_v64 = true;
+
+    // Byteswap if it's a V64 ROM
+    if (is_v64)
+        for (uint32_t i=0; i<filesize; i+=2)
+            SWAP(rom_buffer[i], rom_buffer[i+1]);
+
+    // Upload the ROM
+    err = funcPointer_sendrom(&local_cart, rom_buffer, filesize);
+    free(rom_buffer);
+    if (err != DEVICEERR_OK)
+        device_cancelupload();
+    return err;
+}
+
+
+/*==============================
+    device_testdebug
+    Checks whether this cart can use debug mode
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_testdebug()
+{
+    return funcPointer_testdebug(&local_cart);
+}
+
+
+/*==============================
+    device_senddata
+    Sends data to the connected flashcart
+    @param  The datatype that is being sent
+    @param  A buffer containing said data
+    @param  The size of the data
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_senddata(USBDataType datatype, byte* data, uint32_t size)
+{
+    return funcPointer_senddata(&local_cart, datatype, data, size);
+}
+
+
+/*==============================
+    device_receivedata
+    Receives data from the connected flashcart
+    @param  A pointer to an 32-bit value where
+            the received data header will be
+            stored.
+    @param  A pointer to a byte buffer pointer
+            where the data will be malloc'ed into.
+    @return The device error, or OK
+==============================*/
+
+DeviceError device_receivedata(uint32_t* dataheader, byte** buff)
+{
+    return funcPointer_receivedata(&local_cart, dataheader, buff);
 }
 
 
 /*==============================
     device_close
     Calls the function to close the flashcart
+    @param The device error, or OK
 ==============================*/
 
-void device_close()
+DeviceError device_close()
 {
+    DeviceError err;
+
     // Should never happen, but just in case...
-    if (local_usb.handle == NULL)
-        return;
+    if (local_cart.structure == NULL)
+        return DEVICEERR_OK;
 
     // Close the device
-    funcPointer_close(&local_usb);
-    pdprint("USB connection closed.\n", CRDEF_PROGRAM);
+    err = funcPointer_close(&local_cart);
+    local_cart.structure = NULL;
+    return err;
+}
+
+
+/*==============================
+    device_setrom
+    Sets the path of the ROM to load
+    @param  The path to the ROM
+    @return True if successful, false otherwise
+==============================*/
+
+bool device_setrom(char* path)
+{
+    #ifndef LINUX
+        if (PathIsDirectoryA(path))
+            return false;
+    #else
+        struct stat path_stat;
+        stat(path, &path_stat);
+        if (!S_ISREG(path_stat.st_mode))
+            return false;
+    #endif
+    local_rompath = path;
+    return true;
+}
+
+
+/*==============================
+    device_setcart
+    Forces a flashcart
+    @param The cart to set to
+==============================*/
+
+void device_setcart(CartType cart)
+{
+    local_cart.carttype = cart;
+}
+
+
+/*==============================
+    device_setcic
+    Forces a CIC
+    @param The cic to set
+==============================*/
+
+void device_setcic(CICType cic)
+{
+    local_cart.cictype = cic;
+}
+
+
+/*==============================
+    device_setsave
+    Forces a save type
+    @param The savetype to set
+==============================*/
+
+void device_setsave(SaveType save)
+{
+    local_cart.savetype = save;
+}
+
+
+/*==============================
+    device_getrom
+    Gets the path of the ROM to load
+    @return A string with the file path
+            of the ROM.
+==============================*/
+
+char* device_getrom()
+{
+    return local_rompath;
+}
+
+
+/*==============================
+    device_getcart
+    Gets the current flashcart
+    @return The connected cart type
+==============================*/
+
+CartType device_getcart()
+{
+    return local_cart.carttype;
+}
+
+
+/*==============================
+    device_getcic
+    Gets the current CIC
+    @param The configured CIC
+==============================*/
+
+CICType device_getcic()
+{
+    return local_cart.cictype;
+}
+
+
+/*==============================
+    device_getsave
+    Gets the current save type
+    @param The configured save type
+==============================*/
+
+SaveType device_getsave()
+{
+    return local_cart.savetype;
+}
+
+
+/*==============================
+    device_cancelupload
+    Enables the cancel upload flag
+==============================*/
+
+void device_cancelupload()
+{
+    local_uploadcancelled = true;
+}
+
+
+/*==============================
+    device_uploadcancelled
+    Checks whether the cancel upload flag
+    has been set
+    @return Whether the upload was cancelled
+==============================*/
+
+bool device_uploadcancelled()
+{
+    return local_uploadcancelled.load();
+}
+
+
+/*==============================
+    device_setuploadprogress
+    Sets the upload progress
+    @param The upload progress: a value
+           from 0 to 100.
+==============================*/
+
+void device_setuploadprogress(float progress)
+{
+    local_uploadprogress = progress;
+}
+
+
+/*==============================
+    device_getuploadprogress
+    Returns the current upload progress
+    @return The upload progress from 0
+            to 100.
+==============================*/
+
+float device_getuploadprogress()
+{
+    return local_uploadprogress.load();
+}
+
+
+/*==============================
+    device_setprotocol
+    Sets the communication protocol version
+    @param The protocol version
+==============================*/
+
+void device_setprotocol(ProtocolVer version)
+{
+    local_cart.protocol = version;
+}
+
+
+/*==============================
+    device_getprotocol
+    Gets the communication protocol version
+    @return The protocol version
+==============================*/
+
+ProtocolVer device_getprotocol()
+{
+    return local_cart.protocol;
+}
+
+
+/*==============================
+    swap_endian
+    Swaps the endianess of the data
+    @param  The data to swap the endianess of
+    @return The data with endianess swapped
+==============================*/
+
+uint32_t swap_endian(uint32_t val)
+{
+    return ((val << 24)) | 
+           ((val << 8) & 0x00ff0000) |
+           ((val >> 8) & 0x0000ff00) | 
+           ((val >> 24));
+}
+
+
+/*==============================
+    calc_padsize
+    Returns the correct size a ROM should be. Code taken from:
+    https://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+    @param  The current ROM filesize
+    @return The correct ROM filesize
+==============================*/
+
+uint32_t calc_padsize(uint32_t size)
+{
+    size--;
+    size |= size >> 1;
+    size |= size >> 2;
+    size |= size >> 4;
+    size |= size >> 8;
+    size |= size >> 16;
+    size++;
+    return size;
+}
+
+
+/*==============================
+    romhash
+    Returns an int with a simple hash of the inputted data
+    @param  The data to hash
+    @param  The size of the data
+    @return The hash number
+==============================*/
+
+uint32_t romhash(byte *buff, uint32_t len) 
+{
+    uint32_t i;
+    uint32_t hash=0;
+    for (i=0; i<len; i++)
+        hash += buff[i];
+    return hash;
+}
+
+/*==============================
+    cic_from_hash
+    Returns a CIC value from the hash number
+    @param  The hash number
+    @return The global_cictype value
+==============================*/
+
+CICType cic_from_hash(uint32_t hash)
+{
+    switch (hash)
+    {
+        case 0x033A27: return CIC_6101;
+        case 0x034044: return CIC_6102;
+        case 0x03421E: return CIC_7102;
+        case 0x0357D0: return CIC_X103;
+        case 0x047A81: return CIC_X105;
+        case 0x0371CC: return CIC_X106;
+        case 0x02ABB7: return CIC_5101;
+        case 0x04F90E: return CIC_8303;
+    }
+    return CIC_NONE;
 }
