@@ -78,6 +78,16 @@ void usb_rewind(int nbytes);
 ==============================*/
 void usb_purge();
 
+/*==============================
+    usb_sendheartbeat
+    Sends a heartbeat packet to the PC
+    This is done once automatically at initialization,
+    but can be called manually to ensure that the
+    host side tool is aware of the current USB protocol
+    version.
+==============================*/
+void usb_sendheartbeat();
+
 // Use these to conveniently read the header from usb_poll()
 #define USBHEADER_GETTYPE(header)
 #define USBHEADER_GETSIZE(header)
@@ -200,7 +210,7 @@ I recommend developers check out the [wiki](../../../wiki) chapters 1 and 2 to g
 
 **EverDrive**
 
-\<Nothing>
+* All data through USB is 2 byte aligned. This might result in 1 extra byte being sent/received through USB, which will be padded with zeroes.
 
 
 **SC64**
