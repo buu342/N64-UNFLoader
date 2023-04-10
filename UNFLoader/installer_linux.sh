@@ -161,14 +161,14 @@ done
 # Move UNFLoader to /bin
 echo
 echo -n -e ${Green}
-echo "Would you like to move UNFLoader to /usr/bin/?"
+echo "Would you like to move UNFLoader to /usr/local/bin/?"
 echo "This will let you run UNFLoader from any folder."
 while true; do
     read -p "Continue? (y/n) " yn
     case $yn in
         [Yy]* ) 
             echo -e -n ${ColorOff}
-            sudo mv -f "UNFLoader" "/usr/bin"
+            sudo cp -f "UNFLoader" "/usr/local/bin/UNFLoader"
             break;;
         [Nn]* ) exit;;
         * ) echo "Please answer yes or no.";;

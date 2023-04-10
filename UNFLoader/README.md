@@ -16,6 +16,7 @@ This folder holds the source code for the UNFLoader program itself. This readme 
 <p>
     
 * Windows XP or higher
+    * Windows XP users should be on the latest Service Pack
 * [The Windows version of this FDTI driver](https://www.ftdichip.com/Drivers/D2XX.htm). If you are on Windows XP, be sure you download the XP driver and not the first one.
 </p>
 </details>
@@ -24,7 +25,10 @@ This folder holds the source code for the UNFLoader program itself. This readme 
 <p>
     
 * Ubuntu (Haven't tested with others)
-* [The relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
+* Run the included `install_linux.sh` script to set up everything for you.
+
+If you do not wish to run the script, then you must:
+* [Get the relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * You must run UNFLoader with `sudo`.
 * Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands every time you start a new terminal session: 
 ```
@@ -131,6 +135,8 @@ Once the dependencies are installed, simply execute the makefile:
 ```
 make
 ```
+
+If you haven't done so previously, it is recommended that you run `installer_linux.sh`. 
 
 You can optionally install UNFLoader to `/usr/local/bin` (which will let you execute the tool in any folder, just remember to use `sudo`!) by calling:
 ```
