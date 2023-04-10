@@ -28,6 +28,10 @@ https://github.com/buu342/N64-UNFLoader
 // Data header related
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
+// Protocol related
+#define USBPROTOCOL_VERSION 2
+#define HEARTBEAT_VERSION   1
+
 
 /*********************************
    Libultra macros for libdragon
@@ -209,6 +213,7 @@ https://github.com/buu342/N64-UNFLoader
 *********************************/
 
 static void usb_findcart(void);
+static void usb_sendheartbeat();
 
 static void usb_64drive_write(int datatype, const void* data, int size);
 static u32  usb_64drive_poll(void);
@@ -457,6 +462,9 @@ char usb_initialize(void)
         default:
             return 0;
     }
+
+    // Send a heartbeat
+    usb_sendheartbeat();
     return 1;
 }
 
@@ -544,6 +552,32 @@ static void usb_findcart(void)
 char usb_getcart(void)
 {
     return usb_cart;
+}
+
+
+/*==============================
+    usb_sendheartbeat
+    Sends a heartbeat packet to the PC
+    This is done once automatically at initialization,
+    but can be called manually to ensure that the
+    host side tool is aware of the current USB protocol
+    version.
+==============================*/
+
+void usb_sendheartbeat()
+{
+    u8 buffer[4];
+
+    // First two bytes describe the USB library protocol version
+    buffer[0] = (u8)(((USBPROTOCOL_VERSION)>>8)&0xFF);
+    buffer[1] = (u8)(((USBPROTOCOL_VERSION))&0xFF);
+
+    // Next two bytes describe the heartbeat packet version
+    buffer[2] = (u8)(((HEARTBEAT_VERSION)>>8)&0xFF);
+    buffer[3] = (u8)(((HEARTBEAT_VERSION))&0xFF);
+
+    // Send through USB
+    usb_write(DATATYPE_HEARTBEAT, buffer, sizeof(buffer)/sizeof(buffer[0]));
 }
 
 

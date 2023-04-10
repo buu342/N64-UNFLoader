@@ -25,6 +25,9 @@ Handles USB I/O.
 #define PATH_SIZE   256
 #define HISTORY_SIZE 100
 
+#define USBPROTOCOL_VERSION 2
+#define HEARTBEAT_VERSION   1
+
 
 /*********************************
        Function Prototypes
@@ -38,6 +41,7 @@ void debug_handle_text(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_rawbinary(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_header(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
+void debug_handle_heartbeat(ftdi_context_t* cart, u32 size, char* buffer, u32* read);
 
 
 /*********************************
@@ -664,6 +668,7 @@ void debug_decidedata(ftdi_context_t* cart, u32 info, char* buffer, u32* read)
         case DATATYPE_RAWBINARY:  debug_handle_rawbinary(cart, size, buffer, read); break;
         case DATATYPE_HEADER:     debug_handle_header(cart, size, buffer, read); break;
         case DATATYPE_SCREENSHOT: debug_handle_screenshot(cart, size, buffer, read); break;
+        case DATATYPE_HEARTBEAT:  debug_handle_heartbeat(cart, size, buffer, read); break;
         default:                  terminate("Unknown data type.");
     }
 }
@@ -921,4 +926,45 @@ void debug_handle_screenshot(ftdi_context_t* cart, u32 size, char* buffer, u32* 
     free(image);
     free(filename);
     free(extraname);
+}
+
+
+/*==============================
+    debug_handle_heartbeat
+    Handles DATATYPE_HEARTBEAT
+    @param A pointer to the cart context
+    @param The size of the incoming data
+    @param The buffer to use
+    @param A pointer to a variable that stores the number of bytes read
+==============================*/
+
+void debug_handle_heartbeat(ftdi_context_t* cart, u32 size, char* buffer, u32* read)
+{
+    u32 header;
+    u16 heartbeat_version;
+
+    if (size < 4)
+        terminate("Error: Malformed heartbeat received");
+
+    // Read the heartbeat header
+    FT_Read(cart->handle, buffer, 4, &cart->bytes_read);
+    (*read) = cart->bytes_read;
+    header = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | (buffer[0]);
+    header = swap_endian(header);
+    heartbeat_version = (u16)(header&0x0000FFFF);
+    global_protocolversion = (u16)((header&0xFFFF0000)>>16);
+
+    // Ensure we support this protocol version
+    if (global_protocolversion > USBPROTOCOL_VERSION)
+        terminate("USB protocol %d unsupported. Your UNFLoader is probably out of date.", global_protocolversion);
+
+    // Handle the heartbeat by reading more stuff based on the version
+    // Currently, nothing here.
+    switch(heartbeat_version)
+    {
+        case 0x01: break;
+        default:
+            terminate("Heartbeat version %d unsupported. Your UNFLoader is probably out of date.", heartbeat_version);
+            break;
+    }
 }

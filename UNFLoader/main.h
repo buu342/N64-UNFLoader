@@ -75,5 +75,6 @@
     extern int     global_padpos;
     extern bool    global_scrolling;
     extern bool    global_stackprints;
+    extern u16     global_protocolversion;
 
 #endif
