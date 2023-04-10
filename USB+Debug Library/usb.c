@@ -240,11 +240,11 @@ void (*funcPointer_read)();
 static s8 usb_cart = CART_NONE;
 static u8 usb_buffer_align[BUFFER_SIZE+16]; // IDO doesn't support GCC's __attribute__((aligned(x))), so this is a workaround
 static u8* usb_buffer;
-static char usb_timeout = FALSE;
-static int usb_datatype = 0;
-static int usb_datasize = 0;
-static int usb_dataleft = 0;
-static int usb_readblock = -1;
+static char usb_didtimeout = FALSE;
+int usb_datatype = 0;
+int usb_datasize = 0;
+int usb_dataleft = 0;
+int usb_readblock = -1;
 
 #ifndef LIBDRAGON
     // Message globals
@@ -714,9 +714,9 @@ void usb_purge(void)
     @return 1 if the USB timed out, 0 if not
 ==============================*/
 
-inline char usb_timedout();
+char usb_timedout()
 {
-    return usb_timedout;
+    return usb_didtimeout;
 }
 
 
@@ -771,14 +771,14 @@ char usb_64drive_wait(void)
         // Took too long, abort
         if (usb_timeout_check(timeout, D64_COMMAND_TIMEOUT))
         {
-            usb_timeout = TRUE;
+            usb_didtimeout = TRUE;
             return TRUE;
         }
     }
     while(usb_io_read(D64_REG_STATUS) & D64_CI_BUSY);
 
     // Success
-    usb_timeout = FALSE;
+    usb_didtimeout = FALSE;
     return FALSE;
 }
 
@@ -826,7 +826,7 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
         // Took too long, abort
         if (usb_timeout_check(timeout, D64_WRITE_TIMEOUT))
         {
-            usb_timeout = TRUE;
+            usb_didtimeout = TRUE;
             return;
         }
     }
@@ -927,7 +927,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     // Return if previous transfer timed out
     if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) == D64_CUI_WRITE_BUSY)
     {
-        usb_timeout = TRUE;
+        usb_didtimeout = TRUE;
         return;
     }
 
@@ -957,7 +957,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 
     // Send the data through USB
     usb_64drive_cui_write(datatype, DEBUG_ADDRESS, size);
-    usb_timeout = FALSE;
+    usb_didtimeout = FALSE;
 }
 
 
@@ -1149,7 +1149,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         usb_io_write(ED_REG_USBCFG, ED_USBMODE_WR | baddr);
         if (usb_everdrive_usbbusy())
         {
-            usb_timeout = TRUE;
+            usb_didtimeout = TRUE;
             return;
         }
         
@@ -1158,7 +1158,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         read += block;
         offset = 0;
     }
-    usb_timeout = FALSE;
+    usb_didtimeout = FALSE;
 }
 
 
@@ -1339,7 +1339,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
     if (result[0] & SC64_USB_WRITE_STATUS_BUSY)
     {
-        usb_timeout = TRUE;
+        usb_didtimeout = TRUE;
         return;
     }
 
@@ -1371,7 +1371,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     args[1] = USBHEADER_CREATE(datatype, size);
     if (usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL))
     {
-        usb_timeout = TRUE;
+        usb_didtimeout = TRUE;
         return; // Return if USB write was unsuccessful
     }
 
@@ -1382,13 +1382,13 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         // Took too long, abort
         if (usb_timeout_check(timeout, SC64_WRITE_TIMEOUT))
         {
-            usb_timeout = TRUE;
+            usb_didtimeout = TRUE;
             return;
         }
         usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
     }
     while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
-    usb_timeout = FALSE;
+    usb_didtimeout = FALSE;
 }
 
 
