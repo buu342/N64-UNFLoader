@@ -187,7 +187,6 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     int	   chunk = 0;
     u8*    rom_buffer = (u8*) malloc(sizeof(u8)*newsize);
     time_t upload_time = clock();
-    DWORD  cmps;
 
     // Check we managed to malloc
     if (rom_buffer == NULL)

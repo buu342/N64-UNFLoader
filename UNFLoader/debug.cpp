@@ -940,8 +940,12 @@ void debug_handle_heartbeat(ftdi_context_t* cart, u32 size, char* buffer, u32* r
     u32 header;
     u16 heartbeat_version;
 
+    if (size < 4)
+        terminate("Error: Malformed heartbeat received");
+
     // Read the heartbeat header
     FT_Read(cart->handle, buffer, 4, &cart->bytes_read);
+    (*read) = cart->bytes_read;
     header = (buffer[3] << 24) | (buffer[2] << 16) | (buffer[1] << 8) | (buffer[0]);
     header = swap_endian(header);
     heartbeat_version = (u16)((header&0xFFFF0000)>>16);
