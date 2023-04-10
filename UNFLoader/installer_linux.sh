@@ -87,8 +87,8 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{product}==\"64drive USB device\", OWNER=\"${USERNAME}\"" > ${TARGET}
-                        echo "ACTION==\"bind\", ATTRS{product}==\"64drive USB device\", RUN{program}+=\"/bin/bash -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" > ${TARGET}
+                        echo "ATTRS{product}==\"64drive USB device\", OWNER=\"${USERNAME}\"" >> ${TARGET}
+                        echo "ACTION==\"bind\", ATTRS{product}==\"64drive USB device\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
@@ -111,8 +111,8 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{product}==\"FT245R USB FIFO\", OWNER=\"${USERNAME}\"" > ${TARGET}
-                        echo "ACTION==\"bind\", ATTRS{product}==\"FT245R USB FIFO\", RUN{program}+=\"/bin/bash -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" > ${TARGET}
+                        echo "ATTRS{product}==\"FT245R USB FIFO\", OWNER=\"${USERNAME}\"" >> ${TARGET}
+                        echo "ACTION==\"bind\", ATTRS{product}==\"FT245R USB FIFO\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
@@ -134,8 +134,8 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{serial}==\"SC64xxxxxx\", OWNER=\"${USERNAME}\"" > ${TARGET}
-                        echo "ACTION==\"bind\", ATTRS{serial}==\"SC64xxxxxx\", RUN{program}+=\"/bin/bash -c 'echo $kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" > ${TARGET}
+                        echo "ATTRS{serial}==\"SC64xxxxxx\", OWNER=\"${USERNAME}\"" >> ${TARGET}
+                        echo "ACTION==\"bind\", ATTRS{serial}==\"SC64xxxxxx\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
