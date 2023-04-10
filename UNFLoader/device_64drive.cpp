@@ -219,6 +219,18 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             // Set the CIC and print it
             cart->cictype = global_cictype;
             device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cic, 0);
+
+            // Wait for the CMP signal
+            #ifndef LINUX
+                Sleep(50);
+            #else
+                usleep(50);
+            #endif
+            
+            // Read the CMP signal and ensure it's correct
+            FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+            if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETCIC)
+                terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
             if (cic == 303)
                 terminate("The 8303 CIC is not supported through USB");
             pdprint("CIC set to ", CRDEF_PROGRAM);
@@ -278,6 +290,18 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
         cart->cictype = global_cictype;
         device_sendcmd_64drive(cart, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | cic, 0);
         pdprint("CIC set to %d.\n", CRDEF_PROGRAM, global_cictype);
+
+        // Wait for the CMP signal
+        #ifndef LINUX
+            Sleep(50);
+        #else
+            usleep(50);
+        #endif
+        
+        // Read the CMP signal and ensure it's correct
+        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETCIC)
+            terminate("Received wrong CMPlete CIC signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
     }
 
     // Set Savetype
@@ -285,6 +309,18 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
     {
         device_sendcmd_64drive(cart, DEV_CMD_SETSAVE, false, NULL, 1, global_savetype, 0);
         pdprint("Save type set to %d.\n", CRDEF_PROGRAM, global_savetype);
+
+        // Wait for the CMP signal
+        #ifndef LINUX
+            Sleep(50);
+        #else
+            usleep(50);
+        #endif
+        
+        // Read the CMP signal and ensure it's correct
+        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_SETSAVE)
+            terminate("Received wrong CMPlete Save signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
     }
 
     // Decide a better, more optimized chunk size
@@ -353,8 +389,17 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
             terminate("64Drive timed out.");
         }
 
-        // Ignore the success response
-        cart->status = FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        // Wait for the CMP signal
+        #ifndef LINUX
+            Sleep(50);
+        #else
+            usleep(50);
+        #endif
+
+        // Read the CMP signal and ensure it's correct
+        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
+        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != DEV_CMD_LOADRAM)
+            terminate("Received wrong CMPlete load signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
 
         // Keep track of how many bytes were uploaded
         bytes_left -= bytes_do;
@@ -363,31 +408,6 @@ void device_sendrom_64drive(ftdi_context_t* cart, FILE *file, u32 size)
 
         // Draw the progress bar
         progressbar_draw("Uploading ROM (ESC to cancel)", CRDEF_PROGRAM, (float)bytes_done/size);
-    }
-
-    // Wait for the CMP signal
-    #ifndef LINUX
-        Sleep(50);
-    #else
-        usleep(50);
-    #endif
-
-    // Read the incoming CMP signals to ensure everything's fine
-    FT_GetQueueStatus(cart->handle, &cmps);
-    while (cmps > 0)
-    {
-        // Read the CMP signal and ensure it's correct
-        FT_Read(cart->handle, rom_buffer, 4, &cart->bytes_read);
-        if (rom_buffer[0] != 'C' || rom_buffer[1] != 'M' || rom_buffer[2] != 'P' || rom_buffer[3] != 0x20)
-            terminate("Received wrong CMPlete signal: %c %c %c %02x.", rom_buffer[0], rom_buffer[1], rom_buffer[2], rom_buffer[3]);
-
-        // Wait a little bit before reading the next CMP signal
-        #ifndef LINUX
-            Sleep(50);
-        #else
-            usleep(50);
-        #endif
-        FT_GetQueueStatus(cart->handle, &cmps);
     }
 
     // Print that we've finished
