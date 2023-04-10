@@ -150,7 +150,7 @@ while true; do
                 echo -e -n ${ColorOff}
                 echo "udev rules updated. Reloading..."
                 sudo udevadm control --reload-rules && udevadm trigger > /dev/null 2>&1
-                echo "Done! If your flashcart is plugged in, you might need to plug it out and back in."
+                echo "Done!"
             fi
             break;;
         [Nn]* ) break;;
