@@ -312,7 +312,7 @@ bool device_testdebug_everdrive(ftdi_context_t* cart)
 
 void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u32 size)
 {
-    int newsize = size + (2 - ((size%2 == 0) ? 2 : size%2));
+    int newsize = global_protocolversion == 1 ? ALIGN(size, 512) : ALIGN(size, 2);
     int left = newsize;
     int read = 0;
     u32 header = (size & 0xFFFFFF) | (datatype << 24);
@@ -330,7 +330,10 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
     buffer[7] = header & 0xFF;
 
     // Send the DMA message
-    FT_Write(cart->handle, buffer, 8, &cart->bytes_written);
+    if (global_protocolversion == 1)
+        FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
+    else
+        FT_Write(cart->handle, buffer, 8, &cart->bytes_written);
 
     // Upload the data
     memcpy(buffer, data, size);
@@ -383,7 +386,10 @@ void device_senddata_everdrive(ftdi_context_t* cart, int datatype, char* data, u
 
     // Send the CMP signal
     memcpy(buffer, cmp, 4);
-    FT_Write(cart->handle, buffer, 4, &cart->bytes_written);
+    if (global_protocolversion == 1)
+        FT_Write(cart->handle, buffer, 16, &cart->bytes_written);
+    else
+        FT_Write(cart->handle, buffer, 4, &cart->bytes_written);
 
     // Free the data used by the buffer
     free(buffer);

@@ -53,7 +53,7 @@ int     global_termsize[2] = {DEFAULT_TERMROWS, DEFAULT_TERMCOLS};
 int     global_padpos      = 0;
 bool    global_scrolling   = false;
 bool    global_stackprints = true;
-u16     global_protocolversion = 0;
+u16     global_protocolversion = 1;
 
 // Local globals
 static int   local_flashcart = CART_NONE;
