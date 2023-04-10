@@ -28,7 +28,7 @@ https://github.com/buu342/N64-UNFLoader
 // Data header related
 #define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
 
-// Heartbeat related
+// Protocol related
 #define USBPROTOCOL_VERSION 2
 #define HEARTBEAT_VERSION   1
 
@@ -558,9 +558,13 @@ char usb_getcart(void)
 /*==============================
     usb_sendheartbeat
     Sends a heartbeat packet to the PC
+    This is done once automatically at initialization,
+    but can be called manually to ensure that the
+    host side tool is aware of the current USB protocol
+    version.
 ==============================*/
 
-static void usb_sendheartbeat()
+void usb_sendheartbeat()
 {
     u8 buffer[4];
 

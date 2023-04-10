@@ -120,4 +120,16 @@
     
     extern void usb_purge();
 
+
+    /*==============================
+        usb_sendheartbeat
+        Sends a heartbeat packet to the PC
+        This is done once automatically at initialization,
+        but can be called manually to ensure that the
+        host side tool is aware of the current USB protocol
+        version.
+    ==============================*/
+
+    extern void usb_sendheartbeat();
+
 #endif
