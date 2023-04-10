@@ -406,7 +406,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     byte     buffer[16];
     uint32_t header;
-    uint32_t newsize = ALIGN(size, 2);
+    uint32_t newsize = device_getprotocol() == PROTOCOL_VERSION2 ? ALIGN(size, 2) : ALIGN(size, 512);
     byte*    datacopy = NULL;
     uint32_t bytes_done = 0;
     uint32_t bytes_left = newsize;
@@ -425,6 +425,13 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     // Send the DMA message
     if (FT_Write(fthandle->handle, buffer, 8, &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
+
+    // Handle old protocol (doesn't matter what we sent, just needs to make the DMA message 16 bytes aligned)
+    if (device_getprotocol() == PROTOCOL_VERSION1)
+    {
+        if (FT_Write(fthandle->handle, buffer, 8, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+    }
 
     // Copy the data onto a temp variable
     datacopy = (byte*) calloc(newsize, 1);
@@ -454,6 +461,13 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     if (FT_Write(fthandle->handle, buffer, 4, &fthandle->bytes_written) != FT_OK)
         return DEVICEERR_WRITEFAIL;
 
+    // Handle old protocol (doesn't matter what we sent, just needs to make the CMP message 16 bytes aligned)
+    if (device_getprotocol() == PROTOCOL_VERSION1)
+    {
+        if (FT_Write(fthandle->handle, buffer, 12, &fthandle->bytes_read) != FT_OK)
+            return DEVICEERR_READFAIL;
+    }
+
     // Free used up resources
     device_setuploadprogress(100.0f);
     free(datacopy);
@@ -477,6 +491,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
 {
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
     DWORD size;
+    uint32_t alignment = device_getprotocol() == PROTOCOL_VERSION2 ? 2 : 16;
 
     // First, check if we have data to read
     if (FT_GetQueueStatus(fthandle->handle, &size) != FT_OK)
@@ -530,10 +545,10 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         totalread += fthandle->bytes_read;
 
         // Ensure 2 byte alignment by reading X amount of bytes needed
-        if (totalread % 2 != 0)
+        if (totalread % alignment != 0)
         {
-            byte tempbuff[2];
-            int left = 2 - (totalread % 2);
+            byte tempbuff[alignment];
+            int left = alignment - (totalread % alignment);
             if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
         }

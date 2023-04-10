@@ -51,8 +51,7 @@
     } USBDataType;
 
     typedef enum {
-        PROTOCOL_UNKNOWN    = 0x00,
-        PROTOCOL_VERSION1   = 0x01, // Unused
+        PROTOCOL_VERSION1   = 0x00, 
         PROTOCOL_VERSION2   = 0x02,
     } ProtocolVer;
 

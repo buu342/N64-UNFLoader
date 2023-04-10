@@ -69,7 +69,7 @@ void device_initialize()
     local_cart.carttype = CART_NONE;
     local_cart.cictype  = CIC_NONE;
     local_cart.savetype = SAVE_NONE;
-    local_cart.protocol = PROTOCOL_UNKNOWN;
+    local_cart.protocol = PROTOCOL_VERSION1;
 }
 
 
