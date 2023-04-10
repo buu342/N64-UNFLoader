@@ -547,10 +547,11 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         // Ensure 2 byte alignment by reading X amount of bytes needed
         if (totalread % alignment != 0)
         {
-            byte tempbuff[alignment];
+            byte* tempbuff = (byte*)malloc(alignment*sizeof(byte));
             int left = alignment - (totalread % alignment);
             if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
                 return DEVICEERR_READFAIL;
+            free(tempbuff);
         }
         device_setuploadprogress(100.0f);
     }
