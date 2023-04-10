@@ -48,7 +48,7 @@
     u32     calc_padsize(u32 size);
     char*   gen_filename();
     #define SWAP(a, b) (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b))) // From https://graphics.stanford.edu/~seander/bithacks.html#SwappingValuesXOR
-    #define ALIGN(s, align) (((uint32_t)(s) + ((align)-1)) & ~((align)-1))
+    #define ALIGN(s, align) (((u32)(s) + ((align)-1)) & ~((align)-1))
     u32     romhash(u8 *buff, u32 len);
     s16     cic_from_hash(u32 hash);
     void    handle_timeout();
