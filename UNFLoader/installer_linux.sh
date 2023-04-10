@@ -70,7 +70,7 @@ echo
 echo -n -e ${Green}
 echo "Now, I would like to install udev rules."
 echo "This will allow you to run UNFLoader without needing to call sudo, and without needing to explicitly unbind the ftdi_sio driver."
-echo "The udev rules will be setup for this user only (${USERNAME}}."
+echo "The udev rules will be setup for this user only (${USERNAME})."
 while true; do
     UDEVUPDATED=false
     read -p "Would you like to setup udev rules? (y/n) " yn
