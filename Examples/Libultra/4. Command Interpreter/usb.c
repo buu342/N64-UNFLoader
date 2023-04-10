@@ -241,10 +241,10 @@ static s8 usb_cart = CART_NONE;
 static u8 usb_buffer_align[BUFFER_SIZE+16]; // IDO doesn't support GCC's __attribute__((aligned(x))), so this is a workaround
 static u8* usb_buffer;
 static char usb_didtimeout = FALSE;
-int usb_datatype = 0;
-int usb_datasize = 0;
-int usb_dataleft = 0;
-int usb_readblock = -1;
+static int usb_datatype = 0;
+static int usb_datasize = 0;
+static int usb_dataleft = 0;
+static int usb_readblock = -1;
 
 #ifndef LIBDRAGON
     // Message globals
