@@ -887,6 +887,8 @@ https://github.com/buu342/N64-UNFLoader
             switch (threadMsg->msgtype)
             {
                 case MSG_WRITE:
+                    if (usb_timedout)
+                        usb_sendheartbeat();
                     usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
                     break;
             }

@@ -79,6 +79,13 @@ void usb_rewind(int nbytes);
 void usb_purge();
 
 /*==============================
+    usb_timedout
+    Checks if the USB timed out recently
+    @return 1 if the USB timed out, 0 if not
+==============================*/
+extern char usb_timedout();
+
+/*==============================
     usb_sendheartbeat
     Sends a heartbeat packet to the PC
     This is done once automatically at initialization,
