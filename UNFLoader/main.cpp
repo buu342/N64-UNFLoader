@@ -351,7 +351,7 @@ static void program_loop()
         log_simple("Attempting flashcart autodetection\n");
     handle_deviceerror(device_find());
     if (autocart)
-        log_simple("%s autodetected\n", cart_typetostr(device_getcart()));
+        log_replace("%s autodetected\n", CRDEF_PROGRAM, cart_typetostr(device_getcart()));
 
     // Explicit CIC checking
     if (device_getrom() != NULL && device_explicitcic())
