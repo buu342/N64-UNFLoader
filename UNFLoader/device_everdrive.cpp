@@ -326,7 +326,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         bytes_done += bytes_do;
     }
 
-    // Wait for the CMP signal
+    // Sleep for a bit before sending the PIF command (the delay is needed)
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     // Return an error if the upload was cancelled
