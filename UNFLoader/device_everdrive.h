@@ -12,7 +12,7 @@
     DeviceError device_open_everdrive(CartDevice* cart);
     DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size);
     uint32_t    device_maxromsize_everdrive();
-    bool        device_shouldpadrom_everdrive();
+    uint32_t    device_rompadding_everdrive(uint32_t romsize);
     bool        device_explicitcic_everdrive(byte* bootcode);
     DeviceError device_testdebug_everdrive(CartDevice* cart);
     DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size);

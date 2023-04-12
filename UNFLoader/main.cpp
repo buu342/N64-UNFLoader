@@ -412,8 +412,8 @@ static void program_loop()
                 log_simple("ROM is smaller than 1MB, it might not boot properly.\n");
             if (filesize > device_getmaxromsize())
                 terminate("The %s only supports ROMs up to %d bytes.", cart_typetostr(device_getcart()), device_getmaxromsize());
-            if (device_shouldpadrom() && filesize != calc_padsize(filesize/(1024*1024))*1024*1024)
-                log_simple("ROM will be padded to %dMB\n", calc_padsize(filesize)/(1024*1024));
+            if (device_rompadding(filesize) != filesize)
+                log_simple("ROM will be padded by %d bytes to %dMB\n", device_rompadding(filesize) - filesize, device_rompadding(filesize)/(1024*1024));
 
             // Upload the ROM
             increment_escapelevel();

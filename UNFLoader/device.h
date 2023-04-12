@@ -129,7 +129,7 @@
     DeviceError device_find();
     DeviceError device_open();
     uint32_t    device_getmaxromsize();
-    bool        device_shouldpadrom();
+    uint32_t    device_rompadding(uint32_t romsize);
     bool        device_explicitcic();
     bool        device_isopen();
     DeviceError device_testdebug();

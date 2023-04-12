@@ -151,17 +151,17 @@ uint32_t device_maxromsize_everdrive()
 
 
 /*==============================
-    device_shouldpadrom_everdrive
-    Checks if the ROM should be
-    padded before uploading on the
-    EverDrive.
-    @return Whether or not to pad
-            the ROM.
+    device_rompadding_everdrive
+    Calculates the correct ROM size 
+    for uploading on the 64Drive
+    @param  The current ROM size
+    @return The correct ROM size 
+            for uploading.
 ==============================*/
 
-bool device_shouldpadrom_everdrive()
+uint32_t device_rompadding_everdrive(uint32_t romsize)
 {
-    return false;
+    return ALIGN(romsize, 512);
 }
 
 

@@ -423,17 +423,17 @@ uint32_t device_maxromsize_sc64()
 }
 
 /*==============================
-    device_shouldpadrom_sc64
-    Checks if the ROM should be
-    padded before uploading on the
-    SC64.
-    @return Whether or not to pad
-            the ROM.
+    device_rompadding_sc64
+    Calculates the correct ROM size 
+    for uploading on the SC64
+    @param  The current ROM size
+    @return The correct ROM size 
+            for uploading.
 ==============================*/
 
-bool device_shouldpadrom_sc64()
+uint32_t device_rompadding_sc64(uint32_t romsize)
 {
-    return false;
+    return romsize;
 }
 
 /*==============================

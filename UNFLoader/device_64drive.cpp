@@ -140,22 +140,25 @@ uint32_t device_maxromsize_64drive()
 
 
 /*==============================
-    device_shouldpadrom_64drive
-    Checks if the ROM should be
-    padded before uploading on the
-    64Drive.
-    @return Whether or not to pad
-            the ROM.
+    device_rompadding_64drive
+    Calculates the correct ROM size 
+    for uploading on the 64Drive
+    @param  The current ROM size
+    @return The correct ROM size 
+            for uploading.
 ==============================*/
 
-bool device_shouldpadrom_64drive()
+uint32_t device_rompadding_64drive(uint32_t romsize)
 {
     // While the 64Drive does not need ROMs to be padded,
     // there is a firmware bug which causes the last few
     // bytes to get corrupted. This was not fun to debug...
     // Since the 64Drive is super fast at uploading, it 
     // doesn't hurt to pad the ROM.
-    return true;
+    // The last 512 bytes like to get corrupted, so we need to add
+    // 512 bytes as a safety buffer
+    uint32_t newsize = ALIGN(romsize, 512) + 512;
+    return newsize > device_maxromsize_64drive() ? ALIGN(romsize, 512) : newsize;
 }
 
 

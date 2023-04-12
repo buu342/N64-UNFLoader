@@ -25,7 +25,7 @@ Passes flashcart communication to more specific functions
 DeviceError (*funcPointer_open)(CartDevice*);
 DeviceError (*funcPointer_sendrom)(CartDevice*, byte* rom, uint32_t size);
 DeviceError (*funcPointer_testdebug)(CartDevice*);
-bool        (*funcPointer_shouldpadrom)();
+uint32_t    (*funcPointer_rompadding)(uint32_t romsize);
 bool        (*funcPointer_explicitcic)(byte* bootcode);
 uint32_t    (*funcPointer_maxromsize)();
 DeviceError (*funcPointer_senddata)(CartDevice*, USBDataType datatype, byte* data, uint32_t size);
@@ -143,7 +143,7 @@ static void device_set_64drive1(CartDevice* cart)
     // Set function pointers
     funcPointer_open = &device_open_64drive;
     funcPointer_maxromsize = &device_maxromsize_64drive;
-    funcPointer_shouldpadrom = &device_shouldpadrom_64drive;
+    funcPointer_rompadding = &device_rompadding_64drive;
     funcPointer_explicitcic = &device_explicitcic_64drive;
     funcPointer_sendrom = &device_sendrom_64drive;
     funcPointer_testdebug = &device_testdebug_64drive;
@@ -183,7 +183,7 @@ static void device_set_everdrive(CartDevice* cart)
     // Set function pointers
     funcPointer_open = &device_open_everdrive;
     funcPointer_maxromsize = &device_maxromsize_everdrive;
-    funcPointer_shouldpadrom = &device_shouldpadrom_everdrive;
+    funcPointer_rompadding = &device_rompadding_everdrive;
     funcPointer_explicitcic = &device_explicitcic_everdrive;
     funcPointer_sendrom = &device_sendrom_everdrive;
     funcPointer_testdebug = &device_testdebug_everdrive;
@@ -208,7 +208,7 @@ static void device_set_sc64(CartDevice* cart)
     // Set function pointers
     funcPointer_open = &device_open_sc64;
     funcPointer_maxromsize = &device_maxromsize_sc64;
-    funcPointer_shouldpadrom = &device_shouldpadrom_sc64;
+    funcPointer_rompadding = &device_rompadding_sc64;
     funcPointer_explicitcic = &device_explicitcic_sc64;
     funcPointer_sendrom = &device_sendrom_sc64;
     funcPointer_testdebug = &device_testdebug_sc64;
@@ -256,16 +256,15 @@ uint32_t device_getmaxromsize()
 
 
 /*==============================
-    device_shouldpadrom
-    Checks whether the flashcart requires
-    that the ROM be padded to the nearest
-    power of two.
-    @param Whether to pad the ROM or not.
+    device_rompadding
+    Calculates the correct ROM size for uploading
+    @param  The current ROM size
+    @return The correct ROM size for uploading.
 ==============================*/
 
-bool device_shouldpadrom()
+uint32_t device_rompadding(uint32_t romsize)
 {
-    return funcPointer_shouldpadrom();
+    return funcPointer_rompadding(romsize);
 }
 
 
@@ -319,8 +318,7 @@ DeviceError device_sendrom(FILE* rom, uint32_t filesize)
     local_uploadprogress = 0.0f;
 
     // Pad the ROM if necessary
-    if (funcPointer_shouldpadrom() && filesize != calc_padsize(filesize))
-        filesize = calc_padsize(filesize);
+    filesize = funcPointer_rompadding(filesize);
 
     // Check we managed to malloc
     rom_buffer = (byte*) malloc(sizeof(byte)*filesize);

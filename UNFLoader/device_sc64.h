@@ -11,7 +11,7 @@
     DeviceError device_test_sc64(CartDevice* cart);
     DeviceError device_open_sc64(CartDevice* cart);
     uint32_t    device_maxromsize_sc64();
-    bool        device_shouldpadrom_sc64();
+    uint32_t    device_rompadding_sc64(uint32_t romsize);
     bool        device_explicitcic_sc64(byte* bootcode);
     DeviceError device_sendrom_sc64(CartDevice* cart, byte* rom, uint32_t size);
     DeviceError device_testdebug_sc64(CartDevice* cart);

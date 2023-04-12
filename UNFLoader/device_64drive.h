@@ -39,7 +39,7 @@
     DeviceError device_open_64drive(CartDevice* cart);
     DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size);
     uint32_t    device_maxromsize_64drive();
-    bool        device_shouldpadrom_64drive();
+    uint32_t    device_rompadding_64drive(uint32_t romsize);
     bool        device_explicitcic_64drive(byte* bootcode);
     DeviceError device_testdebug_64drive(CartDevice* cart);
     DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size);
