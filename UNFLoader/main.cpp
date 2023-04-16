@@ -290,6 +290,9 @@ static void parse_args(std::list<char*>* args)
             case 'm': // Allow message stacking
                 term_allowinput(false);
                 break;
+            case 'p':
+                global_badpackets = false;
+                break;
             default:
                 if (device_getrom() == NULL)
                 {
