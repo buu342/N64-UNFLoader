@@ -10,6 +10,7 @@
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 set ROOT=C:\ultra
+set OUTFOLDER=%CD%\out\
 set FILE=disassembly.txt
 
 
@@ -26,14 +27,17 @@ for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1)
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 set CURD=%CD%
-
-cd out
+set DUMP=
+cd %OUTFOLDER% > nul 2> nul
 for %%f in (*.out) do (
-    	if "%%~xf"==".out" (
+    if "%%~xf"==".out" (
 		set DUMP=%%f
 	)
 )
-
+IF "%DUMP%"=="" (
+    echo ERROR: .out file not found
+    goto Finish
+)
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 ::                     Dump the file to a text document                         ::
@@ -45,12 +49,19 @@ if not exist %ROOT% (
     goto Finish
 )
 
-move %DUMP% %ROOT%\GCC\MIPSE\BIN
-cd %ROOT%\GCC\MIPSE\BIN
-objdump --disassemble-all --source  --wide --all-header --line-numbers %DUMP% >%FILE%
-move disassembly.txt %CURD%
-move %DUMP% %CURD%\out\bin
+set PATH=%ROOT%\GCC\MIPSE\BIN\
+FOR %%i IN ("%DUMP%") DO (
+    set DUMPNAME=%%~ni.out
+)
+
+copy /Y %DUMP% %PATH% >NUL
+cd /d %PATH%
+objdump --disassemble-all --source  --wide --all-header --line-numbers %DUMPNAME% > %FILE%
+del %DUMPNAME%
+copy /Y %FILE% %CURD% >NUL
+del %FILE%
 
 echo Dumped %FILE% to %CURD%
 
+:Finish
 pause
