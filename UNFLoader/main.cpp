@@ -200,7 +200,7 @@ static void parse_args(std::list<char*>* args)
         char* command = (*it);
 
         // Only allow valid command formats
-        if (command[0] != '-' || command[1] == '\0')
+        if ((command[0] != '-' || command[1] == '\0') && device_getrom() != NULL)
             terminate("Unknown command '%s'", command);
 
         // Handle the rest of the commands
@@ -296,11 +296,8 @@ static void parse_args(std::list<char*>* args)
             default:
                 if (device_getrom() == NULL)
                 {
-                    if (nextarg_isvalid(it, args))
-                    {
-                        if (!device_setrom(*it))
-                            terminate("'%s' is not a file.", *it);
-                    }
+                    if (!device_setrom(*it))
+                        terminate("'%s' is not a file.", *it);
                 }
                 else
                     terminate("Unknown command '%s'", command);
@@ -384,10 +381,18 @@ static void program_loop()
         if (device_getrom() != NULL)
             newmodtime = file_lastmodtime(device_getrom());
 
-        // If we have a ROM, upload it
-        if (device_getrom() != NULL && (firstupload || (local_listenmode && lastmodtime != newmodtime) || local_reupload))
+        // Listen mode
+        if (!firstupload && local_listenmode && lastmodtime != newmodtime)
         {
-            FILE* fp;
+            log_simple("ROM change detected. Reuploading.\n");
+            local_reupload = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        // If we have a ROM, upload it
+        if (device_getrom() != NULL && (firstupload || local_reupload))
+        {
+            FILE* fp = NULL;
             uint64_t uploadtime;
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
             local_reupload = false;
@@ -469,12 +474,14 @@ static void program_loop()
                 log_simple("\n");
                 if (term_isusingcurses())
                 {
-                    log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
+                    if (device_getrom() != NULL)
+                        log_colored("Press CTRL+R to force a reupload. ", CRDEF_INPUT);
                     log_colored("Press ESC to exit.\n\n", CRDEF_INPUT);
                 }
                 else
                 {
-                    log_simple("Type 'reupload' to force a reupload. ");
+                    if (device_getrom() != NULL)
+                        log_simple("Type 'reupload' to force a reupload. ");
                     log_simple("Type 'exit' to exit.\n-----------------------------\n\n");
                 }
             }
