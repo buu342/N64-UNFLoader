@@ -1167,6 +1167,7 @@ https://github.com/buu342/N64-UNFLoader
                     {
                         case RDB_PACKETHEADER_BREAKPOINT:
                             debug_breakpoint_toggle();
+                            usb_purge();
                             break;
                         case RDB_PACKETHEADER_CONTINUE:
                         {
@@ -1207,12 +1208,14 @@ https://github.com/buu342/N64-UNFLoader
                             
                             // We can now break out of the while loop
                             loop = FALSE;
+                            usb_purge();
                             break;
                         }
                         default:
                             usb_purge();
                             break;
                     }
+                
                 }
                 else
                     usb_purge();
