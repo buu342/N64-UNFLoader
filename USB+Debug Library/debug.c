@@ -1095,7 +1095,7 @@ https://github.com/buu342/N64-UNFLoader
                 for (i=0; i<BPOINT_COUNT; i++)
                 {
                     if (debug_bpoints[i].addr == NULL)
-                    {
+                    {                    
                         // The USB packet contains two addresses, the first address is the one we want to breakpoint at
                         // The second address is the address of the instruction that comes after it. This will be of use later
                         debug_bpoints[i].addr = addr1;
@@ -1152,6 +1152,7 @@ https://github.com/buu342/N64-UNFLoader
         static inline void debug_rdb_main()
         {
             char loop = TRUE;
+            usb_purge();
             
             // Loop until a continue command is received from USB
             while (loop)
@@ -1172,14 +1173,18 @@ https://github.com/buu342/N64-UNFLoader
                         case RDB_PACKETHEADER_CONTINUE:
                         {
                             // Since a breakpoint is an exception, I can just grab the faulted thread's PC value to get the breakpoint
-                            u32 nexti;
+                            u32 nexti, *addr, index;
                             OSThread* thread = (OSThread *)__osGetCurrFaultedThread();
-                            __OSThreadContext* context = &thread->context;
-                            int index = GET_BREAKPOINT_INDEX(context->pc);
-                            bPoint* point = &debug_bpoints[index];
+                            __OSThreadContext* context;
+                            bPoint* point;
+                            
+                            // TODO: Investigate what is going on here
+                            
+                            context = &thread->context;
+                            index = GET_BREAKPOINT_INDEX(context->pc);
                             
                             // Set the breakpoint instruction back to what it was originally
-                            u32* addr = point->addr;
+                            addr = point->addr;
                             *addr = point->instruction;
                             osWritebackDCache(addr, 4);
                             osInvalICache(addr, 4);
@@ -1208,17 +1213,13 @@ https://github.com/buu342/N64-UNFLoader
                             
                             // We can now break out of the while loop
                             loop = FALSE;
-                            usb_purge();
                             break;
                         }
                         default:
-                            usb_purge();
                             break;
                     }
-                
                 }
-                else
-                    usb_purge();
+                usb_purge();
             }            
         }
         

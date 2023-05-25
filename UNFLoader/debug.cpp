@@ -505,14 +505,15 @@ bool debug_rdbcommands(char* data)
 {
     if (strncmp(data, "break", strlen("break")) == 0)
     {
-        int addr;
+        long addr;
         char* token;
         SendData* mesg = (SendData*)malloc(sizeof(SendData));
         if (mesg == NULL)
             terminate("Unable to malloc message for debug send.");
         mesg->type = DATATYPE_RDBPACKET;
         mesg->original = (char*)malloc(strlen(data));
-        mesg->data = (byte*)malloc(10);
+        mesg->size = 10;
+        mesg->data = (byte*)malloc(mesg->size);
         if (mesg->original == NULL || mesg->data == NULL)
             terminate("Unable to malloc message for debug send.");
         strcpy(mesg->original, data);
@@ -525,34 +526,34 @@ bool debug_rdbcommands(char* data)
             free(mesg);
             free(mesg->original);
             free(mesg->data);
-            return false;
+            return true;
         }
 
         // First address
-        token = strtok(NULL, data);
+        token = strtok(NULL, " ");
         if (token == NULL)
         {
             free(mesg);
             free(mesg->original);
             free(mesg->data);
-            return false;
+            return true;
         }
-        addr = swap_endian(strtol(token, NULL, 16));
+        addr = swap_endian(strtoul(token, NULL, 16));
         mesg->data[1] = (addr >> 24) & 0xFF;
         mesg->data[2] = (addr >> 16) & 0xFF;
         mesg->data[3] = (addr >> 8) & 0xFF;
         mesg->data[4] = addr & 0xFF;
 
         // Second address
-        token = strtok(NULL, data);
+        token = strtok(NULL, " ");
         if (token == NULL)
         {
             free(mesg);
             free(mesg->original);
             free(mesg->data);
-            return false;
+            return true;
         }
-        addr = swap_endian(strtol(token, NULL, 16));
+        addr = swap_endian(strtoul(token, NULL, 16));
         mesg->data[5] = (addr >> 24) & 0xFF;
         mesg->data[6] = (addr >> 16) & 0xFF;
         mesg->data[7] = (addr >> 8) & 0xFF;
@@ -571,8 +572,9 @@ bool debug_rdbcommands(char* data)
         if (mesg == NULL)
             terminate("Unable to malloc message for debug send.");
         mesg->type = DATATYPE_RDBPACKET;
+        mesg->size = 2;
         mesg->original = (char*)malloc(strlen(data));
-        mesg->data = (byte*)malloc(1);
+        mesg->data = (byte*)malloc(mesg->size);
         if (mesg->original == NULL || mesg->data == NULL)
             terminate("Unable to malloc message for debug send.");
         strcpy(mesg->original, data);
