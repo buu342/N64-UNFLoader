@@ -40,8 +40,8 @@ https://github.com/buu342/N64-UNFLoader
     #define BUFFER_SIZE    256
     #define BPOINT_COUNT   10
     
-    #define MAKE_BREAKPOINT_INDEX(a) (0x0000000D | ((a) << 6))
-    #define GET_BREAKPOINT_INDEX(a)  ((((a) >> 6) & 0x0000FFFF) - 1)
+    #define MAKE_BREAKPOINT_INDEX(indx) (0x0000000D | ((indx) << 6))
+    #define GET_BREAKPOINT_INDEX(addr)  ((((addr) >> 6) & 0x0000FFFF))
     
     
     /*********************************
@@ -365,7 +365,7 @@ https://github.com/buu342/N64-UNFLoader
         usbMesg msg;
         va_list args;
         
-        // use the internal libultra printf function to format the string
+        // Use the internal libultra printf function to format the string
         va_start(args, message);
         #ifndef LIBDRAGON
             len = _Printf(&printf_handler, debug_buffer, message, args);
@@ -1094,8 +1094,10 @@ https://github.com/buu342/N64-UNFLoader
                 // Find an empty slot in our breakpoint array and store the breakpoint info there
                 for (i=0; i<BPOINT_COUNT; i++)
                 {
+                    if (debug_bpoints[i].addr == addr1) // No need to re-add the bp if it already exists
+                        return;
                     if (debug_bpoints[i].addr == NULL)
-                    {                    
+                    {
                         // The USB packet contains two addresses, the first address is the one we want to breakpoint at
                         // The second address is the address of the instruction that comes after it. This will be of use later
                         debug_bpoints[i].addr = addr1;
@@ -1115,7 +1117,7 @@ https://github.com/buu342/N64-UNFLoader
             }
             else
             {
-                int index = GET_BREAKPOINT_INDEX(*addr1);
+                int index = GET_BREAKPOINT_INDEX(*addr1)-1;
                 
                 // Ensure the address has a valid breakpoint
                 if (debug_bpoints[index].addr == addr1)
@@ -1174,14 +1176,21 @@ https://github.com/buu342/N64-UNFLoader
                         {
                             // Since a breakpoint is an exception, I can just grab the faulted thread's PC value to get the breakpoint
                             u32 nexti, *addr, index;
-                            OSThread* thread = (OSThread *)__osGetCurrFaultedThread();
-                            __OSThreadContext* context;
+                            OSThread* thread = __osGetActiveQueue();
                             bPoint* point;
                             
-                            // TODO: Investigate what is going on here
-                            
-                            context = &thread->context;
-                            index = GET_BREAKPOINT_INDEX(context->pc);
+                            // Find which thread faulted
+                            while (thread->tlnext != NULL)
+                            {
+                                u32 inst = *(u32*)thread->context.pc;
+                                if ((inst & 0xFC00003F) == 0x0000000D)
+                                {
+                                    index = GET_BREAKPOINT_INDEX(inst);
+                                    point = &debug_bpoints[index-1];
+                                    break;
+                                }
+                                thread = thread->tlnext;
+                            }
                             
                             // Set the breakpoint instruction back to what it was originally
                             addr = point->addr;
@@ -1192,13 +1201,12 @@ https://github.com/buu342/N64-UNFLoader
                             // Because we're gonna have to put the breakpoint back after the original instruction is run,
                             // We're gonna set the address after it to a second breakpoint
                             nexti = (*point->next_addr);
-                            (*point->next_addr) = MAKE_BREAKPOINT_INDEX(index+1);
+                            (*point->next_addr) = MAKE_BREAKPOINT_INDEX(index);
                             osWritebackDCache(point->next_addr, 4);
                             osInvalICache(point->next_addr, 4);
-                            //context->pc--;
                             
                             // Now yield the thread until that second breakpoint is hit
-                            osRecvMesg(&faultMessageQ, NULL, OS_MESG_BLOCK);
+                            osRecvMesg(&usbMessageQ, NULL, OS_MESG_BLOCK);
                             
                             // If we're here, the second breakpoint was hit. Let's turn it back to what it was originally
                             (*point->next_addr) = nexti;
@@ -1206,10 +1214,9 @@ https://github.com/buu342/N64-UNFLoader
                             osInvalICache(point->next_addr, 4);
                             
                             // Restore the original breakpoint
-                            (*point->addr) = MAKE_BREAKPOINT_INDEX(index+1);
+                            (*point->addr) = MAKE_BREAKPOINT_INDEX(index);
                             osWritebackDCache(point->addr, 4);
                             osInvalICache(point->addr, 4);
-                            //context->pc--;
                             
                             // We can now break out of the while loop
                             loop = FALSE;
@@ -1220,7 +1227,7 @@ https://github.com/buu342/N64-UNFLoader
                     }
                 }
                 usb_purge();
-            }            
+            }
         }
         
     #endif
