@@ -1129,8 +1129,11 @@ https://github.com/buu342/N64-UNFLoader
                                     debug_rdb_togglebpoint();
                                     break;
                                 case RDB_PACKETHEADER_CONTINUE:
-                                    debug_rdb_continue();
-                                    loop = FALSE;
+                                    if (loop)
+                                    {
+                                        debug_rdb_continue();
+                                        loop = FALSE;
+                                    }
                                     break;
                                 default:
                                     break;
@@ -1229,7 +1232,6 @@ https://github.com/buu342/N64-UNFLoader
             
             static inline void debug_rdb_continue()
             {
-                // Since a breakpoint is an exception, I can just grab the faulted thread's PC value to get the breakpoint
                 u32 nexti, *addr, index;
                 OSThread* thread = __osGetActiveQueue();
                 bPoint* point;
