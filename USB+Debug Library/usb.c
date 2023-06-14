@@ -1175,10 +1175,10 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
 
 static u32 usb_everdrive_poll(void)
 {
-    int   len;
-    int   offset = 0;
-    char  buffaligned[32];
-    char* buff = (char*)OS_DCACHE_ROUNDUP_ADDR(buffaligned);
+    int len;
+    int offset = 0;
+    unsigned char  buffaligned[32];
+    unsigned char* buff = (unsigned char*)OS_DCACHE_ROUNDUP_ADDR(buffaligned);
     
     // Wait for the USB to be ready
     if (usb_everdrive_usbbusy())
@@ -1194,8 +1194,8 @@ static u32 usb_everdrive_poll(void)
         return 0;
         
     // Store information about the incoming data
-    usb_datatype = (int)buff[4];
-    usb_datasize = (int)buff[5]<<16 | (int)buff[6]<<8 | (int)buff[7]<<0;
+    usb_datatype = buff[4];
+    usb_datasize = (buff[5] << 16) | (buff[6] << 8) | (buff[7] << 0);
     usb_dataleft = usb_datasize;
     usb_readblock = -1;
     
