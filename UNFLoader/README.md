@@ -25,7 +25,7 @@ This folder holds the source code for the UNFLoader program itself. This readme 
 <p>
     
 * Ubuntu (Haven't tested with others)
-* Run the included `install_linux.sh` script to set up everything for you. If you are unable to launch the script, remember to mark it as executable.
+* Run the included `installer_linux.sh` script to set up everything for you. If you are unable to launch the script, remember to mark it as executable.
 
 If you do not wish to run the script, then you must:
 * [Get the relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
