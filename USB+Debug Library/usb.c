@@ -26,7 +26,7 @@ https://github.com/buu342/N64-UNFLoader
 #define DEBUG_ADDRESS (0x04000000 - DEBUG_ADDRESS_SIZE) // Put the debug area at the 64MB - DEBUG_ADDRESS_SIZE area in ROM space
 
 // Data header related
-#define USBHEADER_CREATE(type, left) (((type<<24) | (left & 0x00FFFFFF)))
+#define USBHEADER_CREATE(type, left) ((((type)<<24) | ((left) & 0x00FFFFFF)))
 
 // Protocol related
 #define USBPROTOCOL_VERSION 2
@@ -233,8 +233,8 @@ static void usb_sc64_read(void);
 
 // Function pointers
 void (*funcPointer_write)(int datatype, const void* data, int size);
-u32  (*funcPointer_poll)();
-void (*funcPointer_read)();
+u32  (*funcPointer_poll)(void);
+void (*funcPointer_read)(void);
 
 // USB globals
 static s8 usb_cart = CART_NONE;
@@ -651,7 +651,7 @@ void usb_read(void* buffer, int nbytes)
         }
         
         // Copy from the USB buffer to the supplied buffer
-        memcpy(buffer+read, usb_buffer+copystart, block);
+        memcpy((void*)((uintptr_t)buffer+read), usb_buffer+copystart, block);
         
         // Increment/decrement all our counters
         read += block;
@@ -729,7 +729,7 @@ char usb_timedout()
     version.
 ==============================*/
 
-void usb_sendheartbeat()
+void usb_sendheartbeat(void)
 {
     u8 buffer[4];
 
@@ -951,7 +951,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         usb_dma_write(usb_buffer, pi_address, ALIGN(block, 2));
 
         // Update pointers and variables
-        data += block;
+        data = (void*)((uintptr_t)data + block);
         left -= block;
         pi_address += block;
     }
@@ -1362,7 +1362,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         usb_dma_write(usb_buffer, pi_address, ALIGN(block, 2));
 
         // Update pointers and variables
-        data += block;
+        data = (void*)((uintptr_t)data + block);
         left -= block;
         pi_address += block;
     }
