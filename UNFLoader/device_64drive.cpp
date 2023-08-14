@@ -355,8 +355,8 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
     uint32_t chunk;
     byte     cmpbuff[4];
 
-    // Start by setting the CIC
-    if (cart->cictype != CIC_NONE)
+    // Start by setting the CIC if we're running HW2
+    if (cart->carttype != CART_64DRIVE1 && cart->cictype != CIC_NONE)
     {
         DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
