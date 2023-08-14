@@ -163,7 +163,7 @@ uint32_t device_rompadding_64drive(uint32_t romsize)
 
 
 /*==============================
-    device_explicitcic_64drive
+    device_explicitcic_64drive1
     Checks if the 64Drive requires
     explicitly stating the CIC, and
     auto sets it based on the IPL if
@@ -172,7 +172,23 @@ uint32_t device_rompadding_64drive(uint32_t romsize)
     @return Whether the CIC was changed
 ==============================*/
 
-bool device_explicitcic_64drive(byte* bootcode)
+bool device_explicitcic_64drive1(byte* bootcode)
+{
+    return false;
+}
+
+
+/*==============================
+    device_explicitcic_64drive2
+    Checks if the 64Drive requires
+    explicitly stating the CIC, and
+    auto sets it based on the IPL if
+    so
+    @param  The 4KB bootcode
+    @return Whether the CIC was changed
+==============================*/
+
+bool device_explicitcic_64drive2(byte* bootcode)
 {
     device_setcic(cic_from_hash(romhash(bootcode, 4032)));
     return true;
