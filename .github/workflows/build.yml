@@ -46,7 +46,7 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     env:
-      LIBFTD2XX_VERSION: '1.4.8'
+      LIBFTD2XX_VERSION: '1.4.27'
       SOURCES_DIRECTORY: ./UNFLoader
       BUILD_DIRECTORY: ./UNFLoader
 
@@ -58,7 +58,7 @@ jobs:
 
       - name: Download and unzip libftd2xx
         run: |
-          curl -L https://www.ftdichip.com/Drivers/D2XX/Linux/libftd2xx-x86_64-${{ env.LIBFTD2XX_VERSION }}.gz --output libftd2xx.gz
+          curl -L https://ftdichip.com/wp-content/uploads/2022/07/libftd2xx-x86_64-${{ env.LIBFTD2XX_VERSION }}.tgz --output libftd2xx.gz
           mkdir ./libftd2xx
           tar xvzf libftd2xx.gz -C libftd2xx
           
