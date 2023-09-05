@@ -174,6 +174,7 @@ uint32_t device_rompadding_64drive(uint32_t romsize)
 
 bool device_explicitcic_64drive1(byte* bootcode)
 {
+    (void)bootcode; // Workaround unreferenced parameter
     return false;
 }
 
