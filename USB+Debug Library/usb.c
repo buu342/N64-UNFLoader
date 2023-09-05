@@ -1029,6 +1029,7 @@ static char usb_everdrive_usbbusy(void)
         if (usb_timeout_check(timeout, ED_TIMEOUT))
         {
             usb_io_write(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+            usb_didtimeout = TRUE;
             return TRUE;
         }
     }
