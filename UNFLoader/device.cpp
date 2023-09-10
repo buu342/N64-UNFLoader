@@ -15,7 +15,11 @@ Passes flashcart communication to more specific functions
     #include <shlwapi.h>
 #endif
 #include <atomic>
+#ifdef _WIN64
+#pragma comment(lib, "Include/FTD2XX_x64.lib")
+#else
 #pragma comment(lib, "Include/FTD2XX.lib")
+#endif
 
 
 /*********************************
@@ -144,7 +148,7 @@ static void device_set_64drive1(CartDevice* cart)
     funcPointer_open = &device_open_64drive;
     funcPointer_maxromsize = &device_maxromsize_64drive;
     funcPointer_rompadding = &device_rompadding_64drive;
-    funcPointer_explicitcic = &device_explicitcic_64drive;
+    funcPointer_explicitcic = &device_explicitcic_64drive1;
     funcPointer_sendrom = &device_sendrom_64drive;
     funcPointer_testdebug = &device_testdebug_64drive;
     funcPointer_senddata = &device_senddata_64drive;
@@ -164,6 +168,9 @@ static void device_set_64drive2(CartDevice* cart)
 {
     // Do exactly the same as device_set_64drive1
     device_set_64drive1(cart);
+
+    // Now the 64Drive specific changes
+    funcPointer_explicitcic = &device_explicitcic_64drive2;
     cart->carttype = CART_64DRIVE2;
 }
 

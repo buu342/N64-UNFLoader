@@ -341,7 +341,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     // Write the filename of the save file if necessary
     if (cart->savetype != SAVE_NONE)
     {
-        uint32_t i;
+        int32_t  i;
         char*    path = device_getrom();
         uint32_t pathlen = strlen(device_getrom());
         char*    filename = (char*)malloc(pathlen+1);
