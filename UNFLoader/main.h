@@ -43,6 +43,7 @@
 
     extern FILE*   global_debugoutptr;
     extern bool    global_badpackets;
+    extern char*   global_gdbaddr;
     extern std::atomic<bool> global_terminating;
 
 

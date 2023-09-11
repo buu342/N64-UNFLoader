@@ -2,6 +2,7 @@
 #include "main.h"
 #include "term.h"
 #include "helper.h"
+#include "gdbstub.h"
 #pragma warning(push, 0)
     #include "Include/lodepng.h"
 #pragma warning(pop)
@@ -87,6 +88,15 @@ void debug_main()
     // If no ROM was uploaded, assume async, and switch to latest protocol
     if (device_getrom() == NULL)
         device_setprotocol(USBPROTOCOL_LATEST);
+
+    // Connect to GDB
+    if (strlen(global_gdbaddr) > 0 && !gdb_isconnected())
+    {
+        std::thread t;
+        log_colored("Starting GDB server\n", CRDEF_INPUT);
+        t = std::thread(gdb_thread, global_gdbaddr);
+        t.join();
+    }
 
     // Send data to USB if it exists
     while (!local_mesgqueue.empty())
@@ -523,9 +533,9 @@ bool debug_rdbcommands(char* data)
         token = strtok(data, " ");
         if (token == NULL)
         {
-            free(mesg);
             free(mesg->original);
             free(mesg->data);
+            free(mesg);
             return true;
         }
 
@@ -533,9 +543,9 @@ bool debug_rdbcommands(char* data)
         token = strtok(NULL, " ");
         if (token == NULL)
         {
-            free(mesg);
             free(mesg->original);
             free(mesg->data);
+            free(mesg);
             return true;
         }
         addr = swap_endian(strtoul(token, NULL, 16));
@@ -548,9 +558,9 @@ bool debug_rdbcommands(char* data)
         token = strtok(NULL, " ");
         if (token == NULL)
         {
-            free(mesg);
             free(mesg->original);
             free(mesg->data);
+            free(mesg);
             return true;
         }
         addr = swap_endian(strtoul(token, NULL, 16));

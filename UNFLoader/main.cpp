@@ -24,6 +24,9 @@ UNFLoader Entrypoint
 #define PROGRAM_NAME_LONG  "Universal N64 Flashcart Loader"
 #define PROGRAM_NAME_SHORT "UNFLoader"
 #define PROGRAM_GITHUB     "https://github.com/buu342/N64-UNFLoader"
+#define DEFAULT_GDBADDR    "127.0.0.1"
+#define DEFAULT_GDBPORT    "8080"
+#define DEFAULT_GDB        (DEFAULT_GDBADDR ":" DEFAULT_GDBPORT)
 
 
 /*********************************
@@ -47,13 +50,14 @@ static void show_help();
 // Program globals
 FILE* global_debugoutptr = NULL;
 bool  global_badpackets = true;
+char* global_gdbaddr = (char*)"";
 std::atomic<bool> global_terminating (false);
 
 // Local globals
-static bool     local_autodetect = true;
-static bool     local_debugmode  = false;
-static bool     local_listenmode = false;
-static int      local_timeout = -1;
+static bool              local_autodetect = true;
+static bool              local_debugmode  = false;
+static bool              local_listenmode = false;
+static int               local_timeout = -1;
 static std::list<char*>  local_args;
 static std::atomic<int>  local_esclevel (0);
 static std::atomic<bool> local_reupload (false);
@@ -257,6 +261,37 @@ static void parse_args(std::list<char*>* args)
                 break;
             case 'l': // Set listen mode
                 local_listenmode = true;
+                break;
+            case 'g': // GDB address
+                global_gdbaddr = (char*)DEFAULT_GDB;
+                if (nextarg_isvalid(it, args))
+                {
+                    char* addr = (char*)DEFAULT_GDBADDR;
+                    char* port = (char*)DEFAULT_GDBPORT;
+
+                    // If a colon exists assume a full address
+                    if (strchr(*it, ':') != NULL)
+                    {
+                        char* token = strtok(*it, ":");
+
+                        // Everything to the left of the colon is the address, everything to the right is the port
+                        if (strlen(token) > 0)
+                            addr = token;
+                        token = strtok(NULL, ":");
+                        if (strlen(token) > 0)
+                            port = token;
+                    }
+                    else if (strchr(*it, '.') != NULL || !strcmp(*it, "localhost")) // If a dot exists (or the string is localhost), then assume an address
+                        addr = *it;
+                    else // Otherwise, assume just a port
+                        port = *it;
+
+                    // Generate the new address
+                    global_gdbaddr = (char*) malloc((strlen(addr) + strlen(port) + strlen(":") + 1)*sizeof(char));
+                    sprintf(global_gdbaddr, "%s:%s", addr, port);
+                }
+                else
+                    --it;
                 break;
             case 'a': // Disable ED ROM header autodetection
                 local_autodetect = false;
@@ -659,6 +694,7 @@ static void show_args()
     log_simple("  \t %d - %s\t %d - %s\n", (int)SAVE_SRAM768, "SRAM 768Kbit", (int)SAVE_FLASHRAMPKMN, "FlashRAM 1Mbit (PokeStdm2)");
     log_simple("  -d [filename]\t\t   Debug mode. Optionally write output to a file.\n");
     log_simple("  -l\t\t\t   Listen mode (reupload ROM when changed).\n");
+    log_simple("  -g [addr][:][port]\t   Open a socket to GDB (default: %s:%s).\n", DEFAULT_GDBADDR, DEFAULT_GDBPORT);
     log_simple("  -t <seconds>\t\t   Set timeout for program exit.\n");
     log_simple("  -e <directory>\t   File export directory (Folder must exist!).\n");
     log_simple(            "\t\t\t   Example:  'folder/path/' or 'c:/folder/path'.\n");
@@ -699,7 +735,8 @@ static void show_help()
                " 2 - Uploading ROMs on the EverDrive\n"
                " 3 - Uploading ROMs on the SC64\n"
                " 4 - Using Listen mode\n"
-               " 5 - Using Debug mode\n");
+               " 5 - Using Debug mode\n"
+               " 6 - Using GDB\n");
 
     // Get the category
     log_colored("\nCategory: ", CRDEF_INPUT);
@@ -767,6 +804,22 @@ static void show_help()
                        "For more information on how to implement the debug library, check the GitHub\n"
                        "page where this tool was uploaded to, there should be plenty of examples there.\n"
                        PROGRAM_GITHUB"\n");
+            break;
+        case '6':
+            log_simple("1) If you haven't already, you must first install gdb-multiarch.");
+            log_simple("2) In a separate terminal, start GDB by calling:");
+            log_colored(                                            " gdb-multiarch PATH/TO/ROMNAME.out\n", CRDEF_PRINT);
+            log_simple("   This should boot GDB with the ELF file of your ROM.\n"
+                       "3) Now start UNFLoader with the -d and -g argument. You can optionally provide\n"
+                       "   an address and port pair separated by a colon, or just the port number. By\n"
+                       "   default, the -g command will use " DEFAULT_GDBADDR " and port " DEFAULT_GDBPORT ".\n"
+                       "4) Once UNFLoader is in debug mode, switch back to the terminal with gdb and\n"
+                       "   call:");
+            log_colored(" target remote ADDRESS:PORT\n", CRDEF_PRINT);
+            log_simple("   where \"ADDRESS:PORT\" obviously match your -g argument.\n");
+            log_simple("5) Now, any commands you type in GDB will be piped through UNFLoader and sent\n"
+                       "   to the N64 through USB. This requires your ROM to have the UNFLoader debug\n"
+                       "   library included for GDB to work.\n");
             break;
         default:
             terminate("Unknown category."); 

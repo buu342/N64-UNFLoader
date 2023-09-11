@@ -221,6 +221,14 @@
                 >
             </File>
             <File
+                RelativePath=".\gdbstub.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\gdbstub.h"
+                >
+            </File>
+            <File
                 RelativePath=".\helper.cpp"
                 >
             </File>

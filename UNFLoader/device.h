@@ -13,6 +13,7 @@
 
     #define USBPROTOCOL_LATEST PROTOCOL_VERSION2
 
+
     /*********************************
                Enumerations
     *********************************/

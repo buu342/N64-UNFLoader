@@ -1,7 +1,7 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
-CODEFILES = main.cpp helper.cpp term.cpp debug.cpp \
+CODEFILES = main.cpp helper.cpp term.cpp debug.cpp gdbstub.cpp \
             device.cpp \
             device_64drive.cpp \
             device_everdrive.cpp \
