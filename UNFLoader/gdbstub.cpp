@@ -9,6 +9,9 @@ Handles basic GDB communication
 #else
     #include <sys/socket.h>
     #include <arpa/inet.h>
+    #include <netinet/tcp.h>
+    #include <unistd.h>
+    #include <signal.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +30,7 @@ Handles basic GDB communication
 #define TIMEOUT 3
 
 #ifdef LINUX
-    #define SOCKET       short
+    #define SOCKET       int
 #endif
 
 
@@ -39,34 +42,63 @@ SOCKET local_socket = -1;
 
 
 /*==============================
-    socket_create
-    TODO
-==============================*/
-
-static SOCKET socket_create()
-{
-    SOCKET sock;
-    sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    
-    return sock;
-}
-
-
-/*==============================
     socket_connect
     TODO
 ==============================*/
 
-static int socket_connect(SOCKET sock, char* address, char* port) 
+static int socket_connect(char* address, char* port) 
 {
-    int ret = -1;
-    struct sockaddr_in remote = {0};
-    remote.sin_addr.s_addr = inet_addr(address);
-    remote.sin_family = AF_INET;
-    remote.sin_port = htons(atoi(port));
+    short sock;
+    int optval;
+    socklen_t socklen;
+    struct sockaddr_in remote;
 
-    ret = connect(sock, (struct sockaddr *)&remote, sizeof(struct sockaddr_in));
-    return ret;
+    // Create a socket for GDB
+    sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == -1)
+    {
+        log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
+        return -1;
+    }
+
+    // Setup the socket struct
+    remote.sin_port = htons(atoi(port));
+    remote.sin_family = PF_INET;
+    remote.sin_addr.s_addr = inet_addr(address);
+    if (bind(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0)
+    {
+        log_colored("Unable to bind socket for GDB\n", CRDEF_ERROR);
+        return -1;
+    }
+
+    // Listen for (at most one) client
+    if (listen(sock, 1))
+    {
+        log_colored("Unable to listen to socket for GDB\n", CRDEF_ERROR);
+        return -1;
+    }
+
+    // Accept a client which connects
+    socklen = sizeof(remote);
+    local_socket = accept(sock, (struct sockaddr *)&remote, &socklen);
+    if (local_socket == -1)
+    {
+        log_colored("Unable to accept socket for GDB\n", CRDEF_ERROR);
+        return -1;
+    }
+
+    // Enable TCP keep alive process
+    optval = 1;
+    setsockopt(local_socket, SOL_SOCKET, SO_KEEPALIVE, (char *)&optval, sizeof(optval));
+
+    // Don't delay small packets, for better interactive response
+    optval = 1;
+    setsockopt(local_socket, IPPROTO_TCP, TCP_NODELAY, (char *)&optval, sizeof(optval));
+
+    // Cleanup
+    close(sock);
+    signal(SIGPIPE, SIG_IGN);  // So we don't exit if client dies
+    return 0;
 }
 
 
@@ -117,7 +149,6 @@ static int socket_receive(SOCKET sock, char* response, short size)
 
 void gdb_connect(char* fulladdr)
 {
-    int ret;
     char* addr;
     char* port;
     char* fulladdrcopy = (char*)malloc((strlen(fulladdr)+1)*sizeof(char));
@@ -127,15 +158,8 @@ void gdb_connect(char* fulladdr)
     addr = strtok(fulladdrcopy, ":");
     port = strtok(NULL, ":");
 
-    // Create a socket for GDB and connect to it
-    local_socket = socket_create();
-    if (local_socket == -1)
-    {
-        log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
-        free(fulladdrcopy);
-        return;
-    }
-    if (socket_connect(local_socket, addr, port) != 0)
+    // Connect to the socket
+    if (socket_connect(addr, port) != 0)
     {
         log_colored("Unable to connect to socket, %d\n", CRDEF_ERROR, errno);
         local_socket = -1;

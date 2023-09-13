@@ -9,6 +9,7 @@ UNFLoader Entrypoint
 #include "term.h"
 #include "device.h"
 #include "debug.h"
+#include "gdbstub.h"
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -534,6 +535,8 @@ static void program_loop()
     }
     while ((local_debugmode || local_listenmode) && get_escapelevel() > 0);
     term_allowinput(false);
+    if (gdb_isconnected())
+        gdb_disconnect();
 
     // Close the flashcart
     handle_deviceerror(device_close());
