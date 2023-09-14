@@ -93,9 +93,8 @@ void debug_main()
     if (strlen(global_gdbaddr) > 0 && !gdb_isconnected())
     {
         std::thread t;
-        log_colored("Starting GDB server\n", CRDEF_INPUT);
         t = std::thread(gdb_thread, global_gdbaddr);
-        t.join();
+        t.detach();
     }
 
     // Send data to USB if it exists

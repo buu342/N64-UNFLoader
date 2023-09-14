@@ -28,6 +28,7 @@ Handles basic GDB communication
 *********************************/
 
 #define TIMEOUT 3
+#define LOG_ERRORS FALSE
 
 #ifdef LINUX
     #define SOCKET       int
@@ -57,7 +58,9 @@ static int socket_connect(char* address, char* port)
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == -1)
     {
-        log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
+        #if LOG_ERRORS
+            log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
+        #endif
         return -1;
     }
 
@@ -67,14 +70,18 @@ static int socket_connect(char* address, char* port)
     remote.sin_addr.s_addr = inet_addr(address);
     if (bind(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0)
     {
-        log_colored("Unable to bind socket for GDB\n", CRDEF_ERROR);
+        #if LOG_ERRORS
+            log_colored("Unable to bind socket for GDB\n", CRDEF_ERROR);
+        #endif
         return -1;
     }
 
     // Listen for (at most one) client
     if (listen(sock, 1))
     {
-        log_colored("Unable to listen to socket for GDB\n", CRDEF_ERROR);
+        #if LOG_ERRORS
+            log_colored("Unable to listen to socket for GDB\n", CRDEF_ERROR);
+        #endif
         return -1;
     }
 
@@ -83,7 +90,9 @@ static int socket_connect(char* address, char* port)
     local_socket = accept(sock, (struct sockaddr *)&remote, &socklen);
     if (local_socket == -1)
     {
-        log_colored("Unable to accept socket for GDB\n", CRDEF_ERROR);
+        #if LOG_ERRORS
+            log_colored("Unable to accept socket for GDB\n", CRDEF_ERROR);
+        #endif
         return -1;
     }
 
@@ -161,7 +170,9 @@ void gdb_connect(char* fulladdr)
     // Connect to the socket
     if (socket_connect(addr, port) != 0)
     {
-        log_colored("Unable to connect to socket, %d\n", CRDEF_ERROR, errno);
+        #if LOG_ERRORS
+            log_colored("Unable to connect to socket: %d\n", CRDEF_ERROR, errno);
+        #endif
         local_socket = -1;
         free(fulladdrcopy);
         return;
@@ -206,6 +217,11 @@ void gdb_thread(char* addr)
     gdb_connect(addr);
     while (gdb_isconnected())
     {
+        char buff[512];
+        memset(buff, 0, 512*sizeof(char));
+        socket_receive(local_socket, buff, 512);
+        if (buff[0] != 0)
+            log_simple("received: %s", buff);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }

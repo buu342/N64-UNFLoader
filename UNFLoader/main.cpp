@@ -494,6 +494,8 @@ static void program_loop()
         if (firstupload == true)
         {
             bool printed = false;
+            if (strlen(global_gdbaddr) > 0)
+                log_colored("Starting GDB server on %s\n", CRDEF_PROGRAM, global_gdbaddr);
             if (local_debugmode)
             {
                 log_colored("Debug mode started. ", CRDEF_INPUT);
