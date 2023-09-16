@@ -39,13 +39,15 @@ https://github.com/buu342/N64-UNFLoader
     #define MSG_RDBPACKET       0x10
     #define MSG_BREAKPOINT_HIT  0x11
     
+    // Breakpoints
+    #define BPOINT_COUNT   10
+    #define MAKE_BREAKPOINT_INDEX(indx) (0x0000000D | ((indx) << 6))
+    #define GET_BREAKPOINT_INDEX(addr)  ((((addr) >> 6) & 0x0000FFFF))
+    
+    // Helpful stuff
     #define HASHTABLE_SIZE 7
     #define COMMAND_TOKENS 10
     #define BUFFER_SIZE    256
-    #define BPOINT_COUNT   10
-    
-    #define MAKE_BREAKPOINT_INDEX(indx) (0x0000000D | ((indx) << 6))
-    #define GET_BREAKPOINT_INDEX(addr)  ((((addr) >> 6) & 0x0000FFFF))
     
     
     /*********************************
@@ -53,12 +55,12 @@ https://github.com/buu342/N64-UNFLoader
     *********************************/
     
     #ifdef LIBDRAGON
-        typedef unsigned char      u8;	
+        typedef unsigned char      u8;
         typedef unsigned short     u16;
         typedef unsigned long      u32;
         typedef unsigned long long u64;
         
-        typedef signed char s8;	
+        typedef signed char s8;
         typedef short       s16;
         typedef long        s32;
         typedef long long   s64;
@@ -131,8 +133,8 @@ https://github.com/buu342/N64-UNFLoader
         #endif
         #if USE_RDBTHREAD
             static void debug_thread_rdb(void *arg);
-            static inline void debug_rdb_togglebpoint();
-            static inline void debug_rdb_continue();
+            //static inline void debug_rdb_togglebpoint();
+            //static inline void debug_rdb_continue();
         #endif
     
         // Other
@@ -1095,9 +1097,7 @@ https://github.com/buu342/N64-UNFLoader
                 osCreateMesgQueue(&rdbMessageQ, &rdbMessageBuf, 1);
                 
                 // Initialize breakpoints
-                #ifndef LIBDRAGON
-                    osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_BREAKPOINT_HIT);
-                #endif
+                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_BREAKPOINT_HIT);
                 memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
                 
                 // Thread loop
@@ -1119,6 +1119,7 @@ https://github.com/buu342/N64-UNFLoader
                         int usbheader = usb_poll();
                         if (USBHEADER_GETTYPE(usbheader) == DATATYPE_RDBPACKET)
                         {
+                            /*
                             u8 rdbheader;
                             usb_read(&rdbheader, 1);
                             switch (rdbheader)
@@ -1136,6 +1137,7 @@ https://github.com/buu342/N64-UNFLoader
                                 default:
                                     break;
                             }
+                            */
                         }
                         usb_purge();
                     }
@@ -1143,12 +1145,11 @@ https://github.com/buu342/N64-UNFLoader
                 }
             }
             
-            
             /*==============================
                 debug_rdb_togglebpoint
                 Enables/disables a breakpoint
             ==============================*/
-            
+            /*
             static inline void debug_rdb_togglebpoint()
             {
                 u8 bytes[9];
@@ -1221,13 +1222,13 @@ https://github.com/buu342/N64-UNFLoader
                     }
                 }
             }
-            
+            */
             
             /*==============================
                 debug_rdb_continue
                 Handles continue
             ==============================*/
-            
+            /*
             static inline void debug_rdb_continue()
             {
                 u32 nexti, *addr, index;
@@ -1273,7 +1274,7 @@ https://github.com/buu342/N64-UNFLoader
                 osWritebackDCache(point->addr, 4);
                 osInvalICache(point->addr, 4);
             }
-            
+            */
         #endif
         
     #endif

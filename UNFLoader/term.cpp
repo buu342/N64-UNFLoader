@@ -597,7 +597,7 @@ static void handle_input()
             if (local_currhistory == local_inputhistory.begin())
                 local_inputhistory.push_back(s);
             local_currhistory = local_inputhistory.begin();
-            debug_send(local_input);
+            debug_sendtext(local_input);
             term_clearinput();
             wrotein = true;
             break;
@@ -700,7 +700,7 @@ static void termthread_simple()
                 else if (!strcmp(local_input, "reupload"))
                     program_event(PEV_REUPLOAD);
                 else
-                    debug_send(local_input);
+                    debug_sendtext(local_input);
             }
 
             // Cleanup

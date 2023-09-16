@@ -22,6 +22,7 @@ Handles basic GDB communication
 #include "gdbstub.h"
 #include "helper.h"
 #include "term.h"
+#include "debug.h"
 
 
 /*********************************
@@ -29,7 +30,7 @@ Handles basic GDB communication
 *********************************/
 
 #define TIMEOUT 3
-#define LOG_ERRORS TRUE
+#define VERBOSE TRUE
 
 #ifdef LINUX
     #define SOCKET  int
@@ -49,19 +50,12 @@ typedef enum {
 
 
 /*********************************
-        Function Prototypes
-*********************************/
-
-static void gdb_replypacket(std::string packet);
-
-
-/*********************************
              Globals
 *********************************/
 
 std::string local_packetdata = "";
 std::string local_packetchecksum = "";
-std::string local_lastpacket = "";
+std::string local_lastreply = "";
 ParseState local_parserstate = STATE_SEARCHING;
 SOCKET local_socket = -1;
 
@@ -82,7 +76,7 @@ static int socket_connect(char* address, char* port)
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock == -1)
     {
-        #if LOG_ERRORS
+        #if VERBOSE
             log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
         #endif
         return -1;
@@ -100,7 +94,7 @@ static int socket_connect(char* address, char* port)
     remote.sin_addr.s_addr = inet_addr(address);
     if (bind(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0)
     {
-        #if LOG_ERRORS
+        #if VERBOSE
             log_colored("Unable to bind socket for GDB\n", CRDEF_ERROR);
         #endif
         return -1;
@@ -109,7 +103,7 @@ static int socket_connect(char* address, char* port)
     // Listen for (at most one) client
     if (listen(sock, 1))
     {
-        #if LOG_ERRORS
+        #if VERBOSE
             log_colored("Unable to listen to socket for GDB\n", CRDEF_ERROR);
         #endif
         return -1;
@@ -120,7 +114,7 @@ static int socket_connect(char* address, char* port)
     local_socket = accept(sock, (struct sockaddr *)&remote, &socklen);
     if (local_socket == -1)
     {
-        #if LOG_ERRORS
+        #if VERBOSE
             log_colored("Unable to accept socket for GDB\n", CRDEF_ERROR);
         #endif
         return -1;
@@ -152,12 +146,8 @@ static int socket_send(SOCKET sock, char* data, size_t size)
     struct timeval tv;
     tv.tv_sec = TIMEOUT;
     tv.tv_usec = 0;
-
-    log_simple("Sending: %s\n", data);
-
     if (setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv,sizeof(tv)) < 0)
         return -1;
-
     ret = send(sock, data, size, 0);
     return ret;
 }
@@ -174,10 +164,8 @@ static int socket_receive(SOCKET sock, char* data, size_t size)
     struct timeval tv;
     tv.tv_sec = TIMEOUT;
     tv.tv_usec = 0;
-
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv,sizeof(tv)) < 0)
         return -1;
-
     ret = recv(sock, data, size, 0);
     return ret;
 }
@@ -231,7 +219,7 @@ void gdb_connect(char* fulladdr)
     // Connect to the socket
     if (socket_connect(addr, port) != 0)
     {
-        #if LOG_ERRORS
+        #if VERBOSE
             log_colored("Unable to connect to socket: %d\n", CRDEF_ERROR, errno);
         #endif
         local_socket = -1;
@@ -284,7 +272,7 @@ static void gdb_parsepacket(char* buff, int buffsize)
                 while (left > 0 && buff[read] != '$')
                 {
                     if (buff[read] == '-') // Resend last packet in case of failure
-                        socket_send(local_socket, (char*)local_lastpacket.c_str(), local_lastpacket.size()+1);
+                        socket_send(local_socket, (char*)local_lastreply.c_str(), local_lastreply.size()+1);
                     read++;
                     left--;
                 }
@@ -319,15 +307,16 @@ static void gdb_parsepacket(char* buff, int buffsize)
                         {
                             uint32_t checksum = packet_getchecksum(local_packetdata);
 
-                            // Check if the checksum failed, if it didn't then parse the data
+                            // Check if the checksum failed, if it didn't then send the packet
                             if (checksum == strtol(local_packetchecksum.c_str(), NULL, 16L))
                             {
-                                log_simple("Deconstructed %s\n", local_packetdata.c_str());
-                                gdb_replypacket(local_packetdata);
+                                debug_send(DATATYPE_RDBPACKET, (char*)local_packetdata.c_str(), local_packetdata.size()+1);
                             }
                             else
                             {
-                                log_simple("Checksum failed. Expected %x, got %x\n", checksum, strtol(local_packetchecksum.c_str(), NULL, 16L));
+                                #if VERBOSE
+                                    log_simple("GDB Packet checksum failed. Expected %x, got %x\n", checksum, strtol(local_packetchecksum.c_str(), NULL, 16L));
+                                #endif
                                 socket_send(local_socket, (char*)"-", 2);
                             }
 
@@ -350,7 +339,7 @@ static void gdb_parsepacket(char* buff, int buffsize)
     gdb_replypacket
     TODO
 ==============================*/
-
+/*
 static void gdb_replypacket(std::string packet)
 {
     std::string reply = "+$";
@@ -380,10 +369,10 @@ static void gdb_replypacket(std::string packet)
     }
     else
         reply += "#00";
-    local_lastpacket = reply;
+    local_lastreply = reply;
     socket_send(local_socket, (char*)reply.c_str(), reply.size()+1);
 }
-
+*/
 
 /*==============================
     gdb_thread
@@ -401,7 +390,9 @@ void gdb_thread(char* addr)
         readsize = socket_receive(local_socket, buff, 512);
         if (readsize > 0)
         {
-            log_simple("received: %s\n", buff);
+            #if VERBOSE
+                log_simple("Received from GDB: %s\n", buff);
+            #endif
             gdb_parsepacket(buff, readsize);
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

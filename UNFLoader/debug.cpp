@@ -54,7 +54,6 @@ typedef struct {
         Function Prototypes
 *********************************/
 
-static bool debug_rdbcommands(char* data);
 static void debug_handle_text(uint32_t size, byte* buffer);
 static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
@@ -120,7 +119,8 @@ void debug_main()
         // Print success?
         if (!device_uploadcancelled())
         {
-            log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
+            if (msg->type == DATATYPE_TEXT)
+                log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
             decrement_escapelevel();
         }
         else
@@ -128,7 +128,8 @@ void debug_main()
 
         // Cleanup
         local_mesgqueue.pop();
-        free(msg->original);
+        if (msg->original != NULL)
+            free(msg->original);
         free(msg->data);
         free(msg);
     }
@@ -335,6 +336,37 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
 /*==============================
     debug_send
     Sends data to the flashcart
+    @param The data type
+    @param The data itself
+    @param The size of the data
+==============================*/
+
+void debug_send(USBDataType type, char* data, size_t size)
+{
+    SendData* mesg;
+
+    // Allocate memory for the message
+    mesg = (SendData*)malloc(sizeof(SendData));
+    if (mesg == NULL)
+        terminate("Unable to malloc message for debug send.");
+    mesg->data = (byte*)malloc(size);
+    if (mesg->data == NULL)
+        terminate("Unable to malloc message data for debug send.");
+
+    // Fill up the data
+    mesg->original = NULL;
+    memcpy(mesg->data, data, size);
+    mesg->type = type;
+    mesg->size = size;
+
+    // Send the message to the debug thread
+    local_mesgqueue.push(mesg);
+}
+
+
+/*==============================
+    debug_sendtext
+    Sends text to the flashcart
     TODO: Does not handle edge case of 
     two @ between different files not
     separated by a space
@@ -342,7 +374,7 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
            to send
 ==============================*/
 
-void debug_send(char* data)
+void debug_sendtext(char* data)
 {
     byte*     copy;
     char*     token;
@@ -356,10 +388,6 @@ void debug_send(char* data)
     // Start by removing trailing whitespace
     data = trimwhitespace(data);
     datasize = strlen(data);
-
-    // Handle remote debugger stuff
-    if (debug_rdbcommands(data))
-        return;
 
     // Start by counting the number of '@' characters
     for (uint32_t i=0; i<datasize; i++)
@@ -509,8 +537,7 @@ void debug_send(char* data)
     }
 }
 
-#define RDB_PACKETHEADER_BREAKPOINT 0x01
-#define RDB_PACKETHEADER_CONTINUE   0x02
+/*
 bool debug_rdbcommands(char* data)
 {
     if (strncmp(data, "break", strlen("break")) == 0)
@@ -594,7 +621,7 @@ bool debug_rdbcommands(char* data)
     }
     return false;
 }
-
+*/
 
 /*==============================
     debug_setdebugout

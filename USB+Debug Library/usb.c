@@ -651,7 +651,7 @@ void usb_read(void* buffer, int nbytes)
         }
         
         // Copy from the USB buffer to the supplied buffer
-        memcpy((void*)((uintptr_t)buffer+read), usb_buffer+copystart, block);
+        memcpy((void*)(((u32)buffer)+read), usb_buffer+copystart, block);
         
         // Increment/decrement all our counters
         read += block;
@@ -951,7 +951,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
         usb_dma_write(usb_buffer, pi_address, ALIGN(block, 2));
 
         // Update pointers and variables
-        data = (void*)((uintptr_t)data + block);
+        data = (void*)(((u32)data) + block);
         left -= block;
         pi_address += block;
     }
@@ -1363,7 +1363,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         usb_dma_write(usb_buffer, pi_address, ALIGN(block, 2));
 
         // Update pointers and variables
-        data = (void*)((uintptr_t)data + block);
+        data = (void*)(((u32)data) + block);
         left -= block;
         pi_address += block;
     }
