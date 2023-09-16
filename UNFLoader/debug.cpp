@@ -90,6 +90,7 @@ void debug_main()
         device_setprotocol(USBPROTOCOL_LATEST);
 
     // Connect to GDB
+    // TODO: Only allow GDB to spawn if the console is running (AKA, a packet was received)
     if (strlen(global_gdbaddr) > 0 && !gdb_isconnected())
     {
         std::thread t;
