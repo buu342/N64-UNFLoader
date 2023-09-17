@@ -59,6 +59,7 @@ static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
 static void debug_handle_screenshot(uint32_t size, byte* buffer);
 static void debug_handle_heartbeat(uint32_t size, byte* buffer);
+static void debug_handle_rdbpacket(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -105,7 +106,7 @@ void debug_main()
         if (term_isusingcurses())
         {
             std::thread t;
-            log_colored("Uploading command (ESC to cancel)\n", CRDEF_INPUT);
+            log_colored("Uploading command (ESC to cancel).\n", CRDEF_INPUT);
             t = std::thread(progressthread, "Uploading command (ESC to cancel)");
             handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
             t.join();
@@ -121,6 +122,8 @@ void debug_main()
         {
             if (msg->type == DATATYPE_TEXT)
                 log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
+            else
+                log_replace("Sent command\n", CRDEF_INFO);
             decrement_escapelevel();
         }
         else
@@ -151,6 +154,7 @@ void debug_main()
                 case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
                 case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
                 case DATATYPE_HEARTBEAT:  debug_handle_heartbeat(size, outbuff); break;
+                case DATATYPE_RDBPACKET:  debug_handle_rdbpacket(size, outbuff); break;
                 default:                  terminate("Unknown data type '%x'.", (uint32_t)command);
             }
 
@@ -330,6 +334,20 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
             terminate("Heartbeat version %d unsupported. Your UNFLoader is probably out of date.", heartbeat_version);
             break;
     }
+}
+
+
+/*==============================
+    debug_handle_rdbpacket
+    Handles DATATYPE_RDBPACKET
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_rdbpacket(uint32_t size, byte* buffer)
+{
+    (void)size;
+    gdb_reply((char*)buffer);
 }
 
 

@@ -32,10 +32,6 @@
     #define RDB_THREAD_PRI   124
     #define RDB_THREAD_STACK 0x2000
     
-    // Remote debugger packet definitions
-    #define RDB_PACKETHEADER_BREAKPOINT 0x01
-    #define RDB_PACKETHEADER_CONTINUE   0x02
-    
     
     /*********************************
              Debug Functions

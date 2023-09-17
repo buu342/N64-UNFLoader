@@ -62,7 +62,7 @@ ifeq ($(DEBUG_MODE), 0)
     MAKEROMFLAGS    = 
 else
     CODEOBJECTS     = $(CODECFILES:.c=.o) $(NUOBJ) $(DEBUGFILES:.c=.o)
-    OPTIMIZER       = -g
+    OPTIMIZER       = -g -ggdb
     LCDEFS          = -DDEBUG  -DF3DEX_GBI_2 -DNOT_SPEC
     N64LIB          = -lnusys_d -lgultra_d 
     MAKEROMFLAGS    = -d

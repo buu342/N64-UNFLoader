@@ -19,6 +19,7 @@ Handles basic GDB communication
 #include <thread>
 #include <chrono>
 #include <string>
+#include <queue>
 #include "gdbstub.h"
 #include "helper.h"
 #include "term.h"
@@ -30,7 +31,7 @@ Handles basic GDB communication
 *********************************/
 
 #define TIMEOUT 3
-#define VERBOSE TRUE
+#define VERBOSE 1
 
 #ifdef LINUX
     #define SOCKET  int
@@ -53,11 +54,11 @@ typedef enum {
              Globals
 *********************************/
 
-std::string local_packetdata = "";
-std::string local_packetchecksum = "";
-std::string local_lastreply = "";
-ParseState local_parserstate = STATE_SEARCHING;
-SOCKET local_socket = -1;
+static std::string local_packetdata = "";
+static std::string local_packetchecksum = "";
+static std::string local_lastreply = "";
+static ParseState  local_parserstate = STATE_SEARCHING;
+static SOCKET      local_socket = -1;
 
 
 /*==============================
@@ -183,20 +184,6 @@ static uint8_t packet_getchecksum(std::string packet)
     for (uint32_t i=0; i<strln; i++)
         checksum += packet[i];
     return (uint8_t)(checksum%256);
-}
-
-
-/*==============================
-    packet_appendchecksum
-    TODO
-==============================*/
-
-static std::string packet_appendchecksum(std::string packet)
-{
-    char str[3];
-    uint8_t checksum = packet_getchecksum(packet);
-    sprintf(str, "%02x", checksum);
-    return packet + "#" + str;
 }
 
 
@@ -342,11 +329,6 @@ static void gdb_parsepacket(char* buff, int buffsize)
 /*
 static void gdb_replypacket(std::string packet)
 {
-    std::string reply = "+$";
-    if (packet.find("qSupported")  != std::string::npos)
-    {
-        reply += packet_appendchecksum("PacketSize=512");
-    }
     else if (packet == "g")
     {
         // TODO: This properly
@@ -369,10 +351,37 @@ static void gdb_replypacket(std::string packet)
     }
     else
         reply += "#00";
-    local_lastreply = reply;
-    socket_send(local_socket, (char*)reply.c_str(), reply.size()+1);
 }
 */
+
+
+/*==============================
+    gdb_reply
+    TODO
+==============================*/
+
+void gdb_reply(char* reply)
+{
+    if (!gdb_isconnected())
+        return;
+
+    char chk[3];
+    std::string str = "+$";
+
+    // Build the reply packet
+    sprintf(chk, "%02x", packet_getchecksum(reply));
+    str += reply;
+    str += "#";
+    str += chk;
+    local_lastreply = str;
+
+    // Send the packet to GDB and pop the message from our queue
+    #if VERBOSE
+        log_simple("Sending to GDB: %s\n", str.c_str());
+    #endif
+    socket_send(local_socket, (char*)str.c_str(), str.size()+1);
+}
+
 
 /*==============================
     gdb_thread
@@ -387,6 +396,8 @@ void gdb_thread(char* addr)
         int readsize;
         char buff[512];
         memset(buff, 0, 512*sizeof(char));
+
+        // Read packets from GDB
         readsize = socket_receive(local_socket, buff, 512);
         if (readsize > 0)
         {
@@ -395,6 +406,8 @@ void gdb_thread(char* addr)
             #endif
             gdb_parsepacket(buff, readsize);
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        // Sleep for a bit
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 }
