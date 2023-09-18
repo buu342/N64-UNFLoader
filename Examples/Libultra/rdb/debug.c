@@ -140,6 +140,7 @@ https://github.com/buu342/N64-UNFLoader
         #if USE_RDBTHREAD
             static void debug_thread_rdb(void *arg);
             static void debug_rdb_qsupported();
+            static void debug_rdb_halt();
             static void debug_rdb_dumpregisters();
             static void debug_rdb_readmemory();
             //static inline void debug_rdb_togglebpoint();
@@ -197,6 +198,7 @@ https://github.com/buu342/N64-UNFLoader
     // Breakpoint globals
     #if USE_RDBTHREAD
         static bPoint debug_bpoints[BPOINT_COUNT];
+        static OSThread* debug_bpthread = NULL;
     #endif
     
     #ifndef LIBDRAGON
@@ -320,9 +322,17 @@ https://github.com/buu342/N64-UNFLoader
     // Remote debugger packet lookup table
     #if USE_RDBTHREAD
         RDBPacketLUT lut_rdbpackets[] = {
+            // Due to the use of strncmp, the order of strings matters!
             {"qSupported", debug_rdb_qsupported},
+            {"?", debug_rdb_halt},
             {"g", debug_rdb_dumpregisters},
+            //{"G", debug_rdb_writeregister},
             {"m", debug_rdb_readmemory},
+            //{"M", debug_rdb_writememory},
+            //{"Z", debug_rdb_addbreakpoint},
+            //{"z", debug_rdb_removebreakpoint},
+            //{"s", debug_rdb_step},
+            //{"c", debug_rdb_continue},
         };
     #endif
     
@@ -1127,9 +1137,22 @@ https://github.com/buu342/N64-UNFLoader
                     // Wait for an rdb message to arrive
                     osRecvMesg(&rdbMessageQ, (OSMesg*)&msg, OS_MESG_BLOCK);
 
-                    // If we hit a breakpoint, loop until a continue command is received from USB
+                    // If we hit a breakpoint, enable the loop until a continue command is received from USB
                     if ((s32)msg == MSG_BREAKPOINT_HIT)
+                    {
+                        OSThread* affected = (OSThread *)__osGetCurrFaultedThread();
                         loop = TRUE;
+                        
+                        // Find out which thread hit the bp exception
+                        while (affected != NULL) 
+                        {
+                            __OSThreadContext* context = &affected->context;
+                            if ((context->cause & CAUSE_EXCMASK) == EXC_BREAK)
+                                break;
+                            affected = __osGetNextFaultedThread(affected);
+                        }
+                        debug_bpthread = affected;
+                    }
                     
                     // Handle the RDB packet
                     do
@@ -1181,13 +1204,59 @@ https://github.com/buu342/N64-UNFLoader
             
             
             /*==============================
+                debug_rdb_halt
+                Responds to GDB with the halt reason
+            ==============================*/
+            
+            static void debug_rdb_halt()
+            {
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, "S05", 3+1);
+            }
+            
+            
+            /*==============================
                 debug_rdb_dumpregisters
                 Responds to GDB with a dump of all registers
             ==============================*/
             
             static void debug_rdb_dumpregisters()
             {
+                int i;
+                char regdump[(40*8) + 1];
+                OSThread* t = debug_bpthread;
+                __OSThreadContext* context;
                 
+                // If we aren't breakpointed, then just dump the rdb thread's registers
+                if (t == NULL)
+                    t = &rdbThread;
+                context = &t->context;
+                
+                // Perform the humpty dumpty
+                sprintf(regdump+(0*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
+                    0,                (u32)context->at, (u32)context->v0, (u32)context->v1,
+                    (u32)context->a0, (u32)context->a1, (u32)context->a2, (u32)context->a3
+                );
+                sprintf(regdump+(8*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
+                    (u32)context->t0, (u32)context->t1, (u32)context->t2, (u32)context->t3,
+                    (u32)context->t4, (u32)context->t5, (u32)context->t6, (u32)context->t7
+                );
+                sprintf(regdump+(16*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
+                    (u32)context->s0, (u32)context->s1, (u32)context->s2, (u32)context->s3,
+                    (u32)context->s4, (u32)context->s5, (u32)context->s6, (u32)context->s7
+                );
+                sprintf(regdump+(24*8), "%08x%08x%s%s%08x%08x%08x%08x", 
+                    (u32)context->t8, (u32)context->t9, "xxxxxxxx",       "xxxxxxxx",
+                    (u32)context->gp, (u32)context->sp, (u32)context->s8, (u32)context->ra
+                );
+                sprintf(regdump+(32*8), "%08x%08x%08x%08x%08x%08x%08x%s", 
+                    (u32)context->sr,    (u32)context->lo, (u32)context->hi,    (u32)context->badvaddr,
+                    (u32)context->cause, (u32)context->pc, (u32)context->fpcsr, "xxxxxxxx"
+                );
+                
+                // Send the register dump
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, regdump, strlen(regdump));
             }
             
             
@@ -1198,7 +1267,37 @@ https://github.com/buu342/N64-UNFLoader
             
             static void debug_rdb_readmemory()
             {
+                int i;
+                u32 addr;
+                u32 size;
+                char command[32];
+                char ret[32];
+                char* commandp = &command[0];
                 
+                strcpy(commandp, debug_buffer);
+                
+                // Skip the 'm' at the start of the command
+                commandp++;
+                
+                // Extract the address value
+                strtok(commandp, ",");
+                addr = (u32)strtol(commandp, NULL, 16);
+                
+                // Extract the size value
+                commandp = strtok(NULL, ",");
+                size = atoi(commandp);
+                
+                // Read the memory address, one byte at a time
+                for (i=0; i<size; i++)
+                {
+                    u8 val;                    
+                    val = *(((volatile u8*)addr)+i);
+                    sprintf(ret+(i*2), "%02x", val);
+                }
+                
+                // Send the address dump
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, &ret, strlen(ret)+1);
             }
             
             
