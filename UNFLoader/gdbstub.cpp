@@ -297,7 +297,15 @@ static void gdb_parsepacket(char* buff, int buffsize)
                             // Check if the checksum failed, if it didn't then send the packet
                             if (checksum == strtol(local_packetchecksum.c_str(), NULL, 16L))
                             {
-                                debug_send(DATATYPE_RDBPACKET, (char*)local_packetdata.c_str(), local_packetdata.size()+1);
+                                //if (local_packetdata[0] == 'g')
+                                //{
+                                //    std::string aaa = "";
+                                //    for (int i=0; i<40; i++)
+                                //        aaa += "0000000000000000";
+                                //    gdb_reply((char*)aaa.c_str());
+                                //}
+                                //else
+                                    debug_send(DATATYPE_RDBPACKET, (char*)local_packetdata.c_str(), local_packetdata.size()+1);
                             }
                             else
                             {

@@ -29,15 +29,16 @@ https://github.com/buu342/N64-UNFLoader
     #define MSG_READ   0x11
     #define MSG_WRITE  0x12
     
-    #define USBERROR_NONE    0
-    #define USBERROR_NOTTEXT 1
-    #define USBERROR_UNKNOWN 2
-    #define USBERROR_TOOMUCH 3
-    #define USBERROR_CUSTOM  4
+    #define USBERROR_NONE     0
+    #define USBERROR_NOTTEXT  1
+    #define USBERROR_UNKNOWN  2
+    #define USBERROR_TOOMUCH  3
+    #define USBERROR_CUSTOM   4
     
     // RDB thread messages
-    #define MSG_RDBPACKET       0x10
-    #define MSG_BREAKPOINT_HIT  0x11
+    #define MSG_RDB_PACKET  0x10
+    #define MSG_RDB_BPHIT   0x11
+    #define MSG_RDB_PAUSE   0x12
     
     // Breakpoints
     #define BPOINT_COUNT   10
@@ -45,9 +46,9 @@ https://github.com/buu342/N64-UNFLoader
     #define GET_BREAKPOINT_INDEX(addr)  ((((addr) >> 6) & 0x0000FFFF))
     
     // Helpful stuff
-    #define HASHTABLE_SIZE 7
-    #define COMMAND_TOKENS 10
-    #define BUFFER_SIZE    256
+    #define HASHTABLE_SIZE  7
+    #define COMMAND_TOKENS  10
+    #define BUFFER_SIZE     256
     
     
     /*********************************
@@ -94,6 +95,12 @@ https://github.com/buu342/N64-UNFLoader
         char *string;
     } regDesc;
     
+    // Because of the thread context's messy struct, this'll come in handy
+    typedef struct {
+        int size;
+        void* ptr;
+    } regType;
+    
     // Thread message struct
     typedef struct 
     {
@@ -120,6 +127,7 @@ https://github.com/buu342/N64-UNFLoader
         u32* next_addr;
     } bPoint;
     
+    // Remote debugger packet lookup table
     typedef struct
     {
         char* command;
@@ -131,28 +139,30 @@ https://github.com/buu342/N64-UNFLoader
             Function Prototypes
     *********************************/
     
+    // Threads
+    static void debug_thread_usb(void *arg);
     #ifndef LIBDRAGON
-        // Threads
-        static void debug_thread_usb(void *arg);
         #if USE_FAULTTHREAD
             static void debug_thread_fault(void *arg);
         #endif
         #if USE_RDBTHREAD
             static void debug_thread_rdb(void *arg);
-            static void debug_rdb_qsupported();
-            static void debug_rdb_halt();
-            static void debug_rdb_dumpregisters();
-            static void debug_rdb_readmemory();
-            //static inline void debug_rdb_togglebpoint();
-            //static inline void debug_rdb_continue();
+            static void debug_rdb_qsupported(OSThread* t);
+            static void debug_rdb_halt(OSThread* t);
+            static void debug_rdb_dumpregisters(OSThread* t);
+            static void debug_rdb_writeregisters(OSThread* t);
+            static void debug_rdb_readmemory(OSThread* t);
+            static void debug_rdb_writememory(OSThread* t);
+            static void debug_rdb_togglebpoint(OSThread* t);
+            static void debug_rdb_addbreakpoint(OSThread* t);
+            static void debug_rdb_removebreakpoint(OSThread* t);
+            static void debug_rdb_continue(OSThread* t);
         #endif
     
         // Other
         #if OVERWRITE_OSPRINT
             static void* debug_osSyncPrintf_implementation(void *unused, const char *str, size_t len);
         #endif
-    #else
-        static void debug_thread_usb(void *arg);
     #endif
     static inline void debug_handle_64drivebutton();
     
@@ -195,28 +205,7 @@ https://github.com/buu342/N64-UNFLoader
     static u64   debug_64dbut_debounce = 0;
     static u64   debug_64dbut_hold = 0;
     
-    // Breakpoint globals
-    #if USE_RDBTHREAD
-        static bPoint debug_bpoints[BPOINT_COUNT];
-        static OSThread* debug_bpthread = NULL;
-    #endif
-    
     #ifndef LIBDRAGON
-        // Remote debugger thread globals
-        #if USE_RDBTHREAD
-            static OSMesgQueue rdbMessageQ;
-            static OSMesg      rdbMessageBuf;
-            static OSThread    rdbThread;
-            static u64         rdbThreadStack[RDB_THREAD_STACK/sizeof(u64)];
-        #endif
-        
-        // Fault thread globals
-        #if USE_FAULTTHREAD
-            static OSMesgQueue faultMessageQ;
-            static OSMesg      faultMessageBuf;
-            static OSThread    faultThread;
-            static u64         faultThreadStack[FAULT_THREAD_STACK/sizeof(u64)];
-        #endif
         
         // USB thread globals
         static OSMesgQueue usbMessageQ;
@@ -224,116 +213,135 @@ https://github.com/buu342/N64-UNFLoader
         static OSThread    usbThread;
         static u64         usbThreadStack[USB_THREAD_STACK/sizeof(u64)];
         
-        // List of error causes
-        static regDesc causeDesc[] = {
-            {CAUSE_BD,      CAUSE_BD,    "BD"},
-            {CAUSE_IP8,     CAUSE_IP8,   "IP8"},
-            {CAUSE_IP7,     CAUSE_IP7,   "IP7"},
-            {CAUSE_IP6,     CAUSE_IP6,   "IP6"},
-            {CAUSE_IP5,     CAUSE_IP5,   "IP5"},
-            {CAUSE_IP4,     CAUSE_IP4,   "IP4"},
-            {CAUSE_IP3,     CAUSE_IP3,   "IP3"},
-            {CAUSE_SW2,     CAUSE_SW2,   "IP2"},
-            {CAUSE_SW1,     CAUSE_SW1,   "IP1"},
-            {CAUSE_EXCMASK, EXC_INT,     "Interrupt"},
-            {CAUSE_EXCMASK, EXC_MOD,     "TLB modification exception"},
-            {CAUSE_EXCMASK, EXC_RMISS,   "TLB exception on load or instruction fetch"},
-            {CAUSE_EXCMASK, EXC_WMISS,   "TLB exception on store"},
-            {CAUSE_EXCMASK, EXC_RADE,    "Address error on load or instruction fetch"},
-            {CAUSE_EXCMASK, EXC_WADE,    "Address error on store"},
-            {CAUSE_EXCMASK, EXC_IBE,     "Bus error exception on instruction fetch"},
-            {CAUSE_EXCMASK, EXC_DBE,     "Bus error exception on data reference"},
-            {CAUSE_EXCMASK, EXC_SYSCALL, "System call exception"},
-            {CAUSE_EXCMASK, EXC_BREAK,   "Breakpoint exception"},
-            {CAUSE_EXCMASK, EXC_II,      "Reserved instruction exception"},
-            {CAUSE_EXCMASK, EXC_CPU,     "Coprocessor unusable exception"},
-            {CAUSE_EXCMASK, EXC_OV,      "Arithmetic overflow exception"},
-            {CAUSE_EXCMASK, EXC_TRAP,    "Trap exception"},
-            {CAUSE_EXCMASK, EXC_VCEI,    "Virtual coherency exception on intruction fetch"},
-            {CAUSE_EXCMASK, EXC_FPE,     "Floating point exception (see fpcsr)"},
-            {CAUSE_EXCMASK, EXC_WATCH,   "Watchpoint exception"},
-            {CAUSE_EXCMASK, EXC_VCED,    "Virtual coherency exception on data reference"},
-            {0,             0,           ""}
-        };
+        // Fault thread globals
+        #if USE_FAULTTHREAD
+            static OSMesgQueue faultMessageQ;
+            static OSMesg      faultMessageBuf;
+            static OSThread    faultThread;
+            static u64         faultThreadStack[FAULT_THREAD_STACK/sizeof(u64)];
         
-        // List of register descriptions
-        static regDesc srDesc[] = {
-            {SR_CU3,      SR_CU3,     "CU3"},
-            {SR_CU2,      SR_CU2,     "CU2"},
-            {SR_CU1,      SR_CU1,     "CU1"},
-            {SR_CU0,      SR_CU0,     "CU0"},
-            {SR_RP,       SR_RP,      "RP"},
-            {SR_FR,       SR_FR,      "FR"},
-            {SR_RE,       SR_RE,      "RE"},
-            {SR_BEV,      SR_BEV,     "BEV"},
-            {SR_TS,       SR_TS,      "TS"},
-            {SR_SR,       SR_SR,      "SR"},
-            {SR_CH,       SR_CH,      "CH"},
-            {SR_CE,       SR_CE,      "CE"},
-            {SR_DE,       SR_DE,      "DE"},
-            {SR_IBIT8,    SR_IBIT8,   "IM8"},
-            {SR_IBIT7,    SR_IBIT7,   "IM7"},
-            {SR_IBIT6,    SR_IBIT6,   "IM6"},
-            {SR_IBIT5,    SR_IBIT5,   "IM5"},
-            {SR_IBIT4,    SR_IBIT4,   "IM4"},
-            {SR_IBIT3,    SR_IBIT3,   "IM3"},
-            {SR_IBIT2,    SR_IBIT2,   "IM2"},
-            {SR_IBIT1,    SR_IBIT1,   "IM1"},
-            {SR_KX,       SR_KX,      "KX"},
-            {SR_SX,       SR_SX,      "SX"},
-            {SR_UX,       SR_UX,      "UX"},
-            {SR_KSU_MASK, SR_KSU_USR, "USR"},
-            {SR_KSU_MASK, SR_KSU_SUP, "SUP"},
-            {SR_KSU_MASK, SR_KSU_KER, "KER"},
-            {SR_ERL,      SR_ERL,     "ERL"},
-            {SR_EXL,      SR_EXL,     "EXL"},
-            {SR_IE,       SR_IE,      "IE"},
-            {0,           0,          ""}
-        };
+            // List of error causes
+            static regDesc causeDesc[] = {
+                {CAUSE_BD,      CAUSE_BD,    "BD"},
+                {CAUSE_IP8,     CAUSE_IP8,   "IP8"},
+                {CAUSE_IP7,     CAUSE_IP7,   "IP7"},
+                {CAUSE_IP6,     CAUSE_IP6,   "IP6"},
+                {CAUSE_IP5,     CAUSE_IP5,   "IP5"},
+                {CAUSE_IP4,     CAUSE_IP4,   "IP4"},
+                {CAUSE_IP3,     CAUSE_IP3,   "IP3"},
+                {CAUSE_SW2,     CAUSE_SW2,   "IP2"},
+                {CAUSE_SW1,     CAUSE_SW1,   "IP1"},
+                {CAUSE_EXCMASK, EXC_INT,     "Interrupt"},
+                {CAUSE_EXCMASK, EXC_MOD,     "TLB modification exception"},
+                {CAUSE_EXCMASK, EXC_RMISS,   "TLB exception on load or instruction fetch"},
+                {CAUSE_EXCMASK, EXC_WMISS,   "TLB exception on store"},
+                {CAUSE_EXCMASK, EXC_RADE,    "Address error on load or instruction fetch"},
+                {CAUSE_EXCMASK, EXC_WADE,    "Address error on store"},
+                {CAUSE_EXCMASK, EXC_IBE,     "Bus error exception on instruction fetch"},
+                {CAUSE_EXCMASK, EXC_DBE,     "Bus error exception on data reference"},
+                {CAUSE_EXCMASK, EXC_SYSCALL, "System call exception"},
+                {CAUSE_EXCMASK, EXC_BREAK,   "Breakpoint exception"},
+                {CAUSE_EXCMASK, EXC_II,      "Reserved instruction exception"},
+                {CAUSE_EXCMASK, EXC_CPU,     "Coprocessor unusable exception"},
+                {CAUSE_EXCMASK, EXC_OV,      "Arithmetic overflow exception"},
+                {CAUSE_EXCMASK, EXC_TRAP,    "Trap exception"},
+                {CAUSE_EXCMASK, EXC_VCEI,    "Virtual coherency exception on intruction fetch"},
+                {CAUSE_EXCMASK, EXC_FPE,     "Floating point exception (see fpcsr)"},
+                {CAUSE_EXCMASK, EXC_WATCH,   "Watchpoint exception"},
+                {CAUSE_EXCMASK, EXC_VCED,    "Virtual coherency exception on data reference"},
+                {0,             0,           ""}
+            };
+            
+            // List of register descriptions
+            static regDesc srDesc[] = {
+                {SR_CU3,      SR_CU3,     "CU3"},
+                {SR_CU2,      SR_CU2,     "CU2"},
+                {SR_CU1,      SR_CU1,     "CU1"},
+                {SR_CU0,      SR_CU0,     "CU0"},
+                {SR_RP,       SR_RP,      "RP"},
+                {SR_FR,       SR_FR,      "FR"},
+                {SR_RE,       SR_RE,      "RE"},
+                {SR_BEV,      SR_BEV,     "BEV"},
+                {SR_TS,       SR_TS,      "TS"},
+                {SR_SR,       SR_SR,      "SR"},
+                {SR_CH,       SR_CH,      "CH"},
+                {SR_CE,       SR_CE,      "CE"},
+                {SR_DE,       SR_DE,      "DE"},
+                {SR_IBIT8,    SR_IBIT8,   "IM8"},
+                {SR_IBIT7,    SR_IBIT7,   "IM7"},
+                {SR_IBIT6,    SR_IBIT6,   "IM6"},
+                {SR_IBIT5,    SR_IBIT5,   "IM5"},
+                {SR_IBIT4,    SR_IBIT4,   "IM4"},
+                {SR_IBIT3,    SR_IBIT3,   "IM3"},
+                {SR_IBIT2,    SR_IBIT2,   "IM2"},
+                {SR_IBIT1,    SR_IBIT1,   "IM1"},
+                {SR_KX,       SR_KX,      "KX"},
+                {SR_SX,       SR_SX,      "SX"},
+                {SR_UX,       SR_UX,      "UX"},
+                {SR_KSU_MASK, SR_KSU_USR, "USR"},
+                {SR_KSU_MASK, SR_KSU_SUP, "SUP"},
+                {SR_KSU_MASK, SR_KSU_KER, "KER"},
+                {SR_ERL,      SR_ERL,     "ERL"},
+                {SR_EXL,      SR_EXL,     "EXL"},
+                {SR_IE,       SR_IE,      "IE"},
+                {0,           0,          ""}
+            };
+            
+            // List of floating point registers descriptions
+            static regDesc fpcsrDesc[] = {
+                {FPCSR_FS,      FPCSR_FS,    "FS"},
+                {FPCSR_C,       FPCSR_C,     "C"},
+                {FPCSR_CE,      FPCSR_CE,    "Unimplemented operation"},
+                {FPCSR_CV,      FPCSR_CV,    "Invalid operation"},
+                {FPCSR_CZ,      FPCSR_CZ,    "Division by zero"},
+                {FPCSR_CO,      FPCSR_CO,    "Overflow"},
+                {FPCSR_CU,      FPCSR_CU,    "Underflow"},
+                {FPCSR_CI,      FPCSR_CI,    "Inexact operation"},
+                {FPCSR_EV,      FPCSR_EV,    "EV"},
+                {FPCSR_EZ,      FPCSR_EZ,    "EZ"},
+                {FPCSR_EO,      FPCSR_EO,    "EO"},
+                {FPCSR_EU,      FPCSR_EU,    "EU"},
+                {FPCSR_EI,      FPCSR_EI,    "EI"},
+                {FPCSR_FV,      FPCSR_FV,    "FV"},
+                {FPCSR_FZ,      FPCSR_FZ,    "FZ"},
+                {FPCSR_FO,      FPCSR_FO,    "FO"},
+                {FPCSR_FU,      FPCSR_FU,    "FU"},
+                {FPCSR_FI,      FPCSR_FI,    "FI"},
+                {FPCSR_RM_MASK, FPCSR_RM_RN, "RN"},
+                {FPCSR_RM_MASK, FPCSR_RM_RZ, "RZ"},
+                {FPCSR_RM_MASK, FPCSR_RM_RP, "RP"},
+                {FPCSR_RM_MASK, FPCSR_RM_RM, "RM"},
+                {0,             0,           ""}
+            };
+        #endif
         
-        // List of floating point registers descriptions
-        static regDesc fpcsrDesc[] = {
-            {FPCSR_FS,      FPCSR_FS,    "FS"},
-            {FPCSR_C,       FPCSR_C,     "C"},
-            {FPCSR_CE,      FPCSR_CE,    "Unimplemented operation"},
-            {FPCSR_CV,      FPCSR_CV,    "Invalid operation"},
-            {FPCSR_CZ,      FPCSR_CZ,    "Division by zero"},
-            {FPCSR_CO,      FPCSR_CO,    "Overflow"},
-            {FPCSR_CU,      FPCSR_CU,    "Underflow"},
-            {FPCSR_CI,      FPCSR_CI,    "Inexact operation"},
-            {FPCSR_EV,      FPCSR_EV,    "EV"},
-            {FPCSR_EZ,      FPCSR_EZ,    "EZ"},
-            {FPCSR_EO,      FPCSR_EO,    "EO"},
-            {FPCSR_EU,      FPCSR_EU,    "EU"},
-            {FPCSR_EI,      FPCSR_EI,    "EI"},
-            {FPCSR_FV,      FPCSR_FV,    "FV"},
-            {FPCSR_FZ,      FPCSR_FZ,    "FZ"},
-            {FPCSR_FO,      FPCSR_FO,    "FO"},
-            {FPCSR_FU,      FPCSR_FU,    "FU"},
-            {FPCSR_FI,      FPCSR_FI,    "FI"},
-            {FPCSR_RM_MASK, FPCSR_RM_RN, "RN"},
-            {FPCSR_RM_MASK, FPCSR_RM_RZ, "RZ"},
-            {FPCSR_RM_MASK, FPCSR_RM_RP, "RP"},
-            {FPCSR_RM_MASK, FPCSR_RM_RM, "RM"},
-            {0,             0,           ""}
-        };
-    #endif
-    
-    // Remote debugger packet lookup table
-    #if USE_RDBTHREAD
-        RDBPacketLUT lut_rdbpackets[] = {
-            // Due to the use of strncmp, the order of strings matters!
-            {"qSupported", debug_rdb_qsupported},
-            {"?", debug_rdb_halt},
-            {"g", debug_rdb_dumpregisters},
-            //{"G", debug_rdb_writeregister},
-            {"m", debug_rdb_readmemory},
-            //{"M", debug_rdb_writememory},
-            //{"Z", debug_rdb_addbreakpoint},
-            //{"z", debug_rdb_removebreakpoint},
-            //{"s", debug_rdb_step},
-            //{"c", debug_rdb_continue},
-        };
+        
+        // Remote debugger thread globals
+        #if USE_RDBTHREAD
+            static OSMesgQueue rdbMessageQ;
+            static OSMesg      rdbMessageBuf;
+            static OSThread    rdbThread;
+            static u64         rdbThreadStack[RDB_THREAD_STACK/sizeof(u64)];
+            
+            // RDB status globals
+            static u8        debug_rdbpaused = FALSE;
+            static bPoint    debug_bpoints[BPOINT_COUNT];
+
+            // Remote debugger packet lookup table
+            RDBPacketLUT lut_rdbpackets[] = {
+                // Due to the use of strncmp, the order of strings matters!
+                {"qSupported", debug_rdb_qsupported},
+                {"?", debug_rdb_halt},
+                {"g", debug_rdb_dumpregisters},
+                {"G", debug_rdb_writeregisters},
+                {"m", debug_rdb_readmemory},
+                {"M", debug_rdb_writememory},
+                {"Z0", debug_rdb_addbreakpoint},
+                {"z0", debug_rdb_removebreakpoint},
+                //{"s", debug_rdb_step},
+                {"c", debug_rdb_continue},
+            };
+        #endif
     #endif
     
     
@@ -347,13 +355,18 @@ https://github.com/buu342/N64-UNFLoader
     ==============================*/
     
     void debug_initialize()
-    {
+    {        
         // Initialize the USB functions
         if (!usb_initialize())
             return;
         
-        // Overwrite osSyncPrintf
+        // Initialize globals
+        memset(debug_commands_hashtable, 0, sizeof(debugCommand*)*HASHTABLE_SIZE);
+        memset(debug_commands_elements, 0, sizeof(debugCommand)*MAX_COMMANDS);
+        
+        // Libultra functions
         #ifndef LIBDRAGON
+            // Overwrite osSyncPrintf
             #if OVERWRITE_OSPRINT
                 __printfunc = (void*)debug_osSyncPrintf_implementation;
             #endif
@@ -374,10 +387,15 @@ https://github.com/buu342/N64-UNFLoader
             
             // Initialize the remote debugger thread
             #if USE_RDBTHREAD
-                osCreateThread(&rdbThread, RDB_THREAD_ID, debug_thread_rdb, 0, 
+                osCreateThread(&rdbThread, RDB_THREAD_ID, debug_thread_rdb, (void*)osGetThreadId(NULL), 
                                 (rdbThreadStack+RDB_THREAD_STACK/sizeof(u64)), 
                                 RDB_THREAD_PRI);
                 osStartThread(&rdbThread);
+                
+                // Pause the main thread
+                usb_purge();
+                usb_write(DATATYPE_TEXT, "Pausing main thread until GDB connects and resumes\n", 51+1);
+                osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDB_PAUSE, OS_MESG_BLOCK);
             #endif
         #endif
         
@@ -888,7 +906,7 @@ https://github.com/buu342/N64-UNFLoader
                 #if USE_RDBTHREAD
                     if (USBHEADER_GETTYPE(header) == DATATYPE_RDBPACKET)
                     {
-                        osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDBPACKET, OS_MESG_BLOCK);
+                        osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDB_PACKET, OS_MESG_BLOCK);
                         continue;
                     }
                 #endif
@@ -1031,7 +1049,7 @@ https://github.com/buu342/N64-UNFLoader
             static void debug_printreg(u32 value, char *name, regDesc *desc)
             {
                 char first = 1;
-                debug_printf("%s\t\t0x%08x <", name, value);
+                debug_printf("%s\t\t0x%16x <", name, value);
                 while (desc->mask != 0) 
                 {
                     if ((value & desc->mask) == desc->value) 
@@ -1074,13 +1092,13 @@ https://github.com/buu342/N64-UNFLoader
                         
                         // Print the basic info
                         debug_printf("Fault in thread: %d\n\n", curr->id);
-                        debug_printf("pc\t\t0x%08x\n", context->pc);
+                        debug_printf("pc\t\t0x%16x\n", context->pc);
                         if (assert_file == NULL)
                             debug_printreg(context->cause, "cause", causeDesc);
                         else
                             debug_printf("cause\t\tAssertion failed in file '%s', line %d.\n", assert_file, assert_line);
                         debug_printreg(context->sr, "sr", srDesc);
-                        debug_printf("badvaddr\t0x%08x\n\n", context->badvaddr);
+                        debug_printf("badvaddr\t0x%16x\n\n", context->badvaddr);
                         
                         // Print the registers
                         debug_printf("at 0x%016llx v0 0x%016llx v1 0x%016llx\n", context->at, context->v0, context->v1);
@@ -1121,39 +1139,54 @@ https://github.com/buu342/N64-UNFLoader
             
             static void debug_thread_rdb(void *arg)
             {
+                OSId mainid = (OSId)arg;
+                OSThread* mainthread = &rdbThread;
+                            
+                // Find the main thread pointer given its ID
+                while (mainthread->id != mainid)
+                    mainthread = mainthread->next;
+            
                 // Create the message queue for the rdb messages
                 osCreateMesgQueue(&rdbMessageQ, &rdbMessageBuf, 1);
                 
                 // Initialize breakpoints
-                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_BREAKPOINT_HIT);
+                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_RDB_BPHIT);
                 memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
                 
                 // Thread loop
                 while (1)
                 {
-                    u8 loop = FALSE;
                     OSMesg msg;
+                    OSThread* affected = NULL;
 
                     // Wait for an rdb message to arrive
                     osRecvMesg(&rdbMessageQ, (OSMesg*)&msg, OS_MESG_BLOCK);
 
-                    // If we hit a breakpoint, enable the loop until a continue command is received from USB
-                    if ((s32)msg == MSG_BREAKPOINT_HIT)
+                    // Check what message we received
+                    switch ((s32)msg)
                     {
-                        OSThread* affected = (OSThread *)__osGetCurrFaultedThread();
-                        loop = TRUE;
-                        
-                        // Find out which thread hit the bp exception
-                        while (affected != NULL) 
-                        {
-                            __OSThreadContext* context = &affected->context;
-                            if ((context->cause & CAUSE_EXCMASK) == EXC_BREAK)
-                                break;
-                            affected = __osGetNextFaultedThread(affected);
-                        }
-                        debug_bpthread = affected;
+                        case MSG_RDB_PACKET:
+                            break; // Do nothing
+                        case MSG_RDB_BPHIT:
+                            affected = (OSThread *)__osGetCurrFaultedThread();
+                            debug_rdbpaused = TRUE;
+                            
+                            // Find out which thread hit the bp exception
+                            while (1) 
+                            {
+                                __OSThreadContext* context = &affected->context;
+                                if ((context->cause & CAUSE_EXCMASK) == EXC_BREAK)
+                                    break;
+                                affected = __osGetNextFaultedThread(affected);
+                            }
+                            break;
+                        case MSG_RDB_PAUSE:
+                            // Since USB polling should be done in main, the main thread will obviously be the one which is paused
+                            affected = mainthread;
+                            debug_rdbpaused = TRUE;
+                            break;
                     }
-                    
+                        
                     // Handle the RDB packet
                     do
                     {
@@ -1162,8 +1195,10 @@ https://github.com/buu342/N64-UNFLoader
                         {
                             int i;
                             u8 found = FALSE;
+                            
+                            // Read the GDB packet from USB
                             memset(debug_buffer, 0, BUFFER_SIZE);
-                            usb_read(&debug_buffer, USBHEADER_GETSIZE(usbheader));
+                            usb_read(&debug_buffer, (USBHEADER_GETSIZE(usbheader) <= BUFFER_SIZE) ? USBHEADER_GETSIZE(usbheader) : BUFFER_SIZE);
 
                             // Run a function based on what we received
                             for (i=0; i<(sizeof(lut_rdbpackets)/sizeof(lut_rdbpackets[0])); i++)
@@ -1171,7 +1206,7 @@ https://github.com/buu342/N64-UNFLoader
                                 if (!strncmp(lut_rdbpackets[i].command, debug_buffer, strlen(lut_rdbpackets[i].command)))
                                 {
                                     found = TRUE;
-                                    lut_rdbpackets[i].func();
+                                    lut_rdbpackets[i].func(affected);
                                     break;
                                 }
                             }
@@ -1182,33 +1217,37 @@ https://github.com/buu342/N64-UNFLoader
                                 char empty = '\0';
                                 usb_purge();
                                 usb_write(DATATYPE_RDBPACKET, &empty, 1);
+                                //usb_write(DATATYPE_TEXT, "Unknown\n", 8+1);
                             }
                         }
                         usb_purge();
                     }
-                    while (loop);
+                    while (debug_rdbpaused); // Loop forever while we are paused
                 }
             }
             
             
             /*==============================
                 debug_rdb_qsupported
-                Responds to GDB with the maximum supported packet size
+                Responds to GDB with the supported features
+                @param The affected thread, if any
             ==============================*/
             
-            static void debug_rdb_qsupported()
+            static void debug_rdb_qsupported(OSThread* t)
             {
                 usb_purge();
-                usb_write(DATATYPE_RDBPACKET, "PacketSize=512", 14+1);
+                //usb_write(DATATYPE_RDBPACKET, "PacketSize=200;swbreak+", 23+1);
+                usb_write(DATATYPE_RDBPACKET, "PacketSize=200", 14+1);
             }
             
             
             /*==============================
                 debug_rdb_halt
                 Responds to GDB with the halt reason
+                @param The affected thread, if any
             ==============================*/
             
-            static void debug_rdb_halt()
+            static void debug_rdb_halt(OSThread* t)
             {
                 usb_purge();
                 usb_write(DATATYPE_RDBPACKET, "S05", 3+1);
@@ -1218,62 +1257,177 @@ https://github.com/buu342/N64-UNFLoader
             /*==============================
                 debug_rdb_dumpregisters
                 Responds to GDB with a dump of all registers
+                @param The affected thread, if any
             ==============================*/
             
-            static void debug_rdb_dumpregisters()
+            static void debug_rdb_dumpregisters(OSThread* t)
             {
-                int i;
-                char regdump[(40*8) + 1];
-                OSThread* t = debug_bpthread;
-                __OSThreadContext* context;
-                
-                // If we aren't breakpointed, then just dump the rdb thread's registers
-                if (t == NULL)
-                    t = &rdbThread;
-                context = &t->context;
-                
-                // Perform the humpty dumpty
-                sprintf(regdump+(0*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
-                    0,                (u32)context->at, (u32)context->v0, (u32)context->v1,
-                    (u32)context->a0, (u32)context->a1, (u32)context->a2, (u32)context->a3
-                );
-                sprintf(regdump+(8*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
-                    (u32)context->t0, (u32)context->t1, (u32)context->t2, (u32)context->t3,
-                    (u32)context->t4, (u32)context->t5, (u32)context->t6, (u32)context->t7
-                );
-                sprintf(regdump+(16*8), "%08x%08x%08x%08x%08x%08x%08x%08x", 
-                    (u32)context->s0, (u32)context->s1, (u32)context->s2, (u32)context->s3,
-                    (u32)context->s4, (u32)context->s5, (u32)context->s6, (u32)context->s7
-                );
-                sprintf(regdump+(24*8), "%08x%08x%s%s%08x%08x%08x%08x", 
-                    (u32)context->t8, (u32)context->t9, "xxxxxxxx",       "xxxxxxxx",
-                    (u32)context->gp, (u32)context->sp, (u32)context->s8, (u32)context->ra
-                );
-                sprintf(regdump+(32*8), "%08x%08x%08x%08x%08x%08x%08x%s", 
-                    (u32)context->sr,    (u32)context->lo, (u32)context->hi,    (u32)context->badvaddr,
-                    (u32)context->cause, (u32)context->pc, (u32)context->fpcsr, "xxxxxxxx"
-                );
-                
-                // Send the register dump
-                usb_purge();
-                usb_write(DATATYPE_RDBPACKET, regdump, strlen(regdump));
+                if (t != NULL)
+                {
+                    int i;
+                    __OSThreadContext* context = &t->context;
+                    char output[(40*16) + 1];
+                    
+                    // Perform the humpty dumpty
+                    sprintf(output+(0*16), "%016llx%016llx%016llx%016llx", 
+                        0,                (u64)context->at, (u64)context->v0, (u64)context->v1
+                    );
+                    sprintf(output+(4*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->a0, (u64)context->a1, (u64)context->a2, (u64)context->a3
+                    );
+                    sprintf(output+(8*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->t0, (u64)context->t1, (u64)context->t2, (u64)context->t3
+                    );
+                    sprintf(output+(12*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->t4, (u64)context->t5, (u64)context->t6, (u64)context->t7
+                    );
+                    sprintf(output+(16*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->s0, (u64)context->s1, (u64)context->s2, (u64)context->s3
+                    );
+                    sprintf(output+(20*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->s4, (u64)context->s5, (u64)context->s6, (u64)context->s7
+                    );
+                    sprintf(output+(24*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->t8, (u64)context->t9, "xxxxxxxxxxxxxxxx", "xxxxxxxxxxxxxxxx"
+                    );
+                    sprintf(output+(28*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->gp, (u64)context->sp, (u64)context->s8,   (u64)context->ra
+                    );
+                    sprintf(output+(32*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->sr,    (u64)context->lo, (u64)context->hi,    (u64)context->badvaddr
+                    );
+                    sprintf(output+(36*16), "%016llx%016llx%016llx%016llx", 
+                        (u64)context->cause, (u64)context->pc, (u64)context->fpcsr, "xxxxxxxxxxxxxxxx"
+                    );
+                    
+                    // Send the register dump
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, output, sizeof(output)/sizeof(output[0]));
+                }
+                else
+                {
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, "E00", 3+1);
+                }
+            }
+            
+            
+            /*==============================
+                register_define
+                Fills in our helper regType struct
+                @param The affected thread, if any
+            ==============================*/
+            
+            static regType register_define(int size, void* addr)
+            {
+                regType ret = {size, addr};
+                return ret;
+            }
+            
+            
+            /*==============================
+                debug_rdb_writeregisters
+                Writes a set of registers from a GDB packet
+                @param The affected thread, if any
+            ==============================*/
+            
+            static void debug_rdb_writeregisters(OSThread* t)
+            {
+                if (t != NULL)
+                {
+                    int i;
+                    regType registers[40];
+                    __OSThreadContext* context = &t->context;
+                    
+                    // The incoming data probably won't fit in the buffer, so we'll go bit by bit
+                    usb_rewind(BUFFER_SIZE);
+                    
+                    // Skip the 'G' at the start of the command
+                    usb_skip(1);
+                    
+                    // Setup the thread context register definition
+                    i=0;
+                    registers[i++] = register_define(0, NULL); // Zero
+                    registers[i++] = register_define(8, &context->at);
+                    registers[i++] = register_define(8, &context->v0);
+                    registers[i++] = register_define(8, &context->v1);
+                    registers[i++] = register_define(8, &context->a0);
+                    registers[i++] = register_define(8, &context->a1);
+                    registers[i++] = register_define(8, &context->a2);
+                    registers[i++] = register_define(8, &context->a3);
+                    registers[i++] = register_define(8, &context->t0);
+                    registers[i++] = register_define(8, &context->t1);
+                    registers[i++] = register_define(8, &context->t2);
+                    registers[i++] = register_define(8, &context->t3);
+                    registers[i++] = register_define(8, &context->t4);
+                    registers[i++] = register_define(8, &context->t5);
+                    registers[i++] = register_define(8, &context->t6);
+                    registers[i++] = register_define(8, &context->t7);
+                    registers[i++] = register_define(8, &context->s0);
+                    registers[i++] = register_define(8, &context->s1);
+                    registers[i++] = register_define(8, &context->s2);
+                    registers[i++] = register_define(8, &context->s3);
+                    registers[i++] = register_define(8, &context->s4);
+                    registers[i++] = register_define(8, &context->s5);
+                    registers[i++] = register_define(8, &context->s6);
+                    registers[i++] = register_define(8, &context->s7);
+                    registers[i++] = register_define(8, &context->t8);
+                    registers[i++] = register_define(8, &context->t9);
+                    registers[i++] = register_define(0, NULL); // K0
+                    registers[i++] = register_define(0, NULL); // K1
+                    registers[i++] = register_define(8, &context->gp);
+                    registers[i++] = register_define(8, &context->sp);
+                    registers[i++] = register_define(8, &context->s8);
+                    registers[i++] = register_define(8, &context->ra);
+                    registers[i++] = register_define(4, &context->sr);
+                    registers[i++] = register_define(8, &context->lo);
+                    registers[i++] = register_define(8, &context->hi);
+                    registers[i++] = register_define(4, &context->badvaddr);
+                    registers[i++] = register_define(4, &context->cause);
+                    registers[i++] = register_define(4, &context->pc);
+                    registers[i++] = register_define(4, &context->fpcsr);
+                    registers[i++] = register_define(0, NULL); // FIR
+                    
+                    // Do the writing
+                    for (i=0; i<40; i++)
+                    {
+                        char val[8+1];
+                        usb_read(val, 8);
+                        val[8] = '\0';
+                        if (val[0] != 'x' && registers[i].ptr != NULL)
+                        {
+                            if (registers[i].size == 4)
+                                (*(u32*)registers[i].ptr) = strtol(val, NULL, 16);
+                            else
+                                (*(u64*)registers[i].ptr) = strtol(val, NULL, 16);
+                        }
+                    }
+                    
+                    // Done
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                }
+                else
+                {
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, "E00", 3+1);
+                }
             }
             
             
             /*==============================
                 debug_rdb_readmemory
                 Responds to GDB with a memory read
+                @param The affected thread, if any
             ==============================*/
             
-            static void debug_rdb_readmemory()
+            static void debug_rdb_readmemory(OSThread* t)
             {
                 int i;
                 u32 addr;
                 u32 size;
                 char command[32];
-                char ret[32];
                 char* commandp = &command[0];
-                
                 strcpy(commandp, debug_buffer);
                 
                 // Skip the 'm' at the start of the command
@@ -1287,27 +1441,135 @@ https://github.com/buu342/N64-UNFLoader
                 commandp = strtok(NULL, ",");
                 size = atoi(commandp);
                 
-                // Read the memory address, one byte at a time
-                for (i=0; i<size; i++)
+                // We need to translate the address before trying to read it
+                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
+                else
                 {
-                    u8 val;                    
-                    val = *(((volatile u8*)addr)+i);
-                    sprintf(ret+(i*2), "%02x", val);
+                    addr = (u32)osVirtualToPhysical((u32*)addr);
+                    if (addr >= osGetMemSize())
+                        addr = 0;
+                    else
+                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
                 }
                 
-                // Send the address dump
-                usb_purge();
-                usb_write(DATATYPE_RDBPACKET, &ret, strlen(ret)+1);
+                // Ensure we are reading a valid memory address
+                if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
+                {
+                    osWritebackDCache((u32*)addr, size);
+                    
+                    // Read the memory address, one byte at a time
+                    for (i=0; i<size; i++)
+                    {
+                        u8 val;                    
+                        val = *(((volatile u8*)addr)+i);
+                        sprintf(debug_buffer+(i*2), "%02x", val);
+                    }
+                    
+                    // Send the address dump
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, &debug_buffer, strlen(debug_buffer)+1);
+                }
+                else
+                {
+                    for (i=0; i<size; i++)
+                        sprintf(debug_buffer+(i*2), "00");
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, &debug_buffer, strlen(debug_buffer)+1);
+                }
             }
             
             
             /*==============================
-                debug_rdb_togglebpoint
-                Enables/disables a breakpoint
+                debug_rdb_writememory
+                Writes the memory from a GDB packet
+                @param The affected thread, if any
             ==============================*/
-            /*
-            static inline void debug_rdb_togglebpoint()
+            
+            static void debug_rdb_writememory(OSThread* t)
             {
+                int i;
+                u32 addr;
+                u32 size;
+                char* commandp = &debug_buffer[0];
+                
+                // Skip the 'M' at the start of the command
+                commandp++;
+                
+                // Extract the address value
+                strtok(commandp, ",");
+                addr = (u32)strtol(commandp, NULL, 16);
+                
+                // Extract the size value
+                commandp = strtok(NULL, ":");
+                size = atoi(commandp);
+                
+                // Finally, point to the data we're actually gonna write
+                commandp = strtok(NULL, "\0");
+                
+                // We need to translate the address before trying to write to it
+                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
+                else
+                {
+                    addr = (u32)osVirtualToPhysical((u32*)addr);
+                    if (addr >= osGetMemSize())
+                        addr = 0;
+                    else
+                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                }
+                
+                // Ensure we are writing to a valid memory address
+                if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
+                {
+                    // Read the memory address, one byte at a time
+                    for (i=0; i<size; i++)
+                    {
+                        char byte[3];
+                        sprintf(byte, "%.2s", commandp+(i*2));
+                        *(((volatile u8*)addr)+i) = (u8)strtol(byte, NULL, 16);
+                    }
+                    
+                    // Done
+                    osWritebackDCache((u32*)addr, size);
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                }
+                else
+                {
+                    usb_purge();
+                    usb_write(DATATYPE_RDBPACKET, "E00", 3+1);
+                }
+            }
+            
+            
+            /*==============================
+                debug_rdb_addbreakpoint
+                Enables a breakpoint
+                @param The affected thread, if any
+            ==============================*/
+            
+            void debug_rdb_addbreakpoint(OSThread* t)
+            {
+                char empty = '\0';
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, &empty, 1);
+            }
+            
+            
+            /*==============================
+                debug_rdb_removebreakpoint
+                Disables a breakpoint
+                @param The affected thread, if any
+            ==============================*/
+            
+            static void debug_rdb_removebreakpoint(OSThread* t)
+            {
+                char empty = '\0';
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, &empty, 1);
+                usb_write(DATATYPE_TEXT, "Breakpoint Remove", 18);
+                /*
                 u8 bytes[9];
                 u32* addr1;
                 u32* addr2;
@@ -1377,16 +1639,20 @@ https://github.com/buu342/N64-UNFLoader
                         }
                     }
                 }
+                */
             }
-            */
             
             /*==============================
                 debug_rdb_continue
                 Handles continue
+                @param The affected thread, if any
             ==============================*/
-            /*
-            static inline void debug_rdb_continue()
+            static void debug_rdb_continue(OSThread* t)
             {
+                debug_rdbpaused = FALSE;
+                usb_purge();
+                usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                /*
                 u32 nexti, *addr, index;
                 OSThread* thread = __osGetActiveQueue();
                 bPoint* point;
@@ -1429,8 +1695,8 @@ https://github.com/buu342/N64-UNFLoader
                 (*point->addr) = MAKE_BREAKPOINT_INDEX(index);
                 osWritebackDCache(point->addr, 4);
                 osInvalICache(point->addr, 4);
+                */
             }
-            */
         #endif
         
     #endif

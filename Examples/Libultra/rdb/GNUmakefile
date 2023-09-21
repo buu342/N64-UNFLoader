@@ -10,14 +10,14 @@
 
 ASMFILES    = asm/entry.s asm/rom_header.s
 ASMOBJECTS  =	$(ASMFILES:.s=.o)
-CODECFILES  = main.c graphic.c helper.c stage00.c texture.c
+CODECFILES  = main.c graphic.c helper.c stage00.c texture.c screentext.c
 CODEHFILES  =
 
 DEBUGFILES = debug.c usb.c
 
-ELF		= unflexa4.elf
-TARGETS	= unflexa4.z64
-MAP		= unflexa4.map
+ELF		= breakpoints.elf
+TARGETS	= breakpoints.z64
+MAP		= breakpoints.map
 
 LD_SCRIPT	= unflexa4.ld
 CP_LD_SCRIPT	= unflexa4_cp.ld
@@ -76,7 +76,7 @@ endif
 LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include -I$(NUSYSINC) -I $(ROOT)/usr/include/nustd
 LCOPTS =	-G 0
 LDIRT  =	$(ELF) $(CP_LD_SCRIPT) $(TARGETS) $(MAP) $(ASMOBJECTS)
-LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR -L$(NUSYSLIB) $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -lnustd
+LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR -L$(NUSYSLIB) $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -lnustd -g
 
 
 ################################################################
