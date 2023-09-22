@@ -6,6 +6,9 @@ This folder contains both the USB and debug library that works in tandem with UN
 ### Table of Contents
 * [How to use the USB library](#how-to-use-the-usb-library)
 * [How to use the Debug library](#how-to-use-the-debug-library)
+* [How to debug with GDB](#how-to-debug-with-gdb)
+    - [Notes about GDB debugging with Libultra](#notes-about-gdb-debugging-with-libultra)
+    - [Notes about GDB debugging with Libdragon](#notes-about-gdb-debugging-with-libdragon)
 * [How these libraries work](#how-these-libraries-work)
 </br>
 
@@ -197,6 +200,24 @@ void debug_printcommands();
 </p>
 </details>
 </br>
+
+### How to debug with GDB
+A GDB stub is provided with `debug.c`. In order to debug with GDB, the `USE_RDBTHREAD` macro in `debug.h` must be set to `1` (it is set to `0` by default), and UNFLoader must be launched with the `-g` command (for more information, check the [How to use UNFLoader](../UNFLoader/README.md#how-to-use-unfloader) section in the UNFLoader README). 
+
+The steps for connecting GDB are as follows:
+1. Start by ensuring that your version of GDB supports the `mips:4300` architecture. Default GDB usually does not, so instead you should install and use `gdb-multiarch`. You can confirm if the architecture is supported by launching GDB and calling `set architecture` to get a list of architectures.
+2. Compile your ROM with the `USE_RDBTHREAD` flag enabled, and feed the ELF that is generated into GDB by either launching GDB with it `gdb-multiarch rom.elf` or, with an already launched GDB, with the command `file rom.elf`. In order for the ELF to properly generate, your ROM must be compiled with the `-g` flag and, ideally, no optimizations (`-O0`). If using a linker script, it is a good idea to give it the `-g` flag too, and **make sure ld does not strip the debug symbols with the `-s` flag nor with `DISCARD` in the linker script**. The outputted ELF will have the extension `elf` or `out`. You can confirm it's correct by checking if it has `.debug` section headers with readelf: `readelf -S rom.elf`.
+3. GDB, in my experience, does not autodetect the architecture properly. Do `set architecture mips:4300`, or you might cause GDB to crash during the handshake.
+4. Launch UNFLoader with the `-d` and `-g` flag enabled. When the ROM boots, it'll pause execution as soon as the code hits `debug_initialize()`. When this happens, you should get a message from UNFLoader telling you that the ROM is paused and waiting for GDB to attach.
+5. In GDB, call `target remote 127.0.0.1:8080`, obviously replacing the address with a different one if you provided one for the `-g` argument.
+6. If GDB is attached correctly, you should be able to resume ROM execution with `c` or `continue`.
+
+
+#### Notes about GDB debugging with Libultra
+If you are using the old SDK (as in, not using ModernSDK), you will not be able to use GDB to its full extent. The GCC that is bundled with EXEWGCC is ancient and does not support the full debugging symbols that modern GDB requires. As a result, you will only be able to do assembly level debugging (place breakpoints, view registers, viewing the backtrace, etc...). You will not be able to step through lines of code, list local variables, etc... There might be a magic combo of flags or a magic combo of GDB version which will allow for all these features, but I'll leave figuring that out as an exercise for the user. If you do figure it out, lemme know so I can add that information here!
+
+#### Notes about GDB debugging with Libdragon
+Libdragon is currently unsupported.
 
 ### How these libraries work
 I recommend developers check out the [wiki](../../../wiki) chapters 1 and 2 to get a full understanding of the communication protocol. The debug library abstracts this information away as much as possible, so if you didn't fully understand what was in those pages it's not a big concern. A summary of the most important tidbits is provided here:
