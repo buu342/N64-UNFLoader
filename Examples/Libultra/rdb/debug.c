@@ -1144,7 +1144,7 @@ https://github.com/buu342/N64-UNFLoader
                             
                 // Find the main thread pointer given its ID
                 while (mainthread->id != mainid)
-                    mainthread = mainthread->next;
+                    mainthread = mainthread->tlnext;
             
                 // Create the message queue for the rdb messages
                 osCreateMesgQueue(&rdbMessageQ, &rdbMessageBuf, 1);
@@ -1168,17 +1168,19 @@ https://github.com/buu342/N64-UNFLoader
                         case MSG_RDB_PACKET:
                             break; // Do nothing
                         case MSG_RDB_BPHIT:
-                            affected = (OSThread *)__osGetCurrFaultedThread();
+                            affected = mainthread;
                             debug_rdbpaused = TRUE;
                             
                             // Find out which thread hit the bp exception
                             while (1) 
                             {
-                                __OSThreadContext* context = &affected->context;
-                                if ((context->cause & CAUSE_EXCMASK) == EXC_BREAK)
+                                if (affected->flags & OS_FLAG_CPU_BREAK)
                                     break;
-                                affected = __osGetNextFaultedThread(affected);
+                                affected = affected->tlnext;
                             }
+                            usb_purge();
+                            usb_write(DATATYPE_RDBPACKET, "T05swbreak:;", 12+1);
+                            usb_write(DATATYPE_TEXT, "We hit the breakpoint\n", 22+1);
                             break;
                         case MSG_RDB_PAUSE:
                             // Since USB polling should be done in main, the main thread will obviously be the one which is paused
@@ -1217,7 +1219,7 @@ https://github.com/buu342/N64-UNFLoader
                                 char empty = '\0';
                                 usb_purge();
                                 usb_write(DATATYPE_RDBPACKET, &empty, 1);
-                                //usb_write(DATATYPE_TEXT, "Unknown\n", 8+1);
+                                usb_write(DATATYPE_TEXT, "Unknown\n", 8+1);
                             }
                         }
                         usb_purge();
@@ -1236,8 +1238,7 @@ https://github.com/buu342/N64-UNFLoader
             static void debug_rdb_qsupported(OSThread* t)
             {
                 usb_purge();
-                //usb_write(DATATYPE_RDBPACKET, "PacketSize=200;swbreak+", 23+1);
-                usb_write(DATATYPE_RDBPACKET, "PacketSize=200", 14+1);
+                usb_write(DATATYPE_RDBPACKET, "PacketSize=200;swbreak+", 23+1);
             }
             
             
@@ -1551,9 +1552,68 @@ https://github.com/buu342/N64-UNFLoader
             
             void debug_rdb_addbreakpoint(OSThread* t)
             {
-                char empty = '\0';
+                int i;
+                u32 addr;
+                char command[32];
+                char* commandp = &command[0];
+                strcpy(commandp, debug_buffer);
+                
+                // Skip the Z0 at the start
+                strtok(commandp, ",");
+                
+                // Extract the address value
+                commandp = strtok(NULL, ",");
+                addr = (u32)strtol(commandp, NULL, 16);
+                
+                // There's still one more byte left (the breakpoint kind) which we can ignore
+                
+                // We need to translate the address before trying to put the breakpoint on it
+                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
+                else
+                {
+                    addr = (u32)osVirtualToPhysical((u32*)addr);
+                    if (addr >= osGetMemSize())
+                        addr = 0;
+                    else
+                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                }
+                
+                // Find an empty slot in our breakpoint array and store the breakpoint info there
+                for (i=0; i<BPOINT_COUNT; i++)
+                {
+                    if (debug_bpoints[i].addr == (u32*)addr) // No need to re-add the bp if it already exists
+                    {
+                        usb_purge();
+                        usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                        return;
+                    }
+                    if (debug_bpoints[i].addr == NULL)
+                    {
+                        // The first address is the one we want to breakpoint at
+                        // The second address is the address of the instruction that comes after it. This will be of use later
+                        debug_bpoints[i].addr = (u32*)addr;
+                        debug_bpoints[i].instruction = *((u32*)addr);
+                        debug_bpoints[i].next_addr = (u32*)(addr+4);
+                        
+                        // A breakpoint on the R4300 is any invalid instruction (It's an exception). 
+                        // The first 6 bits of the opcodes are reserved for the instruction itself.
+                        // So since we have a range of values, we can encode the index into the instruction itself, in the middle 20 bits
+                        // Zero is reserved for temporary breakpoints (which are used when stepping through code)
+                        *((u32*)addr) = MAKE_BREAKPOINT_INDEX(i+1);
+                        osWritebackDCache((u32*)addr, 4);
+                        osInvalICache((u32*)addr, 4);
+                        
+                        // Tell GDB we succeeded
+                        usb_purge();
+                        usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                        return;
+                    }
+                }
+            
+                // Some failure happend
                 usb_purge();
-                usb_write(DATATYPE_RDBPACKET, &empty, 1);
+                usb_write(DATATYPE_RDBPACKET, "E00", 3+1);
             }
             
             
@@ -1565,10 +1625,8 @@ https://github.com/buu342/N64-UNFLoader
             
             static void debug_rdb_removebreakpoint(OSThread* t)
             {
-                char empty = '\0';
                 usb_purge();
-                usb_write(DATATYPE_RDBPACKET, &empty, 1);
-                usb_write(DATATYPE_TEXT, "Breakpoint Remove", 18);
+                usb_write(DATATYPE_TEXT, "Breakpoint Remove\n", 18+1);
                 /*
                 u8 bytes[9];
                 u32* addr1;
