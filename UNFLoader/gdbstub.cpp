@@ -31,7 +31,7 @@ Handles basic GDB communication
 *********************************/
 
 #define TIMEOUT 3
-#define VERBOSE 1
+#define VERBOSE 0
 
 #ifdef LINUX
     #define SOCKET  int

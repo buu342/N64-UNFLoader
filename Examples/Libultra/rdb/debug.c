@@ -49,7 +49,7 @@ https://github.com/buu342/N64-UNFLoader
     #define HASHTABLE_SIZE  7
     #define COMMAND_TOKENS  10
     #define BUFFER_SIZE     256
-    #define REGISTER_COUNT  72  // 32 GPRs + 6 SPRs + 32 FPRs + fsr + fir (fcr0)
+    #define REGISTER_COUNT  72  // 32 GPRs + 6 SPRs + 16 FPRs + fsr + fir (fcr0)
     #define REGISTER_SIZE   16  // GDB expects the registers to be 64-bits
     
     
@@ -1219,7 +1219,7 @@ https://github.com/buu342/N64-UNFLoader
                             if (!found)
                             {
                                 usb_purge();
-                                usb_write(DATATYPE_RDBPACKET, "", 1);
+                                usb_write(DATATYPE_RDBPACKET, "\0", 1);
                             }
                         }
                         usb_purge();
@@ -1428,7 +1428,7 @@ https://github.com/buu342/N64-UNFLoader
                 if (t != NULL)
                 {
                     int i;
-                    u32 chunkcount = 1+ceil(((REGISTER_COUNT*REGISTER_SIZE)+1)/BUFFER_SIZE);
+                    u32 chunkcount = 1+ceil((REGISTER_COUNT*REGISTER_SIZE)/BUFFER_SIZE);
                     u32 offset = 0;
                     regType registers[REGISTER_COUNT];
                     __OSThreadContext* context = &t->context;
@@ -1442,15 +1442,16 @@ https://github.com/buu342/N64-UNFLoader
                     offset += sprintf(debug_buffer+offset, "0*,"); // Zero register 
                     for (i=1; i<REGISTER_COUNT; i++)
                     {
-                        if (i != 71)
-                            offset += debug_rdb_printreg_rle(debug_buffer+offset, registers[i].ptr, registers[i].size);
+                        if (i == 71)
+                            offset += sprintf(debug_buffer+offset, "0*&800b11"); // FCR0 is an edge case
                         else
-                            offset += sprintf(debug_buffer+offset, "0*)b11"); // FCR0 is an edge case
+                            offset += debug_rdb_printreg_rle(debug_buffer+offset, registers[i].ptr, registers[i].size);
                         
                         // Send a chunk if we're about to overrun the debug buffer
-                        if (((strlen(debug_buffer)+1)+REGISTER_SIZE) > BUFFER_SIZE || i == (REGISTER_COUNT-1))
+                        if ((strlen(debug_buffer)+REGISTER_SIZE+1) > BUFFER_SIZE || i == (REGISTER_COUNT-1))
                         {
-                            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer));  
+                            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer)+1);
+                            memset(debug_buffer, 0, BUFFER_SIZE);
                             offset = 0;
                             chunkcount--;
                         }
@@ -1458,7 +1459,7 @@ https://github.com/buu342/N64-UNFLoader
                     
                     // Finish sending the other chunks
                     for (i=chunkcount; i>=0; i--)
-                        usb_write(DATATYPE_RDBPACKET, "", 1);
+                        usb_write(DATATYPE_RDBPACKET, "\0", 1);
                 }
                 else
                 {

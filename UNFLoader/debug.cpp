@@ -128,6 +128,8 @@ void debug_main()
         {
             if (msg->type == DATATYPE_TEXT)
                 log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
+            else if (msg->type == DATATYPE_RDBPACKET)
+                log_replace("RDB sent packet '%s'\n", CRDEF_INFO, msg->data);
             else
                 log_replace("Sent command\n", CRDEF_INFO);
             decrement_escapelevel();
@@ -363,27 +365,16 @@ void debug_handle_rdbpacket(uint32_t size, byte* buffer)
     // Do the send
     if (debug_headerdata[0] == 0)
     {
-        byte* packet;
-        uint32_t finalsize = 0;
-        uint32_t count = 0;
-
-        // Calculate the final packet size
-        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
-            finalsize += (*it)->size;
-        packet = (byte*)malloc(finalsize);
+        std::string packet = "";
 
         // Copy the data over
         for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
-        {
-            memcpy(packet+count, (*it)->data, (*it)->size);
-            count += (*it)->size;
-        }
+            packet += (char*)(*it)->data;
 
         // Send it to GDB
-        gdb_reply((char*)packet);
+        gdb_reply((char*)packet.c_str());
 
         // Cleanup
-        free(packet);
         for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
         {
             free((*it)->data);
