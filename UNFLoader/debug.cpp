@@ -49,6 +49,11 @@ typedef struct {
     bool     ispath;
 } ParseHelper;
 
+typedef struct {
+    byte*    data;
+    uint32_t size;
+} RDBPacketChunk;
+
 
 /*********************************
         Function Prototypes
@@ -73,6 +78,7 @@ static char* local_binaryoutfolderpath = NULL;
 // Other
 static int debug_headerdata[HEADER_SIZE];
 static std::queue<SendData*> local_mesgqueue;
+static std::list<RDBPacketChunk*> local_rdbpackets;
 
 
 /*==============================
@@ -295,6 +301,7 @@ static void debug_handle_screenshot(uint32_t size, byte* buffer)
 
     // Close the file and free the dynamic memory used
     lodepng_encode32_file(filename, image, w, h);
+    memset(debug_headerdata, 0, sizeof(int)*HEADER_SIZE);
     log_colored("Wrote %dx%d pixels to '%s'.\n", CRDEF_INFO, w, h, filename);
     free(image);
     free(filename);
@@ -346,8 +353,46 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
 
 void debug_handle_rdbpacket(uint32_t size, byte* buffer)
 {
-    (void)size;
-    gdb_reply((char*)buffer);
+    // Buffer packets until we're ready to send
+    RDBPacketChunk* chunk = (RDBPacketChunk*)malloc(sizeof(RDBPacketChunk));
+    chunk->data = (byte*)malloc(size);
+    chunk->size = size;
+    memcpy(chunk->data, buffer, size);
+    local_rdbpackets.push_back(chunk);
+
+    // Do the send
+    if (debug_headerdata[0] == 0)
+    {
+        byte* packet;
+        uint32_t finalsize = 0;
+        uint32_t count = 0;
+
+        // Calculate the final packet size
+        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
+            finalsize += (*it)->size;
+        packet = (byte*)malloc(finalsize);
+
+        // Copy the data over
+        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
+        {
+            memcpy(packet+count, (*it)->data, (*it)->size);
+            count += (*it)->size;
+        }
+
+        // Send it to GDB
+        gdb_reply((char*)packet);
+
+        // Cleanup
+        free(packet);
+        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
+        {
+            free((*it)->data);
+            free(*it);
+        }
+        local_rdbpackets.clear();
+    }
+    else
+        debug_headerdata[0]--;
 }
 
 
@@ -555,91 +600,6 @@ void debug_sendtext(char* data)
     }
 }
 
-/*
-bool debug_rdbcommands(char* data)
-{
-    if (strncmp(data, "break", strlen("break")) == 0)
-    {
-        long addr;
-        char* token;
-        SendData* mesg = (SendData*)malloc(sizeof(SendData));
-        if (mesg == NULL)
-            terminate("Unable to malloc message for debug send.");
-        mesg->type = DATATYPE_RDBPACKET;
-        mesg->original = (char*)malloc(strlen(data));
-        mesg->size = 10;
-        mesg->data = (byte*)malloc(mesg->size);
-        if (mesg->original == NULL || mesg->data == NULL)
-            terminate("Unable to malloc message for debug send.");
-        strcpy(mesg->original, data);
-        mesg->data[0] = RDB_PACKETHEADER_BREAKPOINT;
-
-        // "Break"
-        token = strtok(data, " ");
-        if (token == NULL)
-        {
-            free(mesg->original);
-            free(mesg->data);
-            free(mesg);
-            return true;
-        }
-
-        // First address
-        token = strtok(NULL, " ");
-        if (token == NULL)
-        {
-            free(mesg->original);
-            free(mesg->data);
-            free(mesg);
-            return true;
-        }
-        addr = swap_endian(strtoul(token, NULL, 16));
-        mesg->data[1] = (addr >> 24) & 0xFF;
-        mesg->data[2] = (addr >> 16) & 0xFF;
-        mesg->data[3] = (addr >> 8) & 0xFF;
-        mesg->data[4] = addr & 0xFF;
-
-        // Second address
-        token = strtok(NULL, " ");
-        if (token == NULL)
-        {
-            free(mesg->original);
-            free(mesg->data);
-            free(mesg);
-            return true;
-        }
-        addr = swap_endian(strtoul(token, NULL, 16));
-        mesg->data[5] = (addr >> 24) & 0xFF;
-        mesg->data[6] = (addr >> 16) & 0xFF;
-        mesg->data[7] = (addr >> 8) & 0xFF;
-        mesg->data[8] = addr & 0xFF;
-
-        // Enable flag
-        mesg->data[9] = 1;
-
-        // Send to USB
-        local_mesgqueue.push(mesg);
-        return true;
-    }
-    else if (strncmp(data, "continue", strlen("continue")) == 0)
-    {
-        SendData* mesg = (SendData*)malloc(sizeof(SendData));
-        if (mesg == NULL)
-            terminate("Unable to malloc message for debug send.");
-        mesg->type = DATATYPE_RDBPACKET;
-        mesg->size = 2;
-        mesg->original = (char*)malloc(strlen(data));
-        mesg->data = (byte*)malloc(mesg->size);
-        if (mesg->original == NULL || mesg->data == NULL)
-            terminate("Unable to malloc message for debug send.");
-        strcpy(mesg->original, data);
-        mesg->data[0] = RDB_PACKETHEADER_CONTINUE;
-        local_mesgqueue.push(mesg);
-        return true;
-    }
-    return false;
-}
-*/
 
 /*==============================
     debug_setdebugout

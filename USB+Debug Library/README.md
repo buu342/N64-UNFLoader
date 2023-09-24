@@ -7,6 +7,7 @@ This folder contains both the USB and debug library that works in tandem with UN
 * [How to use the USB library](#how-to-use-the-usb-library)
 * [How to use the Debug library](#how-to-use-the-debug-library)
 * [How to debug with GDB](#how-to-debug-with-gdb)
+    - [Notes about GDB debugging](#notes-about-gdb-debugging)
     - [Notes about GDB debugging with Libultra](#notes-about-gdb-debugging-with-libultra)
     - [Notes about GDB debugging with Libdragon](#notes-about-gdb-debugging-with-libdragon)
 * [How these libraries work](#how-these-libraries-work)
@@ -212,9 +213,11 @@ The steps for connecting GDB are as follows:
 5. In GDB, call `target remote 127.0.0.1:8080`, obviously replacing the address with a different one if you provided one for the `-g` argument.
 6. If GDB is attached correctly, you should be able to resume ROM execution with `c` or `continue`.
 
+#### Notes about GDB debugging
+* Overlays/Relocation is currently unsupported. I'm not even sure how to start supporting it to be honest.
 
 #### Notes about GDB debugging with Libultra
-If you are using the old SDK (as in, not using ModernSDK), you will not be able to use GDB to its full extent. The GCC that is bundled with EXEWGCC is ancient and does not support the full debugging symbols that modern GDB requires. As a result, you will only be able to do assembly level debugging (place breakpoints, view registers, viewing the backtrace, etc...). You will not be able to step through lines of code, list local variables, etc... There might be a magic combo of flags or a magic combo of GDB version which will allow for all these features, but I'll leave figuring that out as an exercise for the user. If you do figure it out, lemme know so I can add that information here!
+If you are using the old SDK (as in, not using ModernSDK), you will not be able to use GDB to its full extent. The GCC that is bundled with EXEWGCC is ancient and does not support the full debugging symbols that modern GDB requires (EXEWGCC only provides DWARF v1 debugging symbols, which don't include `.debug_line`, etc...). As a result, you will only be able to do assembly level debugging (place breakpoints, disassemble, stepping through assembly, view registers, viewing the backtrace, etc...). You will not be able to step through lines of C code, list local variables, etc... There might be a magic combo of flags or a magic combo of GDB version which will allow for all these features, but I'll leave figuring that out as an exercise for the user. If you do figure it out, lemme know so I can add that information here!
 
 #### Notes about GDB debugging with Libdragon
 Libdragon is currently unsupported.
