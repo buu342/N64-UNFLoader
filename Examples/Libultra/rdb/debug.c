@@ -8,14 +8,15 @@ https://github.com/buu342/N64-UNFLoader
 
 #include "debug.h"
 #ifndef LIBDRAGON
-    #include <ultra64.h> 
+    #include <ultra64.h>
     #include <PR/os_internal.h> // Needed for Crash's Linux toolchain
 #else
     #include <libdragon.h>
     #include <stdio.h>
-    #include <math.h>
 #endif
+#include <math.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if DEBUG_MODE
@@ -154,7 +155,6 @@ https://github.com/buu342/N64-UNFLoader
             static void debug_rdb_writeregisters(OSThread* t);
             static void debug_rdb_readmemory(OSThread* t);
             static void debug_rdb_writememory(OSThread* t);
-            static void debug_rdb_togglebpoint(OSThread* t);
             static void debug_rdb_addbreakpoint(OSThread* t);
             static void debug_rdb_removebreakpoint(OSThread* t);
             static void debug_rdb_continue(OSThread* t);
@@ -1092,10 +1092,6 @@ https://github.com/buu342/N64-UNFLoader
                     {
                         __OSThreadContext* context = &curr->context;
                         
-                        //char aaa[64];
-                        //sprintf(aaa, "Oh no, stinky at %d", context->pc);
-                        //screentext_put(32, 32, aaa);
-                        
                         // Print the basic info
                         debug_printf("Fault in thread: %d\n\n", curr->id);
                         debug_printf("pc\t\t0x%16x\n", context->pc);
@@ -1166,7 +1162,7 @@ https://github.com/buu342/N64-UNFLoader
                     OSThread* affected = NULL;
 
                     // Wait for an rdb message to arrive
-                    osRecvMesg(&rdbMessageQ, (OSMesg*)&msg, OS_MESG_BLOCK);
+                    osRecvMesg(&rdbMessageQ, &msg, OS_MESG_BLOCK);
 
                     // Check what message we received
                     switch ((s32)msg)
@@ -1374,7 +1370,7 @@ https://github.com/buu342/N64-UNFLoader
                 if (t != NULL)
                 {
                     int i;
-                    u32 chunkcount = 1+ceil((REGISTER_COUNT*REGISTER_SIZE)/BUFFER_SIZE);
+                    u32 chunkcount = 2+(REGISTER_COUNT*REGISTER_SIZE)/BUFFER_SIZE;
                     u32 offset = 0;
                     __OSThreadContext* context = &t->context;
                     
@@ -1673,7 +1669,7 @@ https://github.com/buu342/N64-UNFLoader
             
             static void debug_rdb_removebreakpoint(OSThread* t)
             {
-                int i, index;
+                int index;
                 u32 addr;
                 char command[32];
                 char* commandp = &command[0];
