@@ -215,6 +215,8 @@ The steps for connecting GDB are as follows:
 
 #### Notes about GDB debugging
 * Overlays/Relocation is currently unsupported. I'm not even sure how to start supporting it to be honest.
+* Watchpoints are unsupported.
+* CTRL+C and threads are unsupported.
 
 #### Notes about GDB debugging with Libultra
 If you are using the old SDK (as in, not using ModernSDK), you will not be able to use GDB to its full extent. The GCC that is bundled with EXEWGCC is ancient and does not support the full debugging symbols that modern GDB requires (EXEWGCC only provides DWARF v1 debugging symbols, which don't include `.debug_line`, etc...). As a result, you will only be able to do assembly level debugging (place breakpoints, disassemble, stepping through assembly, view registers, viewing the backtrace, etc...). You will not be able to step through lines of C code, list local variables, etc... There might be a magic combo of flags or a magic combo of GDB version which will allow for all these features, but I'll leave figuring that out as an exercise for the user. If you do figure it out, lemme know so I can add that information here!
