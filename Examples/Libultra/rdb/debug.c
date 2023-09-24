@@ -1261,6 +1261,7 @@ https://github.com/buu342/N64-UNFLoader
                 Gets a register type from a given index
                 @param The affected thread context
                 @param The register index
+                @returns The regType that matches the given index
             ==============================*/
             
             static regType register_fromindex(__OSThreadContext* context, int index)
@@ -1306,6 +1307,7 @@ https://github.com/buu342/N64-UNFLoader
                 compressed with Run-Length Encoding
                 @param The buffer to write to
                 @param The register type
+                @returns The number of bytes written
             ==============================*/
             
             static u32 debug_rdb_printreg_rle(char* buf, regType reg)
@@ -1414,6 +1416,35 @@ https://github.com/buu342/N64-UNFLoader
             
             
             /*==============================
+                hex2u64
+                Converts a string containing a hexadecimal value
+                into a number. This exists because strtol is broken
+                on ModernSDK.
+                @param The string with the hexadecimal number
+                @returns The converted value
+            ==============================*/
+            
+            static u64 hex2u64(char* addr)
+            {
+                int i = 0;
+                u64 ret = 0;
+                while (addr[i] != '\0')
+                {
+                    u32 val;
+                    if (addr[i] <= '9')
+                        val = addr[i]-'0';
+                    else if (addr[i] <= 'F')
+                        val = 10 + addr[i] - 'A';
+                    else
+                        val = 10 + addr[i] - 'a';
+                    ret = (ret << 4) | (val & 0xF);
+                    i++;
+                }
+                return ret;
+            }
+            
+            
+            /*==============================
                 debug_rdb_writeregisters
                 Writes a set of registers from a GDB packet
                 @param The affected thread, if any
@@ -1448,9 +1479,9 @@ https://github.com/buu342/N64-UNFLoader
                         if (val[0] != 'x' && reg.ptr != NULL)
                         {
                             if (reg.size == 4)
-                                (*(vu32*)reg.ptr) = (u32)strtol(val, NULL, 16);
+                                (*(vu32*)reg.ptr) = (u32)hex2u64(val);
                             else
-                                (*(vu64*)reg.ptr) = (u64)strtol(val, NULL, 16);
+                                (*(vu64*)reg.ptr) = (u64)hex2u64(val);
                         }
                     }
                     
@@ -1486,26 +1517,23 @@ https://github.com/buu342/N64-UNFLoader
                 
                 // Extract the address value
                 strtok(commandp, ",");
-                addr = (u32)strtol(commandp, NULL, 16);
+                addr = (u32)hex2u64(commandp);
                 
                 // Extract the size value
                 commandp = strtok(NULL, ",");
                 size = atoi(commandp);
                 
                 // We need to translate the address before trying to read it
-                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
-                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
-                else
+                if ((addr & 0xFF000000) != 0xA4000000 && (addr & 0xFF000000) != 0x04000000)
                 {
                     addr = (u32)osVirtualToPhysical((u32*)addr);
-                    if (addr >= osGetMemSize())
-                        addr = 0;
-                    else
-                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                    addr = (addr <= osMemSize) ? (u32)OS_PHYSICAL_TO_K0(addr) : 0;
                 }
+                else
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
                 
                 // Ensure we are reading a valid memory address
-                if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
+                if (addr >= 0x80000000 && addr < 0x80000000 + osMemSize)
                 {
                     osWritebackDCache((u32*)addr, size);
                     
@@ -1548,7 +1576,7 @@ https://github.com/buu342/N64-UNFLoader
                 
                 // Extract the address value
                 strtok(commandp, ",");
-                addr = (u32)strtol(commandp, NULL, 16);
+                addr = (u32)hex2u64(commandp);
                 
                 // Extract the size value
                 commandp = strtok(NULL, ":");
@@ -1558,16 +1586,13 @@ https://github.com/buu342/N64-UNFLoader
                 commandp = strtok(NULL, "\0");
                 
                 // We need to translate the address before trying to write to it
-                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
-                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
-                else
+                if ((addr & 0xFF000000) != 0xA4000000 && (addr & 0xFF000000) != 0x04000000)
                 {
                     addr = (u32)osVirtualToPhysical((u32*)addr);
-                    if (addr >= osGetMemSize())
-                        addr = 0;
-                    else
-                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                    addr = (addr <= osMemSize) ? (u32)OS_PHYSICAL_TO_K0(addr) : 0;
                 }
+                else
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
                 
                 // Ensure we are writing to a valid memory address
                 if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
@@ -1577,7 +1602,7 @@ https://github.com/buu342/N64-UNFLoader
                     {
                         char byte[3];
                         sprintf(byte, "%.2s", commandp+(i*2));
-                        *(((vu8*)addr)+i) = (u8)strtol(byte, NULL, 16);
+                        *(((vu8*)addr)+i) = (u8)hex2u64(byte);
                     }
                     
                     // Done
@@ -1604,56 +1629,56 @@ https://github.com/buu342/N64-UNFLoader
                 int i;
                 u32 addr;
                 char command[32];
-                char* commandp = &command[0];
-                strcpy(commandp, debug_buffer);
+                char* token = &command[0];
+                strcpy(command, debug_buffer);
                 
                 // Skip the Z0 at the start
-                strtok(commandp, ",");
+                token = strtok(command, ",");
                 
                 // Extract the address value
-                commandp = strtok(NULL, ",");
-                addr = (u32)strtol(commandp, NULL, 16);
+                token = strtok(NULL, ",");
+                addr = (u32)hex2u64(token);
                 
                 // There's still one more byte left (the breakpoint kind) which we can ignore
                 
                 // We need to translate the address before trying to put the breakpoint on it
-                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
-                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
-                else
+                if ((addr & 0xFF000000) != 0xA4000000 && (addr & 0xFF000000) != 0x04000000)
                 {
                     addr = (u32)osVirtualToPhysical((u32*)addr);
-                    if (addr >= osGetMemSize())
-                        addr = 0;
-                    else
-                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                    addr = (addr <= osMemSize) ? (u32)OS_PHYSICAL_TO_K0(addr) : 0;
                 }
+                else
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
                 
                 // Find an empty slot in our breakpoint array and store the breakpoint info there
-                for (i=0; i<BPOINT_COUNT; i++)
+                if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
                 {
-                    if (debug_bpoints[i].addr == (u32*)addr) // No need to re-add the bp if it already exists
+                    for (i=0; i<BPOINT_COUNT; i++)
                     {
-                        usb_purge();
-                        usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
-                        return;
-                    }
-                    if (debug_bpoints[i].addr == NULL)
-                    {
-                        // Store the address and the instruction (the value in its memory) before we overwrite it with a breakpoint
-                        debug_bpoints[i].addr = (u32*)addr;
-                        debug_bpoints[i].instruction = *((u32*)addr);
-                        
-                        // A breakpoint on the R4300 is any invalid instruction (It's an exception). 
-                        // The first 6 bits of the opcodes are reserved for the instruction itself.
-                        // So since we have a range of values, we can encode the index into the instruction itself, in the middle 20 bits
-                        *((vu32*)addr) = MAKE_BREAKPOINT_INDEX(i+1);
-                        osWritebackDCache((u32*)addr, 4);
-                        osInvalICache((u32*)addr, 4);
-                        
-                        // Tell GDB we succeeded
-                        usb_purge();
-                        usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
-                        return;
+                        if (debug_bpoints[i].addr == (u32*)addr) // No need to re-add the bp if it already exists
+                        {
+                            usb_purge();
+                            usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                            return;
+                        }
+                        if (debug_bpoints[i].addr == NULL)
+                        {
+                            // Store the address and the instruction (the value in its memory) before we overwrite it with a breakpoint
+                            debug_bpoints[i].addr = (u32*)addr;
+                            debug_bpoints[i].instruction = *((u32*)addr);
+                            
+                            // A breakpoint on the R4300 is any invalid instruction (It's an exception). 
+                            // The first 6 bits of the opcodes are reserved for the instruction itself.
+                            // So since we have a range of values, we can encode the index into the instruction itself, in the middle 20 bits
+                            *((vu32*)addr) = MAKE_BREAKPOINT_INDEX(i+1);
+                            osWritebackDCache((u32*)addr, 4);
+                            osInvalICache((u32*)addr, 4);
+                            
+                            // Tell GDB we succeeded
+                            usb_purge();
+                            usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                            return;
+                        }
                     }
                 }
             
@@ -1682,54 +1707,54 @@ https://github.com/buu342/N64-UNFLoader
                 
                 // Extract the address value
                 commandp = strtok(NULL, ",");
-                addr = (u32)strtol(commandp, NULL, 16);
+                addr = (u32)hex2u64(commandp);
                 
                 // There's still one more byte left (the breakpoint kind) which we can ignore
                 
                 // We need to translate the address before trying to put the breakpoint on it
-                if ((addr & 0xFF000000) == 0xA4000000 || (addr & 0xFF000000) == 0x04000000)
-                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
-                else
+                if ((addr & 0xFF000000) != 0xA4000000 && (addr & 0xFF000000) != 0x04000000)
                 {
                     addr = (u32)osVirtualToPhysical((u32*)addr);
-                    if (addr >= osGetMemSize())
-                        addr = 0;
-                    else
-                        addr = (u32)OS_PHYSICAL_TO_K0(addr);
+                    addr = (addr <= osMemSize) ? (u32)OS_PHYSICAL_TO_K0(addr) : 0;
                 }
+                else
+                    addr = (u32)OS_PHYSICAL_TO_K1(addr & 0x0FFFFFFF);
                     
                 // Ensure the address has a valid breakpoint
-                index = GET_BREAKPOINT_INDEX(*((u32*)addr))-1;
-                if (debug_bpoints[index].addr == (u32*)addr)
+                if (addr >= 0x80000000 && addr < 0x80000000 + osGetMemSize())
                 {
-                    int i;
-                    
-                    // Remove the breakpoint
-                    *((vu32*)addr) = debug_bpoints[index].instruction;
-                    osWritebackDCache((u32*)addr, 4);
-                    osInvalICache((u32*)addr, 4);
-                    
-                    // Move all the breakpoints in front of it back
-                    for (i=index; i<BPOINT_COUNT; i++)
+                    index = GET_BREAKPOINT_INDEX(*((u32*)addr))-1;
+                    if (debug_bpoints[index].addr == (u32*)addr)
                     {
-                        if (debug_bpoints[i].addr == NULL)
-                            break;
-                        if (i == BPOINT_COUNT-1)
-                        {
-                            debug_bpoints[i].addr = NULL;
-                            debug_bpoints[i].instruction = 0;
-                        }
-                        else
-                        {
-                            debug_bpoints[i].addr = debug_bpoints[i+1].addr;
-                            debug_bpoints[i].instruction = debug_bpoints[i+1].instruction;
-                        }
-                    }
+                        int i;
                         
-                    // Tell GDB we succeeded
-                    usb_purge();
-                    usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
-                    return;
+                        // Remove the breakpoint
+                        *((vu32*)addr) = debug_bpoints[index].instruction;
+                        osWritebackDCache((u32*)addr, 4);
+                        osInvalICache((u32*)addr, 4);
+                        
+                        // Move all the breakpoints in front of it back
+                        for (i=index; i<BPOINT_COUNT; i++)
+                        {
+                            if (debug_bpoints[i].addr == NULL)
+                                break;
+                            if (i == BPOINT_COUNT-1)
+                            {
+                                debug_bpoints[i].addr = NULL;
+                                debug_bpoints[i].instruction = 0;
+                            }
+                            else
+                            {
+                                debug_bpoints[i].addr = debug_bpoints[i+1].addr;
+                                debug_bpoints[i].instruction = debug_bpoints[i+1].instruction;
+                            }
+                        }
+                            
+                        // Tell GDB we succeeded
+                        usb_purge();
+                        usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+                        return;
+                    }
                 }
             
                 // Some failure happend
