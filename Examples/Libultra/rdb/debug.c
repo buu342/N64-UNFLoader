@@ -326,7 +326,7 @@ https://github.com/buu342/N64-UNFLoader
             static u64         rdbThreadStack[RDB_THREAD_STACK/sizeof(u64)];
             
             // RDB status globals
-            static u8        debug_rdbpaused = FALSE;
+            static vu8       debug_rdbpaused = FALSE;
             static bPoint    debug_bpoints[BPOINT_COUNT];
 
             // Remote debugger packet lookup table
@@ -1091,6 +1091,10 @@ https://github.com/buu342/N64-UNFLoader
                     if (curr != NULL) 
                     {
                         __OSThreadContext* context = &curr->context;
+                        
+                        //char aaa[64];
+                        //sprintf(aaa, "Oh no, stinky at %d", context->pc);
+                        //screentext_put(32, 32, aaa);
                         
                         // Print the basic info
                         debug_printf("Fault in thread: %d\n\n", curr->id);
