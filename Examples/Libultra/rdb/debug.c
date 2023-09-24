@@ -1284,7 +1284,10 @@ https://github.com/buu342/N64-UNFLoader
                         if (index < 32)
                         {
                             reg.size = 8;
-                            reg.ptr = ((u64*)&context->at)+(index-1);
+                            if (index > 27)
+                                reg.ptr = ((u64*)&context->gp)+(index-28);
+                            else
+                                reg.ptr = ((u64*)&context->at)+(index-1);
                             return reg;
                         }
                         else
@@ -1445,9 +1448,9 @@ https://github.com/buu342/N64-UNFLoader
                         if (val[0] != 'x' && reg.ptr != NULL)
                         {
                             if (reg.size == 4)
-                                (*(u32*)reg.ptr) = (u32)strtol(val, NULL, 16);
+                                (*(vu32*)reg.ptr) = (u32)strtol(val, NULL, 16);
                             else
-                                (*(u64*)reg.ptr) = (u64)strtol(val, NULL, 16);
+                                (*(vu64*)reg.ptr) = (u64)strtol(val, NULL, 16);
                         }
                     }
                     
@@ -1509,8 +1512,7 @@ https://github.com/buu342/N64-UNFLoader
                     // Read the memory address, one byte at a time
                     for (i=0; i<size; i++)
                     {
-                        u8 val;                    
-                        val = *(((volatile u8*)addr)+i);
+                        u8 val = *(((vu8*)addr)+i);                    
                         sprintf(debug_buffer+(i*2), "%02x", val);
                     }
                     
@@ -1575,7 +1577,7 @@ https://github.com/buu342/N64-UNFLoader
                     {
                         char byte[3];
                         sprintf(byte, "%.2s", commandp+(i*2));
-                        *(((volatile u8*)addr)+i) = (u8)strtol(byte, NULL, 16);
+                        *(((vu8*)addr)+i) = (u8)strtol(byte, NULL, 16);
                     }
                     
                     // Done
@@ -1644,7 +1646,7 @@ https://github.com/buu342/N64-UNFLoader
                         // A breakpoint on the R4300 is any invalid instruction (It's an exception). 
                         // The first 6 bits of the opcodes are reserved for the instruction itself.
                         // So since we have a range of values, we can encode the index into the instruction itself, in the middle 20 bits
-                        *((u32*)addr) = MAKE_BREAKPOINT_INDEX(i+1);
+                        *((vu32*)addr) = MAKE_BREAKPOINT_INDEX(i+1);
                         osWritebackDCache((u32*)addr, 4);
                         osInvalICache((u32*)addr, 4);
                         
@@ -1703,7 +1705,7 @@ https://github.com/buu342/N64-UNFLoader
                     int i;
                     
                     // Remove the breakpoint
-                    *((u32*)addr) = debug_bpoints[index].instruction;
+                    *((vu32*)addr) = debug_bpoints[index].instruction;
                     osWritebackDCache((u32*)addr, 4);
                     osInvalICache((u32*)addr, 4);
                     
