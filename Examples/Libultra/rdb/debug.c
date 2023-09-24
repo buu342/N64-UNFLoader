@@ -122,19 +122,19 @@ https://github.com/buu342/N64-UNFLoader
         void* next;
     } debugCommand;
     
-    // Breakpoint struct
-    typedef struct
-    {
-        u32* addr;
-        u32  instruction;
-    } bPoint;
-    
     // Remote debugger packet lookup table
     typedef struct
     {
         char* command;
         void  (*func)();
     } RDBPacketLUT;
+    
+    // Breakpoint struct
+    typedef struct
+    {
+        u32* addr;
+        u32  instruction;
+    } bPoint;
     
     
     /*********************************
@@ -1091,6 +1091,24 @@ https://github.com/buu342/N64-UNFLoader
                     if (curr != NULL) 
                     {
                         __OSThreadContext* context = &curr->context;
+                        
+                        // If the debug or rdb thread crashed, restart it
+                        if (curr->id == USB_THREAD_ID)
+                        {
+                            usb_purge();
+                            osCreateThread(&usbThread, USB_THREAD_ID, debug_thread_usb, 0, 
+                                            (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
+                                            USB_THREAD_PRI);
+                            osStartThread(&usbThread);
+                        }
+                        else if (curr->id == RDB_THREAD_ID)
+                        {
+                            usb_purge();
+                            osCreateThread(&rdbThread, RDB_THREAD_ID, debug_thread_rdb, (void*)osGetThreadId(NULL), 
+                                            (rdbThreadStack+RDB_THREAD_STACK/sizeof(u64)), 
+                                            RDB_THREAD_PRI);
+                            osStartThread(&rdbThread);
+                        }
                         
                         // Print the basic info
                         debug_printf("Fault in thread: %d\n\n", curr->id);
