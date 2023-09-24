@@ -1261,100 +1261,43 @@ https://github.com/buu342/N64-UNFLoader
             
             
             /*==============================
-                register_define
-                Fills in our helper regType struct
-                @param The register size (in bytes)
-                @param The register address
-            ==============================*/
-            
-            static regType register_define(int size, void* addr)
-            {
-                regType ret = {size, addr};
-                return ret;
-            }
-            
-            
-            /*==============================
-                register_setup
-                Fills in our helper registers array
-                @param The registers array
+                register_fromindex
+                Gets a register type from a given index
                 @param The affected thread context
+                @param The register index
             ==============================*/
             
-            static void register_setup(regType* registers, __OSThreadContext* context)
+            static regType register_fromindex(__OSThreadContext* context, int index)
             {
-                registers[0] = register_define(0, NULL); // Zero
-                registers[1] = register_define(8, &context->at);
-                registers[2] = register_define(8, &context->v0);
-                registers[3] = register_define(8, &context->v1);
-                registers[4] = register_define(8, &context->a0);
-                registers[5] = register_define(8, &context->a1);
-                registers[6] = register_define(8, &context->a2);
-                registers[7] = register_define(8, &context->a3);
-                registers[8] = register_define(8, &context->t0);
-                registers[9] = register_define(8, &context->t1);
-                registers[10] = register_define(8, &context->t2);
-                registers[11] = register_define(8, &context->t3);
-                registers[12] = register_define(8, &context->t4);
-                registers[13] = register_define(8, &context->t5);
-                registers[14] = register_define(8, &context->t6);
-                registers[15] = register_define(8, &context->t7);
-                registers[16] = register_define(8, &context->s0);
-                registers[17] = register_define(8, &context->s1);
-                registers[18] = register_define(8, &context->s2);
-                registers[19] = register_define(8, &context->s3);
-                registers[20] = register_define(8, &context->s4);
-                registers[21] = register_define(8, &context->s5);
-                registers[22] = register_define(8, &context->s6);
-                registers[23] = register_define(8, &context->s7);
-                registers[24] = register_define(8, &context->t8);
-                registers[25] = register_define(8, &context->t9);
-                registers[26] = register_define(0, NULL); // K0
-                registers[27] = register_define(0, NULL); // K1
-                registers[28] = register_define(8, &context->gp);
-                registers[29] = register_define(8, &context->sp);
-                registers[30] = register_define(8, &context->s8);
-                registers[31] = register_define(8, &context->ra);
-                registers[32] = register_define(4, &context->sr);
-                registers[33] = register_define(8, &context->lo);
-                registers[34] = register_define(8, &context->hi);
-                registers[35] = register_define(4, &context->badvaddr);
-                registers[36] = register_define(4, &context->cause);
-                registers[37] = register_define(4, &context->pc);
-                registers[38] = register_define(8, &context->fp0);
-                registers[39] = register_define(8, &context->fp0);
-                registers[40] = register_define(8, &context->fp2);
-                registers[41] = register_define(8, &context->fp2);
-                registers[42] = register_define(8, &context->fp4);
-                registers[43] = register_define(8, &context->fp4);
-                registers[44] = register_define(8, &context->fp6);
-                registers[45] = register_define(8, &context->fp6);
-                registers[46] = register_define(8, &context->fp8);
-                registers[47] = register_define(8, &context->fp8);
-                registers[48] = register_define(8, &context->fp10);
-                registers[49] = register_define(8, &context->fp10);
-                registers[50] = register_define(8, &context->fp12);
-                registers[51] = register_define(8, &context->fp12);
-                registers[52] = register_define(8, &context->fp14);
-                registers[53] = register_define(8, &context->fp14);
-                registers[54] = register_define(8, &context->fp16);
-                registers[55] = register_define(8, &context->fp16);
-                registers[56] = register_define(8, &context->fp18);
-                registers[57] = register_define(8, &context->fp18);
-                registers[58] = register_define(8, &context->fp20);
-                registers[59] = register_define(8, &context->fp20);
-                registers[60] = register_define(8, &context->fp22);
-                registers[61] = register_define(8, &context->fp22);
-                registers[62] = register_define(8, &context->fp24);
-                registers[63] = register_define(8, &context->fp24);
-                registers[64] = register_define(8, &context->fp26);
-                registers[65] = register_define(8, &context->fp26);
-                registers[66] = register_define(8, &context->fp28);
-                registers[67] = register_define(8, &context->fp28);
-                registers[68] = register_define(8, &context->fp30);
-                registers[69] = register_define(8, &context->fp30);
-                registers[70] = register_define(4, &context->fpcsr);
-                registers[71] = register_define(0, NULL); // FCR0
+                regType reg = {NULL, 0};
+                switch (index)
+                {
+                    case 0: // Zero register
+                    case 26: // K0
+                    case 27: // K1
+                    case 71: // FCR0
+                        return reg;
+                    case 32: reg.size = 4; reg.ptr = ((u32*)&context->sr); return reg;
+                    case 33: reg.size = 8; reg.ptr = ((u64*)&context->lo); return reg;
+                    case 34: reg.size = 8; reg.ptr = ((u64*)&context->hi); return reg;
+                    case 35: reg.size = 4; reg.ptr = ((u32*)&context->badvaddr); return reg;
+                    case 36: reg.size = 4; reg.ptr = ((u32*)&context->cause); return reg;
+                    case 37: reg.size = 4; reg.ptr = ((u32*)&context->pc); return reg;
+                    case 70: reg.size = 4; reg.ptr = ((u32*)&context->fpcsr); return reg;
+                    default:
+                        if (index < 32)
+                        {
+                            reg.size = 8;
+                            reg.ptr = ((u64*)&context->at)+(index-1);
+                            return reg;
+                        }
+                        else
+                        {
+                            reg.size = 8;
+                            reg.ptr = ((u64*)&context->fp0)+(((u32)(index-38))/2);
+                            return reg;
+                        }
+                }
             }
             
             
@@ -1363,13 +1306,12 @@ https://github.com/buu342/N64-UNFLoader
                 Sprintf's a register value into a buffer, 
                 compressed with Run-Length Encoding
                 @param The buffer to write to
-                @param The register pointer
-                @param The size of the register (in bytes)
+                @param The register type
             ==============================*/
             
-            static u32 debug_rdb_printreg_rle(char* buf, void* reg, u32 size)
+            static u32 debug_rdb_printreg_rle(char* buf, regType reg)
             {
-                if (reg != NULL)
+                if (reg.ptr != NULL)
                 {
                     int i;
                     u8 count;
@@ -1378,10 +1320,10 @@ https://github.com/buu342/N64-UNFLoader
                     char temp[REGISTER_SIZE+1];
                     
                     // Read the register value into a string
-                    if (size == 8)
-                        sprintf(temp, "%016llx", (u64)(*(u64*)reg));
+                    if (reg.size == 8)
+                        sprintf(temp, "%016llx", (u64)(*(u64*)reg.ptr));
                     else
-                        sprintf(temp, "%016llx", (u64)(*(u32*)reg));
+                        sprintf(temp, "%016llx", (u64)(*(u32*)reg.ptr));
                     last = temp[0];
                     count = 1;
                     
@@ -1434,7 +1376,6 @@ https://github.com/buu342/N64-UNFLoader
                     int i;
                     u32 chunkcount = 1+ceil((REGISTER_COUNT*REGISTER_SIZE)/BUFFER_SIZE);
                     u32 offset = 0;
-                    regType registers[REGISTER_COUNT];
                     __OSThreadContext* context = &t->context;
                     
                     // Start by sending a HEADER packet with the chunk count
@@ -1442,14 +1383,14 @@ https://github.com/buu342/N64-UNFLoader
                     usb_write(DATATYPE_HEADER, &chunkcount, sizeof(chunkcount));
                     
                     // Perform the humpty dumpty
-                    register_setup(registers, context);
                     offset += sprintf(debug_buffer+offset, "0*,"); // Zero register 
                     for (i=1; i<REGISTER_COUNT; i++)
                     {
+                        regType reg = register_fromindex(context, i);
                         if (i == 71)
                             offset += sprintf(debug_buffer+offset, "0*&800b11"); // FCR0 is an edge case
                         else
-                            offset += debug_rdb_printreg_rle(debug_buffer+offset, registers[i].ptr, registers[i].size);
+                            offset += debug_rdb_printreg_rle(debug_buffer+offset, reg);
                         
                         // Send a chunk if we're about to overrun the debug buffer
                         if ((strlen(debug_buffer)+REGISTER_SIZE+1) > BUFFER_SIZE || i == (REGISTER_COUNT-1))
@@ -1484,7 +1425,6 @@ https://github.com/buu342/N64-UNFLoader
                 if (t != NULL)
                 {
                     int i;
-                    regType registers[REGISTER_COUNT];
                     __OSThreadContext* context = &t->context;
                     
                     // The incoming data probably won't fit in the buffer, so we'll go bit by bit
@@ -1493,24 +1433,25 @@ https://github.com/buu342/N64-UNFLoader
                     // Skip the 'G' at the start of the command
                     usb_skip(1);
                     
-                    // Setup the thread context register definition
-                    i=0;
-                    register_setup(registers, context);
-                    
                     // Do the writing
                     for (i=0; i<REGISTER_COUNT; i++)
                     {
                         char val[REGISTER_SIZE+1];
+                        regType reg = register_fromindex(context, i);
+                        
+                        // Stop if there's no more register values to read
                         if (USBHEADER_GETSIZE(usb_poll()) < REGISTER_SIZE)
                             break;
+                            
+                        // Read the register and get it's value
                         usb_read(val, REGISTER_SIZE);
                         val[REGISTER_SIZE] = '\0';
-                        if (val[0] != 'x' && registers[i].ptr != NULL)
+                        if (val[0] != 'x' && reg.ptr != NULL)
                         {
-                            if (registers[i].size == 4)
-                                (*(u32*)registers[i].ptr) = (u32)strtol(val, NULL, 16);
+                            if (reg.size == 4)
+                                (*(u32*)reg.ptr) = (u32)strtol(val, NULL, 16);
                             else
-                                (*(u64*)registers[i].ptr) = (u64)strtol(val, NULL, 16);
+                                (*(u64*)reg.ptr) = (u64)strtol(val, NULL, 16);
                         }
                     }
                     
