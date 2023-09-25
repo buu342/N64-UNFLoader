@@ -4,15 +4,18 @@
 Handles basic GDB communication
 ***************************************************************/ 
 
-#ifndef LINUX
-    #include <winsock2.h>
-#else
+#ifdef LINUX
     #include <sys/socket.h>
     #include <arpa/inet.h>
     #include <netinet/tcp.h>
     #include <unistd.h>
     #include <signal.h>
 #endif
+#include "main.h"
+#include "gdbstub.h"
+#include "helper.h"
+#include "term.h"
+#include "debug.h"
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -20,10 +23,6 @@ Handles basic GDB communication
 #include <chrono>
 #include <string>
 #include <queue>
-#include "gdbstub.h"
-#include "helper.h"
-#include "term.h"
-#include "debug.h"
 
 
 /*********************************
@@ -34,7 +33,8 @@ Handles basic GDB communication
 #define VERBOSE 0
 
 #ifdef LINUX
-    #define SOCKET  int
+    #define SOCKET          int
+    #define INVALID_SOCKET  -1
 #endif
 
 
@@ -58,7 +58,7 @@ static std::string local_packetdata = "";
 static std::string local_packetchecksum = "";
 static std::string local_lastreply = "";
 static ParseState  local_parserstate = STATE_SEARCHING;
-static SOCKET      local_socket = -1;
+static SOCKET      local_socket = INVALID_SOCKET;
 
 
 /*==============================
@@ -68,14 +68,18 @@ static SOCKET      local_socket = -1;
 
 static int socket_connect(char* address, char* port) 
 {
-    short sock;
+    int sock;
     int optval;
-    socklen_t socklen;
+    #ifndef LINUX
+        int socklen;
+    #else
+        socklen_t socklen;
+    #endif
     struct sockaddr_in remote;
 
     // Create a socket for GDB
     sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == -1)
+    if (sock == INVALID_SOCKET)
     {
         #if VERBOSE
             log_colored("Unable to create socket for GDB\n", CRDEF_ERROR);
@@ -87,10 +91,15 @@ static int socket_connect(char* address, char* port)
     optval = 1;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&optval, sizeof(optval));
     optval = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char*)&optval, sizeof(optval));
-
+    #ifndef LINUX
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&optval, sizeof(optval));
+        optval = 1;
+        setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (char*)&optval, sizeof(optval));
+    #else
+        setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char*)&optval, sizeof(optval));
+    #endif
     // Setup the socket struct
-    remote.sin_port = htons(atoi(port));
+    remote.sin_port = htons((short)atoi(port));
     remote.sin_family = PF_INET;
     remote.sin_addr.s_addr = inet_addr(address);
     if (bind(sock, (struct sockaddr *)&remote, sizeof(remote)) != 0)
@@ -113,7 +122,7 @@ static int socket_connect(char* address, char* port)
     // Accept a client which connects
     socklen = sizeof(remote);
     local_socket = accept(sock, (struct sockaddr *)&remote, &socklen);
-    if (local_socket == -1)
+    if (local_socket == INVALID_SOCKET)
     {
         #if VERBOSE
             log_colored("Unable to accept socket for GDB\n", CRDEF_ERROR);
@@ -130,8 +139,12 @@ static int socket_connect(char* address, char* port)
     setsockopt(local_socket, IPPROTO_TCP, TCP_NODELAY, (char*)&optval, sizeof(optval));
 
     // Cleanup
-    close(sock);
-    signal(SIGPIPE, SIG_IGN);  // So we don't exit if client dies
+    #ifndef LINUX
+        closesocket(sock);
+    #else
+        close(sock);
+        signal(SIGPIPE, SIG_IGN);  // So we don't exit if client dies
+    #endif
     return 0;
 }
 
@@ -207,9 +220,13 @@ void gdb_connect(char* fulladdr)
     if (socket_connect(addr, port) != 0)
     {
         #if VERBOSE
-            log_colored("Unable to connect to socket: %d\n", CRDEF_ERROR, errno);
+            #ifndef LINUX
+                log_colored("Unable to connect to socket: %d\n", CRDEF_ERROR, WSAGetLastError());
+            #else
+                log_colored("Unable to connect to socket: %d\n", CRDEF_ERROR, errno);
+            #endif
         #endif
-        local_socket = -1;
+        local_socket = INVALID_SOCKET;
         free(fulladdrcopy);
         return;
     }
@@ -226,7 +243,7 @@ void gdb_connect(char* fulladdr)
 
 bool gdb_isconnected()
 {
-    return local_socket != -1;
+    return local_socket != INVALID_SOCKET;
 }
 
 
@@ -237,9 +254,12 @@ bool gdb_isconnected()
 
 void gdb_disconnect()
 {
-    // TODO: Tell GDB we're disconnecting
-    shutdown(local_socket, SHUT_RDWR);
-    local_socket = -1;
+    #ifndef LINUX
+        shutdown(local_socket, SD_BOTH);
+    #else
+        shutdown(local_socket, SHUT_RDWR);
+    #endif
+    local_socket = INVALID_SOCKET;
 }
 
 
@@ -294,7 +314,7 @@ static void gdb_parsepacket(char* buff, int buffsize)
                         local_packetchecksum += buff[read];
                         if (local_packetchecksum.size() == 2)
                         {
-                            uint32_t checksum = packet_getchecksum(local_packetdata);
+                            int checksum = packet_getchecksum(local_packetdata);
 
                             // Check if the checksum failed, if it didn't then send the packet
                             if (checksum == strtol(local_packetchecksum.c_str(), NULL, 16L))
