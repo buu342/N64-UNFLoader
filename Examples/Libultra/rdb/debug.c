@@ -1394,12 +1394,15 @@ https://github.com/buu342/N64-UNFLoader
                 {
                     int i;
                     u32 chunkcount = 2+(REGISTER_COUNT*REGISTER_SIZE)/BUFFER_SIZE;
+                    u32 header[2];
                     u32 offset = 0;
                     __OSThreadContext* context = &t->context;
                     
                     // Start by sending a HEADER packet with the chunk count
+                    header[0] = DATATYPE_RDBPACKET;
+                    header[1] = chunkcount;
                     usb_purge();
-                    usb_write(DATATYPE_HEADER, &chunkcount, sizeof(chunkcount));
+                    usb_write(DATATYPE_HEADER, &header, sizeof(u32)*2);
                     
                     // Perform the humpty dumpty
                     offset += sprintf(debug_buffer+offset, "0*,"); // Zero register 

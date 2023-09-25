@@ -354,7 +354,7 @@ void debug_handle_rdbpacket(uint32_t size, byte* buffer)
     local_rdbpackets.push_back(chunk);
 
     // Do the send
-    if (debug_headerdata[0] == 0)
+    if (debug_headerdata[1] == 0)
     {
         std::string packet = "";
 
@@ -374,7 +374,7 @@ void debug_handle_rdbpacket(uint32_t size, byte* buffer)
         local_rdbpackets.clear();
     }
     else
-        debug_headerdata[0]--;
+        debug_headerdata[1]--;
 }
 
 
