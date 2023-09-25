@@ -60,7 +60,7 @@ Append `-d` to enable debug mode, which allows you to receive/send input from/to
 
 Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected. **For listen mode to work, the console needs to be in a safe state**. This means that 64Drive users should have the console turned off, EverDrive users should have the console turned on and waiting on the menu, etc...
 
-Append `-g` to open a GDB server. By default, the address `127.0.0.1:8080` is used. You can specify the address by adding it to the argument: `-g 192.168.1.68:27015`. You can also just specify a port: `-g 69420`. 
+Append `-g` to open a GDB server. By default, the address `127.0.0.1:8080` is used. You can specify the address by adding it to the argument: `-g 192.168.1.68:27015`. You can also just specify a port: `-g 69420` or address `-g 192.168.1.68`. 
 </br>
 </br>
 ### How to Build UNFLoader for Windows
