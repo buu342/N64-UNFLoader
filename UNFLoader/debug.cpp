@@ -95,15 +95,6 @@ void debug_main()
     if (device_getrom() == NULL)
         device_setprotocol(USBPROTOCOL_LATEST);
 
-    // Connect to GDB
-    // TODO: Only allow GDB to spawn if the console is running (AKA, a packet was received)
-    if (strlen(global_gdbaddr) > 0 && !gdb_isconnected())
-    {
-        std::thread t;
-        t = std::thread(gdb_thread, global_gdbaddr);
-        t.detach();
-    }
-
     // Send data to USB if it exists
     while (!local_mesgqueue.empty())
     {

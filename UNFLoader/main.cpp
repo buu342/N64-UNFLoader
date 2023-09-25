@@ -419,6 +419,20 @@ static void program_loop()
     handle_deviceerror(device_open());
     log_simple("USB connection opened.\n");
 
+    // Create a GDB Thread
+    if (strlen(global_gdbaddr) > 0 && !gdb_isconnected())
+    {
+        if (!local_debugmode)
+        {
+            local_debugmode = true;
+            log_simple("Forcing debug mode for remote debugging to work\n");
+        }
+        log_simple("Starting GDB server on %s\n", global_gdbaddr);
+        std::thread t;
+        t = std::thread(gdb_thread, global_gdbaddr);
+        t.detach();
+    }
+
     // Check if debug mode is possible
     if (local_debugmode)
         handle_deviceerror(device_testdebug());
@@ -427,7 +441,6 @@ static void program_loop()
     // The user must press esc to exit
     if (local_listenmode || local_debugmode)
         increment_escapelevel();
-
     // Loop if debug mode or listen mode is enabled, and esc hasn't been pressed
     do 
     {
@@ -512,8 +525,6 @@ static void program_loop()
         if (firstupload == true)
         {
             bool printed = false;
-            if (strlen(global_gdbaddr) > 0)
-                log_colored("Starting GDB server on %s\n", CRDEF_PROGRAM, global_gdbaddr);
             if (local_debugmode)
             {
                 log_colored("Debug mode started. ", CRDEF_INPUT);
