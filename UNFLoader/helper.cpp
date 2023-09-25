@@ -92,6 +92,8 @@ void terminate(const char* reason, ...)
     global_terminating = true;
     term_end();
     #ifndef LINUX
+        if (strlen(global_gdbaddr) > 0)
+            WSACleanup();
         TerminateProcess(GetCurrentProcess(), 0);
     #else
         exit(0);

@@ -18,6 +18,7 @@ UNFLoader Entrypoint
 #include <thread>
 #include <chrono>
 
+
 /*********************************
               Macros
 *********************************/
@@ -102,6 +103,23 @@ int main(int argc, char* argv[])
     // Can't use listen mode if there's no ROM to listen to
     if (local_listenmode && device_getrom() == NULL)
         terminate("Cannot use listen mode if no ROM is given.");
+
+    // Initialize winsock so that we can connect to GDB on Windows
+    #ifndef LINUX
+        if (strlen(global_gdbaddr) > 0)
+        {
+            int err;
+            WSADATA wsa;
+            err = WSAStartup(MAKEWORD(2, 2), &wsa);
+            if (err != 0)
+                terminate("WSAStartup failed with error: %d\n", err);
+            if (LOBYTE(wsa.wVersion) != 2 || HIBYTE(wsa.wVersion) != 2)
+            {
+                WSACleanup();
+                terminate("Could not find a usable version of Winsock.dll\n");
+            }
+        }
+    #endif
 
     // Do the program loop
     program_loop();
