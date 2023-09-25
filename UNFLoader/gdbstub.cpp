@@ -63,7 +63,10 @@ static SOCKET      local_socket = INVALID_SOCKET;
 
 /*==============================
     socket_connect
-    TODO
+    Connects to a socket at a given address
+    @param  The address to connect to
+    @param  The port to connect to
+    @return -1 if failure, 0 if success
 ==============================*/
 
 static int socket_connect(char* address, char* port) 
@@ -151,7 +154,11 @@ static int socket_connect(char* address, char* port)
 
 /*==============================
     socket_send
-    TODO
+    Sends data to a socket
+    @param  The socket
+    @param  The data 
+    @param  The size of the data
+    @return -1 if error, otherwise the number of bytes sent is returned
 ==============================*/
 
 static int socket_send(SOCKET sock, char* data, size_t size)
@@ -169,7 +176,11 @@ static int socket_send(SOCKET sock, char* data, size_t size)
 
 /*==============================
     socket_receive
-    TODO
+    Receives data from a socket
+    @param  The socket
+    @param  A buffer to receive data from
+    @param  The size of the buffer
+    @return -1 if error, otherwise the number of bytes received is returned
 ==============================*/
 
 static int socket_receive(SOCKET sock, char* data, size_t size)
@@ -187,7 +198,9 @@ static int socket_receive(SOCKET sock, char* data, size_t size)
 
 /*==============================
     packet_getchecksum
-    TODO
+    Generates a GDB checksum from a given packet
+    @param  The packet string
+    @return The Checksum
 ==============================*/
 
 static uint8_t packet_getchecksum(std::string packet)
@@ -202,7 +215,8 @@ static uint8_t packet_getchecksum(std::string packet)
 
 /*==============================
     gdb_connect
-    TODO
+    Connects to GDB from a given address (IP:Port)
+    @param The Address to connect to
 ==============================*/
 
 void gdb_connect(char* fulladdr)
@@ -238,7 +252,8 @@ void gdb_connect(char* fulladdr)
 
 /*==============================
     gdb_isconnected
-    TODO
+    Checks whether GDB is connected or not
+    @return true or false
 ==============================*/
 
 bool gdb_isconnected()
@@ -249,7 +264,7 @@ bool gdb_isconnected()
 
 /*==============================
     gdb_disconnect
-    TODO
+    Disconnects from GDB
 ==============================*/
 
 void gdb_disconnect()
@@ -265,7 +280,9 @@ void gdb_disconnect()
 
 /*==============================
     gdb_parsepacket
-    TODO
+    Parses a GDB packet
+    @param The buffer with the data
+    @param The size of the buffer
 ==============================*/
 
 static void gdb_parsepacket(char* buff, int buffsize)
@@ -345,41 +362,9 @@ static void gdb_parsepacket(char* buff, int buffsize)
 
 
 /*==============================
-    gdb_replypacket
-    TODO
-==============================*/
-/*
-static void gdb_replypacket(std::string packet)
-{
-    else if (packet == "g")
-    {
-        // TODO: This properly
-        //std::string registers = "";
-        //for (int i=0; i<32; i++)
-        //    registers += "00000000";
-        //registers += "00000001"; // sr
-        //registers += "00000002"; // Lo
-        //registers += "00000003"; // Hi
-        //registers += "00000004"; // Bad
-        //registers += "00000005"; // Cause
-        //registers += "00000400"; // PC
-        //registers += "00000007"; // fsr
-        //registers += "00000008"; // fir
-        //reply += packet_appendchecksum(registers);
-    }
-    else if (packet == "?")
-    {
-        reply += packet_appendchecksum("S05");
-    }
-    else
-        reply += "#00";
-}
-*/
-
-
-/*==============================
     gdb_reply
-    TODO
+    Sends data to GDB
+    @param The reply to send
 ==============================*/
 
 void gdb_reply(char* reply)
@@ -407,7 +392,8 @@ void gdb_reply(char* reply)
 
 /*==============================
     gdb_thread
-    TODO
+    A thread for communication with GDB
+    @param The address to connect to (IP:Port)
 ==============================*/
 
 void gdb_thread(char* addr)
