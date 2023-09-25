@@ -413,7 +413,7 @@ void gdb_reply(char* reply)
 void gdb_thread(char* addr)
 {
     // Connect to GDB
-    while (!gdb_isconnected());
+    while (!gdb_isconnected())
     {
         gdb_connect(addr);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
