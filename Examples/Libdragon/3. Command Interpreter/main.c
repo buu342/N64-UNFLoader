@@ -10,7 +10,6 @@ Handles the boot process of the ROM.
 #include <string.h>
 #include <stdbool.h>
 #include <libdragon.h>
-#include "texture.h"
 #include "debug.h"
 
 
@@ -18,11 +17,13 @@ Handles the boot process of the ROM.
              Globals
 *********************************/
 
-int global_red = 255; 
-int global_green = 255; 
-int global_blue = 255; 
-char global_move = 0;
+int  global_red   = 255; 
+int  global_green = 255; 
+int  global_blue  = 255; 
+char global_move  = 0;
+
 sprite_t* spr_texture;
+char*     usb_buffer = NULL;
 
 
 /*********************************
@@ -46,10 +47,9 @@ int main(void)
     int x = 64;
 
     // Initialize libdragon
-    display_init(RESOLUTION_320x240, DEPTH_32_BPP, 2, GAMMA_NONE, ANTIALIAS_RESAMPLE);
+    display_init(RESOLUTION_320x240, DEPTH_16_BPP, 2, GAMMA_NONE, ANTIALIAS_RESAMPLE);
     dfs_init(DFS_DEFAULT_LOCATION);
-    rdp_init();
-    controller_init();
+    rdpq_init();
     timer_init();
 
     // Initialize the debug library
@@ -61,23 +61,13 @@ int main(void)
     debug_64drivebutton(command_button, true);
     debug_printcommands();
 
-    // Initialize our sprite
-    spr_texture = (sprite_t*) malloc(sizeof(sprite_t)+(32*32*sizeof(int)));
-    spr_texture->width = 32;
-    spr_texture->height = 32;
-    spr_texture->bitdepth = 4;
-    spr_texture->format = 0;
-    spr_texture->hslices = 1;
-    spr_texture->vslices = 1;
-    memcpy(spr_texture->data, global_texture, 4096);
+    // Load the default sprite from ROM
+    spr_texture = sprite_load("rom:/texture.sprite");
 
     // Main loop
     while(1)
     {
-        static display_context_t disp = 0;
-
-        // Grab an available framebuffer
-        while(!(disp = display_lock()));
+        surface_t *disp = display_get();
 
         // Check if anything was in the USB
         debug_pollcommands();
@@ -87,12 +77,15 @@ int main(void)
             x = (x+4)%(320-32);
 
         // Draw the background and the sprite
-        graphics_fill_screen(disp, graphics_make_color(global_red, global_green, global_blue, 255));
-        graphics_set_color(0x0, 0xFFFFFFFF);
-        graphics_draw_sprite_trans(disp, x, 64, spr_texture);
+        rdpq_attach(disp, NULL);
+        rdpq_clear(RGBA16(global_red, global_green, global_blue, 255));
+        rdpq_set_mode_standard();
+        rdpq_mode_filter(FILTER_BILINEAR);
+        rdpq_mode_alphacompare(1);
+        rdpq_sprite_blit(spr_texture, x, 64, NULL);
 
         // Render the display
-        display_show(disp);
+        rdpq_detach_show();
     }
 }
 
@@ -174,12 +167,18 @@ char* command_texture()
     size = debug_sizecommand();
     if (size == 0)
         return "No file provided";
-    if (size > 4096)
-        return "Texture larger than TMEM";
+
+    // Free the old sprite
+    if (usb_buffer != NULL)
+        free(usb_buffer);
+    sprite_free(spr_texture);
+
+    // Allocate memory for the buffer
+    usb_buffer = (char*)malloc(size);
     
     // Replace the texture with the incoming data
-    debug_parsecommand(global_texture);
-    memcpy(spr_texture->data, global_texture, size);
+    debug_parsecommand(usb_buffer);
+    spr_texture = sprite_load_buf(usb_buffer, size);
     return NULL;
 }
 

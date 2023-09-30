@@ -1,45 +1,37 @@
+BUILD_DIR=build
+include $(N64_INST)/include/n64.mk
+
 ################################################################
 #                    Code files and ROM name                   #
 ################################################################
 
-ROM_NAME = unflexa3.n64
-
-CODECFILES = main.c texture.c
-CODEHFILES = 
+SRC = main.c
 
 DEBUG_MODE = 1 # Remember to change debug.h as well to match!
-DEBUGFILES = debug.c usb.c
-
-REGISTRATION = "UNFLEXAM3" B U3 I
+DEBUGFILES = debug.c
 
 
 ################################################################
 #     Don't touch below unless you know what you're doing!     #
 ################################################################
 
-ROOTDIR = $(N64_INST)
-GCCN64PREFIX = $(ROOTDIR)/bin/mips64-elf-
-CHKSUM64PATH = $(ROOTDIR)/bin/chksum64
-MKDFSPATH = $(ROOTDIR)/bin/mkdfs
-HEADERPATH = $(ROOTDIR)/mips64-elf/lib
-N64TOOL = $(ROOTDIR)/bin/n64tool
+ASSETS_PNG = $(wildcard assets/*.png)
 
+ASSETS_CONV = $(addprefix filesystem/,$(notdir $(ASSETS_PNG:%.png=%.sprite)))
 
-################################################################
-#                       Compiler Settings                      #
-################################################################
-
-CC = $(GCCN64PREFIX)gcc
-AS = $(GCCN64PREFIX)as
-LD = $(GCCN64PREFIX)ld
-OBJCOPY = $(GCCN64PREFIX)objcopy
+MKSPRITE_FLAGS ?= 
 
 
 ################################################################
 #                         Make Commands                        #
 ################################################################
 
-default: $(ROM_NAME)
+all: unflexa3.z64
+
+filesystem/%.sprite: assets/%.png
+	@mkdir -p $(dir $@)
+	@echo "    [SPRITE] $@"
+	@$(N64_MKSPRITE) $(MKSPRITE_FLAGS) -o filesystem "$<"
 
 
 ################################################################
@@ -47,40 +39,26 @@ default: $(ROM_NAME)
 ################################################################
 
 ifeq ($(DEBUG_MODE), 0)
-OBJ_FILES = $(CODECFILES:.c=.o)
-CFLAGS = -std=gnu99 -march=vr4300 -mtune=vr4300 -O2 -Wall -Wno-unused-function -I$(ROOTDIR)/mips64-elf/include
+CFLAGS += -O2
 else
-OBJ_FILES = $(CODECFILES:.c=.o) $(DEBUGFILES:.c=.o)
-CFLAGS = -std=gnu99 -march=vr4300 -mtune=vr4300 -g -Wall -Wno-unused-function -I$(ROOTDIR)/mips64-elf/include
+SRC += $(DEBUGFILES)
+CFLAGS += -g
 endif
-
-
-################################################################
-#                        Linker Settings                       #
-################################################################
-
-HEADERNAME = header
-LINK_FLAGS = -L$(ROOTDIR)/mips64-elf/lib -ldragon -lc -lm -ldragonsys -Tn64.ld
-ASFLAGS = -mtune=vr4300 -march=vr4300
-
-N64_FLAGS = -l 2M -h $(HEADERPATH)/$(HEADERNAME) -o $(ROM_NAME)
 
 
 ################################################################
 #                          Compilation                         #
 ################################################################
 
-$(ROM_NAME): $(ROM_NAME:.n64=.elf)
-	$(OBJCOPY) $(ROM_NAME:.n64=.elf) $(ROM_NAME:.n64=.bin) -O binary
-	rm -f $(ROM_NAME)
-	$(N64TOOL) $(N64_FLAGS) $(ROM_NAME:.n64=.bin)
-	$(CHKSUM64PATH) $(ROM_NAME)
-ifeq ($(ALLOWREGISTER), 1)
-    nrdc $(TARGETS) $(REGISTRATION)
-endif
+$(BUILD_DIR)/unflexa3.dfs: $(ASSETS_CONV)
+$(BUILD_DIR)/unflexa3.elf: $(SRC:%.c=$(BUILD_DIR)/%.o)
 
-$(ROM_NAME:.n64=.elf) : $(OBJ_FILES)
-	$(LD) -o $(ROM_NAME:.n64=.elf) $(OBJ_FILES) $(LINK_FLAGS)
+unflexa3.z64: N64_ROM_TITLE="UNFLEXAM3"
+unflexa3.z64: $(BUILD_DIR)/unflexa3.dfs 
 
 clean:
-	rm -f *.n64 *.elf *.o *.bin
+	rm -rf $(BUILD_DIR) unflexa3.n64
+
+-include $(wildcard $(BUILD_DIR)/*.d)
+
+.PHONY: all clean
