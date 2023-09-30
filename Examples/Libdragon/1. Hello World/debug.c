@@ -5,6 +5,7 @@ A basic debug library that makes use of the USB library for N64
 flashcarts. 
 https://github.com/buu342/N64-UNFLoader
 ***************************************************************/
+
 #include "debug.h"
 #ifndef LIBDRAGON
     #include <ultra64.h> 
@@ -17,16 +18,16 @@ https://github.com/buu342/N64-UNFLoader
 #include <stdarg.h>
 #include <string.h>
 
-
 #if DEBUG_MODE
     
     /*********************************
                Definitions
     *********************************/
     
-    #define MSG_FAULT 0x10
-    #define MSG_READ  0x11
-    #define MSG_WRITE 0x12
+    // USB thread messages
+    #define MSG_FAULT  0x10
+    #define MSG_READ   0x11
+    #define MSG_WRITE  0x12
     
     #define USBERROR_NONE    0
     #define USBERROR_NOTTEXT 1
@@ -34,6 +35,16 @@ https://github.com/buu342/N64-UNFLoader
     #define USBERROR_TOOMUCH 3
     #define USBERROR_CUSTOM  4
     
+    // RDB thread messages
+    #define MSG_RDBPACKET       0x10
+    #define MSG_BREAKPOINT_HIT  0x11
+    
+    // Breakpoints
+    #define BPOINT_COUNT   10
+    #define MAKE_BREAKPOINT_INDEX(indx) (0x0000000D | ((indx) << 6))
+    #define GET_BREAKPOINT_INDEX(addr)  ((((addr) >> 6) & 0x0000FFFF))
+    
+    // Helpful stuff
     #define HASHTABLE_SIZE 7
     #define COMMAND_TOKENS 10
     #define BUFFER_SIZE    256
@@ -44,12 +55,12 @@ https://github.com/buu342/N64-UNFLoader
     *********************************/
     
     #ifdef LIBDRAGON
-        typedef unsigned char      u8;	
+        typedef unsigned char      u8;
         typedef unsigned short     u16;
         typedef unsigned long      u32;
         typedef unsigned long long u64;
         
-        typedef signed char s8;	
+        typedef signed char s8;
         typedef short       s16;
         typedef long        s32;
         typedef long long   s64;
@@ -66,6 +77,8 @@ https://github.com/buu342/N64-UNFLoader
         
         typedef float  f32;
         typedef double f64;
+        
+        typedef void* OSMesg;
     #endif
     
     
@@ -99,6 +112,14 @@ https://github.com/buu342/N64-UNFLoader
         void* next;
     } debugCommand;
     
+    // Breakpoint struct
+    typedef struct
+    {
+        u32* addr;
+        u32  instruction;
+        u32* next_addr;
+    } bPoint;
+    
     
     /*********************************
             Function Prototypes
@@ -106,10 +127,15 @@ https://github.com/buu342/N64-UNFLoader
     
     #ifndef LIBDRAGON
         // Threads
+        static void debug_thread_usb(void *arg);
         #if USE_FAULTTHREAD
             static void debug_thread_fault(void *arg);
         #endif
-        static void debug_thread_usb(void *arg);
+        #if USE_RDBTHREAD
+            static void debug_thread_rdb(void *arg);
+            //static inline void debug_rdb_togglebpoint();
+            //static inline void debug_rdb_continue();
+        #endif
     
         // Other
         #if OVERWRITE_OSPRINT
@@ -159,7 +185,20 @@ https://github.com/buu342/N64-UNFLoader
     static u64   debug_64dbut_debounce = 0;
     static u64   debug_64dbut_hold = 0;
     
+    // Breakpoint globals
+    #if USE_RDBTHREAD
+        static bPoint debug_bpoints[BPOINT_COUNT];
+    #endif
+    
     #ifndef LIBDRAGON
+        // Remote debugger thread globals
+        #if USE_RDBTHREAD
+            static OSMesgQueue rdbMessageQ;
+            static OSMesg      rdbMessageBuf;
+            static OSThread    rdbThread;
+            static u64         rdbThreadStack[RDB_THREAD_STACK/sizeof(u64)];
+        #endif
+        
         // Fault thread globals
         #if USE_FAULTTHREAD
             static OSMesgQueue faultMessageQ;
@@ -291,6 +330,12 @@ https://github.com/buu342/N64-UNFLoader
                 __printfunc = (void*)debug_osSyncPrintf_implementation;
             #endif
             
+            // Initialize the USB thread
+            osCreateThread(&usbThread, USB_THREAD_ID, debug_thread_usb, 0, 
+                            (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
+                            USB_THREAD_PRI);
+            osStartThread(&usbThread);
+            
             // Initialize the fault thread
             #if USE_FAULTTHREAD
                 osCreateThread(&faultThread, FAULT_THREAD_ID, debug_thread_fault, 0, 
@@ -299,11 +344,13 @@ https://github.com/buu342/N64-UNFLoader
                 osStartThread(&faultThread);
             #endif
             
-            // Initialize the USB thread
-            osCreateThread(&usbThread, USB_THREAD_ID, debug_thread_usb, 0, 
-                            (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
-                            USB_THREAD_PRI);
-            osStartThread(&usbThread);
+            // Initialize the remote debugger thread
+            #if USE_RDBTHREAD
+                osCreateThread(&rdbThread, RDB_THREAD_ID, debug_thread_rdb, 0, 
+                                (rdbThreadStack+RDB_THREAD_STACK/sizeof(u64)), 
+                                RDB_THREAD_PRI);
+                osStartThread(&rdbThread);
+            #endif
         #endif
         
         // Mark the debug mode as initialized
@@ -345,7 +392,7 @@ https://github.com/buu342/N64-UNFLoader
         usbMesg msg;
         va_list args;
         
-        // use the internal libultra printf function to format the string
+        // Use the internal libultra printf function to format the string
         va_start(args, message);
         #ifndef LIBDRAGON
             len = _Printf(&printf_handler, debug_buffer, message, args);
@@ -816,6 +863,15 @@ https://github.com/buu342/N64-UNFLoader
                 int header = usb_poll();
                 debugCommand* entry;
                 
+                // RDB packets should be rerouted to the RDB thread
+                #if USE_RDBTHREAD
+                    if (USBHEADER_GETTYPE(header) == DATATYPE_RDBPACKET)
+                    {
+                        osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDBPACKET, OS_MESG_BLOCK);
+                        continue;
+                    }
+                #endif
+                
                 // Ensure we're receiving a text command
                 if (USBHEADER_GETTYPE(header) != DATATYPE_TEXT)
                 {
@@ -1033,6 +1089,201 @@ https://github.com/buu342/N64-UNFLoader
             }
             
         #endif
+        
+        #if USE_RDBTHREAD
+            
+            /*==============================
+                debug_thread_rdb
+                Handles the remote debugger thread
+                @param Arbitrary data that the thread can receive
+            ==============================*/
+            
+            static void debug_thread_rdb(void *arg)
+            {
+                // Create the message queue for the rdb messages
+                osCreateMesgQueue(&rdbMessageQ, &rdbMessageBuf, 1);
+                
+                // Initialize breakpoints
+                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_BREAKPOINT_HIT);
+                memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
+                
+                // Thread loop
+                while (1)
+                {
+                    u8 loop = FALSE;
+                    OSMesg msg;
+
+                    // Wait for an rdb message to arrive
+                    osRecvMesg(&rdbMessageQ, (OSMesg*)&msg, OS_MESG_BLOCK);
+
+                    // If we hit a breakpoint, loop until a continue command is received from USB
+                    if ((s32)msg == MSG_BREAKPOINT_HIT)
+                        loop = TRUE;
+                    
+                    // Handle the RDB packet
+                    do
+                    {
+                        int usbheader = usb_poll();
+                        if (USBHEADER_GETTYPE(usbheader) == DATATYPE_RDBPACKET)
+                        {
+                            /*
+                            u8 rdbheader;
+                            usb_read(&rdbheader, 1);
+                            switch (rdbheader)
+                            {
+                                case RDB_PACKETHEADER_BREAKPOINT:
+                                    debug_rdb_togglebpoint();
+                                    break;
+                                case RDB_PACKETHEADER_CONTINUE:
+                                    if (loop)
+                                    {
+                                        debug_rdb_continue();
+                                        loop = FALSE;
+                                    }
+                                    break;
+                                default:
+                                    break;
+                            }
+                            */
+                        }
+                        usb_purge();
+                    }
+                    while (loop);
+                }
+            }
+            
+            /*==============================
+                debug_rdb_togglebpoint
+                Enables/disables a breakpoint
+            ==============================*/
+            /*
+            static inline void debug_rdb_togglebpoint()
+            {
+                u8 bytes[9];
+                u32* addr1;
+                u32* addr2;
+                usb_read(bytes, 9);
+                
+                addr1 = (u32*)((((u32)bytes[0])<<0) | (((u32)bytes[1])<<8) | (((u32)bytes[2])<<16) | (((u32)bytes[3])<<24));
+                addr2 = (u32*)((((u32)bytes[4])<<0) | (((u32)bytes[5])<<8) | (((u32)bytes[6])<<16) | (((u32)bytes[7])<<24));
+                if (bytes[8] == 1)
+                {
+                    int i;
+                    
+                    // Find an empty slot in our breakpoint array and store the breakpoint info there
+                    for (i=0; i<BPOINT_COUNT; i++)
+                    {
+                        if (debug_bpoints[i].addr == addr1) // No need to re-add the bp if it already exists
+                            return;
+                        if (debug_bpoints[i].addr == NULL)
+                        {
+                            // The USB packet contains two addresses, the first address is the one we want to breakpoint at
+                            // The second address is the address of the instruction that comes after it. This will be of use later
+                            debug_bpoints[i].addr = addr1;
+                            debug_bpoints[i].instruction = *addr1;
+                            debug_bpoints[i].next_addr = addr2;
+                            
+                            // A breakpoint on the R4300 is any invalid instruction (It's an exception). 
+                            // The first 6 bits of the opcodes are reserved for the instruction itself.
+                            // So since we have a range of values, we can encode the index into the instruction itself, in the middle 20 bits
+                            // Zero is reserved for temporary breakpoints (which are used when stepping through code)
+	                        *addr1 = MAKE_BREAKPOINT_INDEX(i+1);
+	                        osWritebackDCache(addr1, 4);
+	                        osInvalICache(addr1, 4);
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    int index = GET_BREAKPOINT_INDEX(*addr1)-1;
+                    
+                    // Ensure the address has a valid breakpoint
+                    if (debug_bpoints[index].addr == addr1)
+                    {
+                        int i;
+                        
+                        // Remove the breakpoint
+                        *addr1 = debug_bpoints[index].instruction;
+                        osWritebackDCache(addr1, 4);
+                        osInvalICache(addr1, 4);
+                        
+                        // Move all the breakpoints in front of it back
+                        for (i=index; i<BPOINT_COUNT; i++)
+                        {
+                            if (debug_bpoints[i].addr == NULL)
+                                break;
+                            if (i == BPOINT_COUNT-1)
+                            {
+                                debug_bpoints[i].addr = NULL;
+                                debug_bpoints[i].instruction = 0;
+                                debug_bpoints[i].next_addr = 0;
+                            }
+                            else
+                            {
+                                debug_bpoints[i].addr = debug_bpoints[i+1].addr;
+                                debug_bpoints[i].instruction = debug_bpoints[i+1].instruction;
+                                debug_bpoints[i].next_addr = debug_bpoints[i+1].next_addr;
+                            }
+                        }
+                    }
+                }
+            }
+            */
+            
+            /*==============================
+                debug_rdb_continue
+                Handles continue
+            ==============================*/
+            /*
+            static inline void debug_rdb_continue()
+            {
+                u32 nexti, *addr, index;
+                OSThread* thread = __osGetActiveQueue();
+                bPoint* point;
+                
+                // Find which thread faulted and get the breakpoint index
+                while (thread->tlnext != NULL)
+                {
+                    u32 inst = *(u32*)thread->context.pc;
+                    if ((inst & 0xFC00003F) == 0x0000000D)
+                    {
+                        index = GET_BREAKPOINT_INDEX(inst);
+                        point = &debug_bpoints[index-1];
+                        break;
+                    }
+                    thread = thread->tlnext;
+                }
+                
+                // Set the breakpointed instruction back to what it was originally
+                addr = point->addr;
+                *addr = point->instruction;
+                osWritebackDCache(addr, 4);
+                osInvalICache(addr, 4);
+                
+                // Because we're gonna have to put the breakpoint back after the original instruction is run,
+                // We're gonna set the address after it to a second breakpoint
+                nexti = (*point->next_addr);
+                (*point->next_addr) = MAKE_BREAKPOINT_INDEX(index);
+                osWritebackDCache(point->next_addr, 4);
+                osInvalICache(point->next_addr, 4);
+                
+                // Now yield the thread until that second breakpoint is hit
+                osRecvMesg(&rdbMessageQ, NULL, OS_MESG_BLOCK);
+                
+                // If we're here, the second breakpoint was hit. Let's turn it back to what it was originally
+                (*point->next_addr) = nexti;
+                osWritebackDCache(point->next_addr, 4);
+                osInvalICache(point->next_addr, 4);
+                
+                // Restore the original breakpoint
+                (*point->addr) = MAKE_BREAKPOINT_INDEX(index);
+                osWritebackDCache(point->addr, 4);
+                osInvalICache(point->addr, 4);
+            }
+            */
+        #endif
+        
     #endif
-    
+
 #endif

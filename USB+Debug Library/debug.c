@@ -518,7 +518,14 @@ https://github.com/buu342/N64-UNFLoader
         #endif
     
         // Intentionally cause a TLB exception on load/instruction fetch
+        #ifdef LIBDRAGON
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Warray-bounds"
+        #endif
         crash = *(volatile char *)1;
+        #ifdef LIBDRAGON
+            #pragma GCC diagnostic pop
+        #endif
         (void)crash;
     }
         
