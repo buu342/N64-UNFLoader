@@ -30,7 +30,7 @@ Handles basic GDB communication
 *********************************/
 
 #define TIMEOUT 3
-#define VERBOSE 1
+#define VERBOSE 0
 
 #ifdef LINUX
     #define SOCKET          int
@@ -95,12 +95,11 @@ static int socket_connect(char* address, char* port)
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&optval, sizeof(optval));
     optval = 1;
     #ifndef LINUX
-        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&optval, sizeof(optval));
-        optval = 1;
         setsockopt(sock, SOL_SOCKET, SO_BROADCAST, (char*)&optval, sizeof(optval));
     #else
         setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, (char*)&optval, sizeof(optval));
     #endif
+
     // Setup the socket struct
     remote.sin_port = htons((short)atoi(port));
     remote.sin_family = PF_INET;

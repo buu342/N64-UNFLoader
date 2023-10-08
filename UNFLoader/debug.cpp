@@ -363,6 +363,7 @@ void debug_handle_rdbpacket(uint32_t size, byte* buffer)
             packet += (char*)(*it)->data;
 
         // Send it to GDB
+        log_colored("Replying with '%s'\n", CRDEF_INFO, packet.c_str());
         gdb_reply((char*)packet.c_str());
 
         // Cleanup
