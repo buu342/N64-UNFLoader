@@ -65,8 +65,10 @@ void stage00_init(void)
 
 void stage00_update(void)
 {
-    // Poll for incoming USB data
-    debug_pollcommands();
+    // Poll for incoming USB data (unnecessary if we have auto-polling enabled)
+    #if !AUTOPOLL_ENABLED
+        debug_pollcommands();
+    #endif
     
     // Rotate the square if rotation is enabled
     if (global_rotate)

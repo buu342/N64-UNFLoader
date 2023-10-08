@@ -159,6 +159,10 @@ https://github.com/buu342/N64-UNFLoader
         #if USE_FAULTTHREAD
             static void debug_thread_fault(void* arg);
         #endif
+    #else
+        #if AUTOPOLL_ENABLED
+            static void debug_timer_usb(int overflow);
+        #endif
     #endif
     #if USE_RDBTHREAD
         #ifndef LIBDRAGON
@@ -233,6 +237,9 @@ https://github.com/buu342/N64-UNFLoader
         static OSMesg      usbMessageBuf;
         static OSThread    usbThread;
         static u64         usbThreadStack[USB_THREAD_STACK/sizeof(u64)];
+        #if AUTOPOLL_ENABLED
+            static OSTimer usbThreadTimer;
+        #endif
         
         // Fault thread globals
         #if USE_FAULTTHREAD
@@ -401,6 +408,9 @@ https://github.com/buu342/N64-UNFLoader
                             (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
                             USB_THREAD_PRI);
             osStartThread(&usbThread);
+            #if AUTOPOLL_ENABLED
+                osSetTimer(&usbThreadTimer, 0, OS_USEC_TO_CYCLES(AUTOPOLL_TIME*1000), &usbMessageQ, (OSMesg)NULL);
+            #endif
             
             // Initialize the fault thread
             #if USE_FAULTTHREAD
@@ -423,6 +433,10 @@ https://github.com/buu342/N64-UNFLoader
                 osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDB_PAUSE, OS_MESG_BLOCK);
             #endif
         #else
+            timer_init(); // If the timer subsystem has been initialized already, it's not a problem to call it again.
+            #if AUTOPOLL_ENABLED
+                new_timer(TIMER_TICKS(AUTOPOLL_TIME*1000), TF_CONTINUOUS, debug_timer_usb);
+            #endif
             #if USE_RDBTHREAD
                 memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
                 register_exception_handler(debug_thread_rdb);
@@ -703,9 +717,6 @@ https://github.com/buu342/N64-UNFLoader
         // Ensure debug mode is initialized
         if (!debug_initialized)
             return;
-            
-        // Handle 64Drive button polling
-        debug_handle_64drivebutton();
         
         // Send a read message to the USB thread
         msg.msgtype = MSG_READ;
@@ -907,6 +918,24 @@ https://github.com/buu342/N64-UNFLoader
         // Rewind the USB fully
         usb_rewind(datasize);
     }
+
+    #ifdef LIBDRAGON
+        #if AUTOPOLL_ENABLED    
+            /*==============================
+                debug_timer_usb
+                A function that's called by the auto-poll timer
+                @param How many ticks the timer overflew by (unused)
+            ==============================*/
+
+            static void debug_timer_usb(int overflow)
+            {
+                usbMesg msg;
+                (void)overflow; // To prevent unused variable errors
+                msg.msgtype = MSG_READ;
+                debug_thread_usb(&msg);
+            }
+        #endif
+    #endif
     
     
     /*==============================
@@ -1007,6 +1036,9 @@ https://github.com/buu342/N64-UNFLoader
                 }
             }
             
+            // Handle 64Drive button polling
+            debug_handle_64drivebutton();
+            
             // Spit out an error if there was one during the command parsing
             if (errortype != USBERROR_NONE)
             {
@@ -1029,14 +1061,18 @@ https://github.com/buu342/N64-UNFLoader
                 errortype = USBERROR_NONE;
             }
             
+            
             // Handle the other USB messages
-            switch (threadMsg->msgtype)
+            if (threadMsg != NULL)
             {
-                case MSG_WRITE:
-                    if (usb_timedout())
-                        usb_sendheartbeat();
-                    usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
-                    break;
+                switch (threadMsg->msgtype)
+                {
+                    case MSG_WRITE:
+                        if (usb_timedout())
+                            usb_sendheartbeat();
+                        usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
+                        break;
+                }
             }
             
             // If we're in libdragon, break out of the loop as we don't need it
@@ -1139,7 +1175,6 @@ https://github.com/buu342/N64-UNFLoader
                         // If the debug or rdb thread crashed, restart it
                         if (curr->id == USB_THREAD_ID)
                         {
-                            usb_purge();
                             osCreateThread(&usbThread, USB_THREAD_ID, debug_thread_usb, 0, 
                                             (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
                                             USB_THREAD_PRI);
@@ -1148,7 +1183,6 @@ https://github.com/buu342/N64-UNFLoader
                         #if USE_RDBTHREAD
                             else if (curr->id == RDB_THREAD_ID)
                             {
-                                usb_purge();
                                 osCreateThread(&rdbThread, RDB_THREAD_ID, debug_thread_rdb, (void*)osGetThreadId(NULL), 
                                                 (rdbThreadStack+RDB_THREAD_STACK/sizeof(u64)), 
                                                 RDB_THREAD_PRI);

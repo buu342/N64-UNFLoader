@@ -39,10 +39,11 @@ filesystem/%.sprite: assets/%.png
 ################################################################
 
 ifeq ($(DEBUG_MODE), 0)
-CFLAGS += -O2
+N64_CFLAGS += -O2
 else
 SRC += $(DEBUGFILES)
-CFLAGS += -g
+N64_CFLAGS += -g -O0
+N64_LDFLAGS += -g
 endif
 
 

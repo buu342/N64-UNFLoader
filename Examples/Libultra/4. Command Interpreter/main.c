@@ -5,6 +5,7 @@ Program entrypoint.
 ***************************************************************/
 
 #include <nusys.h>
+#include <stdlib.h> // For atoi()
 #include "config.h"
 #include "texture.h"
 #include "stages.h"

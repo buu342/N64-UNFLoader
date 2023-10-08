@@ -69,8 +69,10 @@ int main(void)
     {
         surface_t *disp = display_get();
 
-        // Check if anything was in the USB
-        debug_pollcommands();
+        // Check if anything was in the USB (unnecessary if auto-polling is enabled)
+        #if !AUTOPOLL_ENABLED
+            debug_pollcommands();
+        #endif
 
         // Handle square movement
         if (global_move)

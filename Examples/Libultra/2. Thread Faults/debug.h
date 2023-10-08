@@ -12,6 +12,8 @@
     
     // Settings
     #define DEBUG_INIT_MSG    1   // Print a message when debug mode has initialized
+    #define AUTOPOLL_ENABLED  0   // Automatically poll the USB on a timer
+    #define AUTOPOLL_TIME     200 // Time in miliseconds between auto polls
     #define USE_FAULTTHREAD   1   // Create a fault detection thread (libultra only)
     #define USE_RDBTHREAD     0   // Create a remote debugger thread
     #define OVERWRITE_OSPRINT 1   // Replaces osSyncPrintf calls with debug_printf (libultra only)
@@ -42,6 +44,7 @@
         /*==============================
             debug_initialize
             Initializes the debug and USB library.
+            Should be called last during game initialization.
         ==============================*/
         
         extern void debug_initialize();
