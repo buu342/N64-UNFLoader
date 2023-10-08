@@ -159,6 +159,7 @@ https://github.com/buu342/N64-UNFLoader
     static u64   debug_64dbut_debounce = 0;
     static u64   debug_64dbut_hold = 0;
     
+    
     #ifndef LIBDRAGON
         // Fault thread globals
         #if USE_FAULTTHREAD
@@ -173,6 +174,9 @@ https://github.com/buu342/N64-UNFLoader
         static OSMesg      usbMessageBuf;
         static OSThread    usbThread;
         static u64         usbThreadStack[USB_THREAD_STACK/sizeof(u64)];
+        #if AUTOPOLL_ENABLED
+            static OSTimer usbThreadTimer;
+        #endif
         
         // List of error causes
         static regDesc causeDesc[] = {
@@ -304,6 +308,9 @@ https://github.com/buu342/N64-UNFLoader
                             (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
                             USB_THREAD_PRI);
             osStartThread(&usbThread);
+            #if AUTOPOLL_ENABLED
+                osSetTimer(&usbThreadTimer, 0, OS_USEC_TO_CYCLES(AUTOPOLL_TIME*1000), &usbMessageQ, (OSMesg)NULL);
+            #endif
         #endif
         
         // Mark the debug mode as initialized
@@ -577,9 +584,6 @@ https://github.com/buu342/N64-UNFLoader
         // Ensure debug mode is initialized
         if (!debug_initialized)
             return;
-            
-        // Handle 64Drive button polling
-        debug_handle_64drivebutton();
         
         // Send a read message to the USB thread
         msg.msgtype = MSG_READ;
@@ -810,7 +814,7 @@ https://github.com/buu342/N64-UNFLoader
                 osRecvMesg(&usbMessageQ, (OSMesg *)&threadMsg, OS_MESG_BLOCK);
             #endif
             
-            // Ensure there's no data in the USB (which handles MSG_READ)
+            // Ensure there's no data in the USB (which handles MSG_READ (or a NULL message type))
             while (usb_poll() != 0)
             {
                 int header = usb_poll();
@@ -868,6 +872,9 @@ https://github.com/buu342/N64-UNFLoader
                 }
             }
             
+            // Handle 64Drive button polling
+            debug_handle_64drivebutton();
+            
             // Spit out an error if there was one during the command parsing
             if (errortype != USBERROR_NONE)
             {
@@ -891,13 +898,16 @@ https://github.com/buu342/N64-UNFLoader
             }
             
             // Handle the other USB messages
-            switch (threadMsg->msgtype)
+            if (threadMsg != NULL)
             {
-                case MSG_WRITE:
-                    if (usb_timedout())
-                        usb_sendheartbeat();
-                    usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
-                    break;
+                switch (threadMsg->msgtype)
+                {
+                    case MSG_WRITE:
+                        if (usb_timedout())
+                            usb_sendheartbeat();
+                        usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
+                        break;
+                }
             }
             
             // If we're in libdragon, break out of the loop as we don't need it
@@ -994,6 +1004,15 @@ https://github.com/buu342/N64-UNFLoader
                     if (curr != NULL) 
                     {
                         __OSThreadContext* context = &curr->context;
+                        
+                        // If the debug thread crashed, restart it
+                        if (curr->id == USB_THREAD_ID)
+                        {
+                            osCreateThread(&usbThread, USB_THREAD_ID, debug_thread_usb, 0, 
+                                            (usbThreadStack+USB_THREAD_STACK/sizeof(u64)), 
+                                            USB_THREAD_PRI);
+                            osStartThread(&usbThread);
+                        }
                         
                         // Print the basic info
                         debug_printf("Fault in thread: %d\n\n", curr->id);
