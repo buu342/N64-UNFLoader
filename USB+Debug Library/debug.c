@@ -5,6 +5,7 @@ A basic debug library that makes use of the USB library for N64
 flashcarts. 
 https://github.com/buu342/N64-UNFLoader
 ***************************************************************/
+
 #include "debug.h"
 #ifndef LIBDRAGON
     #include <ultra64.h> 
@@ -12,11 +13,10 @@ https://github.com/buu342/N64-UNFLoader
 #else
     #include <libdragon.h>
     #include <stdio.h>
-    #include <math.h>
 #endif
+#include <math.h>
 #include <stdarg.h>
 #include <string.h>
-
 
 #if DEBUG_MODE
     
@@ -44,12 +44,12 @@ https://github.com/buu342/N64-UNFLoader
     *********************************/
     
     #ifdef LIBDRAGON
-        typedef unsigned char      u8;	
+        typedef unsigned char      u8;
         typedef unsigned short     u16;
         typedef unsigned long      u32;
         typedef unsigned long long u64;
         
-        typedef signed char s8;	
+        typedef signed char s8;
         typedef short       s16;
         typedef long        s32;
         typedef long long   s64;
