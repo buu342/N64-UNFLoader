@@ -180,7 +180,7 @@ https://github.com/buu342/N64-UNFLoader
         static void debug_rdb_addbreakpoint(OSThread* t);
         static void debug_rdb_removebreakpoint(OSThread* t);
         static void debug_rdb_continue(OSThread* t);
-        //static void debug_rdb_pause(OSThread* t);
+        static void debug_rdb_pause(OSThread* t);
     #endif
 
     // Other
@@ -372,7 +372,7 @@ https://github.com/buu342/N64-UNFLoader
             {"Z0", debug_rdb_addbreakpoint},
             {"z0", debug_rdb_removebreakpoint},
             {"c", debug_rdb_continue},
-            //{"\x03", debug_rdb_pause},
+            {"\x03", debug_rdb_pause},
         };
     #endif
     
@@ -1262,6 +1262,17 @@ https://github.com/buu342/N64-UNFLoader
 
                     // Wait for an rdb message to arrive
                     osRecvMesg(&rdbMessageQ, &msg, OS_MESG_BLOCK);
+                    
+                    // Exceptional case, handle pausing through CTRL+C
+                    if (USBHEADER_GETTYPE(usb_poll()) == DATATYPE_RDBPACKET)
+                    {
+                        char packetstart;
+                        usb_read(&packetstart, 1);
+                        if (packetstart == '\x03')
+                            msg = (OSMesg)MSG_RDB_PAUSE;
+                        usb_rewind(1);
+                    }
+                    
 
                     // Check what message we received
                     switch ((s32)msg)
@@ -1283,7 +1294,6 @@ https://github.com/buu342/N64-UNFLoader
                             usb_write(DATATYPE_RDBPACKET, "T05swbreak:;", 12+1);
                             break;
                         case MSG_RDB_PAUSE:
-                            // Since USB polling should be done in main, the main thread will obviously be the one which is paused
                             affected = mainthread;
                             debug_rdbpaused = TRUE;
                             break;
@@ -2019,11 +2029,11 @@ https://github.com/buu342/N64-UNFLoader
             @param The affected thread, if any
         ==============================*/
         
-        /*static void debug_rdb_pause(OSThread* t)
+        static void debug_rdb_pause(OSThread* t)
         {
             debug_rdbpaused = TRUE;
             usb_purge();
             usb_write(DATATYPE_RDBPACKET, "S02", 3+1);
-        }*/
+        }
     #endif
 #endif
