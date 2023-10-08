@@ -117,6 +117,9 @@ https://github.com/buu342/N64-UNFLoader
         #endif
     #else
         static void debug_thread_usb(void *arg);
+        #if AUTOPOLL_ENABLED
+            static void debug_timer_usb(int overflow);
+        #endif
     #endif
     static inline void debug_handle_64drivebutton();
     
@@ -310,6 +313,11 @@ https://github.com/buu342/N64-UNFLoader
             osStartThread(&usbThread);
             #if AUTOPOLL_ENABLED
                 osSetTimer(&usbThreadTimer, 0, OS_USEC_TO_CYCLES(AUTOPOLL_TIME*1000), &usbMessageQ, (OSMesg)NULL);
+            #endif
+        #else
+            timer_init(); // If the timer subsystem has been initialized already, it's not a problem to call it again.
+            #if AUTOPOLL_ENABLED
+                new_timer(TIMER_TICKS(AUTOPOLL_TIME*1000), TF_CONTINUOUS, debug_timer_usb);
             #endif
         #endif
         
@@ -634,6 +642,7 @@ https://github.com/buu342/N64-UNFLoader
                     #else
                         nexttime = TIMER_TICKS(100000);
                     #endif
+                        (void)nexttime;
                     debug_64dbut_debounce = curtime + nexttime;
                     debug_64dbut_func();
                     held = 1;
@@ -785,6 +794,24 @@ https://github.com/buu342/N64-UNFLoader
         // Rewind the USB fully
         usb_rewind(datasize);
     }
+
+    #ifdef LIBDRAGON
+        #if AUTOPOLL_ENABLED    
+            /*==============================
+                debug_timer_usb
+                A function that's called by the auto-poll timer
+                @param How many ticks the timer overflew by (unused)
+            ==============================*/
+
+            static void debug_timer_usb(int overflow)
+            {
+                usbMesg msg;
+                (void)overflow; // To prevent unused variable errors
+                msg.msgtype = MSG_READ;
+                debug_thread_usb(&msg);
+            }
+        #endif
+    #endif
     
     
     /*==============================

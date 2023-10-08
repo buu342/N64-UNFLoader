@@ -65,7 +65,7 @@ void stage00_init(void)
 
 void stage00_update(void)
 {
-    // Poll for incoming USB data (unless we have auto-polling enabled)
+    // Poll for incoming USB data (unnecessary if we have auto-polling enabled)
     #if !AUTOPOLL_ENABLED
         debug_pollcommands();
     #endif
