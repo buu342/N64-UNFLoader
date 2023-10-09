@@ -427,6 +427,10 @@ https://github.com/buu342/N64-UNFLoader
                                 RDB_THREAD_PRI);
                 osStartThread(&rdbThread);
                 
+                // Initialize breakpoints
+                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_RDB_BPHIT);
+                memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
+                
                 // Pause the main thread
                 usb_purge();
                 usb_write(DATATYPE_TEXT, "Pausing main thread until GDB connects and resumes\n", 51+1);
@@ -1249,10 +1253,6 @@ https://github.com/buu342/N64-UNFLoader
             
                 // Create the message queue for the rdb messages
                 osCreateMesgQueue(&rdbMessageQ, &rdbMessageBuf, 1);
-                
-                // Initialize breakpoints
-                osSetEventMesg(OS_EVENT_CPU_BREAK, &rdbMessageQ, (OSMesg)MSG_RDB_BPHIT);
-                memset(debug_bpoints, 0, BPOINT_COUNT*sizeof(bPoint));
                 
                 // Thread loop
                 while (1)
