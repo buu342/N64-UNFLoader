@@ -99,7 +99,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -140,7 +140,7 @@
       </LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Include/pdcurses.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;shlwapi.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
@@ -192,6 +192,7 @@
     <ClCompile Include="device_64drive.cpp" />
     <ClCompile Include="device_everdrive.cpp" />
     <ClCompile Include="device_sc64.cpp" />
+    <ClCompile Include="gdbstub.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="include\lodepng.cpp" />
     <ClCompile Include="main.cpp" />
@@ -204,6 +205,7 @@
     <ClInclude Include="device_everdrive.h" />
     <ClInclude Include="device_sc64.h" />
     <ClInclude Include="helper.h" />
+    <ClInclude Include="gdbstub.h" />
     <ClInclude Include="include\curses.h" />
     <ClInclude Include="include\curspriv.h" />
     <ClInclude Include="include\ftd2xx.h" />

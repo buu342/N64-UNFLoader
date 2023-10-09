@@ -12,21 +12,27 @@
     
     // Settings
     #define DEBUG_INIT_MSG    1   // Print a message when debug mode has initialized
-    #define AUTOPOLL_ENABLED  0   // Automatically poll the USB on a timer
-    #define AUTOPOLL_TIME     200 // Time in miliseconds between auto polls
+    #define AUTOPOLL_ENABLED  1   // Automatically poll the USB on a timer
+    #define AUTOPOLL_TIME     200 // Time (in milliseconds) between auto polls
     #define USE_FAULTTHREAD   1   // Create a fault detection thread (libultra only)
+    #define USE_RDBTHREAD     1   // Create a remote debugger thread
     #define OVERWRITE_OSPRINT 1   // Replaces osSyncPrintf calls with debug_printf (libultra only)
     #define MAX_COMMANDS      25  // The max amount of user defined commands possible
+    
+    // USB thread definitions (libultra only)
+    #define USB_THREAD_ID    14
+    #define USB_THREAD_PRI   126
+    #define USB_THREAD_STACK 0x2000
     
     // Fault thread definitions (libultra only)
     #define FAULT_THREAD_ID    13
     #define FAULT_THREAD_PRI   125
     #define FAULT_THREAD_STACK 0x2000
     
-    // USB thread definitions (libultra only)
-    #define USB_THREAD_ID    14
-    #define USB_THREAD_PRI   126
-    #define USB_THREAD_STACK 0x2000
+    // Remote debugger thread definitions (libultra only)
+    #define RDB_THREAD_ID    15
+    #define RDB_THREAD_PRI   124
+    #define RDB_THREAD_STACK 0x2000
     
     
     /*********************************

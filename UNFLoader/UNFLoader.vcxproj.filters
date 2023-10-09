@@ -4,6 +4,7 @@
     <ClCompile Include="debug.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="helper.cpp" />
+    <ClCompile Include="gdbstub.cpp" />
     <ClCompile Include="term.cpp" />
     <ClCompile Include="include\lodepng.cpp">
       <Filter>Include</Filter>
@@ -16,6 +17,7 @@
   <ItemGroup>
     <ClInclude Include="debug.h" />
     <ClInclude Include="helper.h" />
+    <ClInclude Include="gdbstub.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="term.h" />
     <ClInclude Include="include\panel.h">

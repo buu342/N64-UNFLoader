@@ -58,7 +58,9 @@ The most basic usage is `UNFLoader.exe -r PATH/TO/ROM.n64`.
 
 Append `-d` to enable debug mode, which allows you to receive/send input from/to the console (Assuming you're using the included USB+debug libraries). If you wrap a part of a command in '@' characters, the data will be treated as a file and will be uploaded to the cart. When uploading files in a command, the filepath wrapped between the '@' characters will be replaced with the size of the data inside the file, with the data in the file itself being appended after. For example, if there is a file called `file.txt` with 4 bytes containing `abcd`, sending the following command: `commandname arg1 arg2 @file.txt@ arg4` will send `commandname arg1 arg2 @4@abcd arg4` to the console. UNFLoader only supports sending 1 file per command.
 
-Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected.
+Append `-l` to enable listen mode, which will automatically reupload a ROM once a change has been detected. **For listen mode to work, the console needs to be in a safe state**. This means that 64Drive users should have the console turned off, EverDrive users should have the console turned on and waiting on the menu, etc...
+
+Append `-g` to open a GDB server. By default, the address `127.0.0.1:8080` is used. You can specify the address by adding it to the argument: `-g 192.168.1.68:27015`. You can also just specify a port: `-g 69420` or address `-g 192.168.1.68`. 
 </br>
 </br>
 ### How to Build UNFLoader for Windows

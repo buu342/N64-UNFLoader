@@ -13,6 +13,7 @@
 
     #define USBPROTOCOL_LATEST PROTOCOL_VERSION2
 
+
     /*********************************
                Enumerations
     *********************************/
@@ -53,7 +54,8 @@
         DATATYPE_RAWBINARY  = 0x02,
         DATATYPE_HEADER     = 0x03,
         DATATYPE_SCREENSHOT = 0x04,
-        DATATYPE_HEARTBEAT  = 0x05
+        DATATYPE_HEARTBEAT  = 0x05,
+        DATATYPE_RDBPACKET  = 0x06
     } USBDataType;
 
     typedef enum {

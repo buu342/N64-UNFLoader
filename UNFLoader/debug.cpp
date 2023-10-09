@@ -2,6 +2,7 @@
 #include "main.h"
 #include "term.h"
 #include "helper.h"
+#include "gdbstub.h"
 #pragma warning(push, 0)
     #include "Include/lodepng.h"
 #pragma warning(pop)
@@ -48,6 +49,11 @@ typedef struct {
     bool     ispath;
 } ParseHelper;
 
+typedef struct {
+    byte*    data;
+    uint32_t size;
+} RDBPacketChunk;
+
 
 /*********************************
         Function Prototypes
@@ -58,6 +64,7 @@ static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
 static void debug_handle_screenshot(uint32_t size, byte* buffer);
 static void debug_handle_heartbeat(uint32_t size, byte* buffer);
+static void debug_handle_rdbpacket(uint32_t size, byte* buffer);
 
 
 /*********************************
@@ -71,6 +78,7 @@ static char* local_binaryoutfolderpath = NULL;
 // Other
 static int debug_headerdata[HEADER_SIZE];
 static std::queue<SendData*> local_mesgqueue;
+static std::list<RDBPacketChunk*> local_rdbpackets;
 
 
 /*==============================
@@ -95,7 +103,7 @@ void debug_main()
         if (term_isusingcurses())
         {
             std::thread t;
-            log_colored("Uploading command (ESC to cancel)\n", CRDEF_INPUT);
+            log_colored("Uploading command (ESC to cancel).\n", CRDEF_INPUT);
             t = std::thread(progressthread, "Uploading command (ESC to cancel)");
             handle_deviceerror(device_senddata(msg->type, msg->data, msg->size));
             t.join();
@@ -109,7 +117,12 @@ void debug_main()
         // Print success?
         if (!device_uploadcancelled())
         {
-            log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
+            if (msg->type == DATATYPE_TEXT)
+                log_replace("Sent command '%s'\n", CRDEF_INFO, msg->original);
+            else if (msg->type == DATATYPE_RDBPACKET)
+                log_replace("RDB sent packet '%s'\n", CRDEF_INFO, msg->data);
+            else
+                log_replace("Sent command\n", CRDEF_INFO);
             decrement_escapelevel();
         }
         else
@@ -117,7 +130,8 @@ void debug_main()
 
         // Cleanup
         local_mesgqueue.pop();
-        free(msg->original);
+        if (msg->original != NULL)
+            free(msg->original);
         free(msg->data);
         free(msg);
     }
@@ -139,6 +153,7 @@ void debug_main()
                 case DATATYPE_HEADER:     debug_handle_header(size, outbuff); break;
                 case DATATYPE_SCREENSHOT: debug_handle_screenshot(size, outbuff); break;
                 case DATATYPE_HEARTBEAT:  debug_handle_heartbeat(size, outbuff); break;
+                case DATATYPE_RDBPACKET:  debug_handle_rdbpacket(size, outbuff); break;
                 default:                  terminate("Unknown data type '%x'.", (uint32_t)command);
             }
 
@@ -279,6 +294,7 @@ static void debug_handle_screenshot(uint32_t size, byte* buffer)
 
     // Close the file and free the dynamic memory used
     lodepng_encode32_file(filename, image, w, h);
+    memset(debug_headerdata, 0, sizeof(int)*HEADER_SIZE);
     log_colored("Wrote %dx%d pixels to '%s'.\n", CRDEF_INFO, w, h, filename);
     free(image);
     free(filename);
@@ -322,8 +338,81 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
 
 
 /*==============================
+    debug_handle_rdbpacket
+    Handles DATATYPE_RDBPACKET
+    @param The size of the incoming data
+    @param The buffer to read from
+==============================*/
+
+void debug_handle_rdbpacket(uint32_t size, byte* buffer)
+{
+    // Buffer packets until we're ready to send
+    RDBPacketChunk* chunk = (RDBPacketChunk*)malloc(sizeof(RDBPacketChunk));
+    chunk->data = (byte*)malloc(size);
+    chunk->size = size;
+    memcpy(chunk->data, buffer, size);
+    local_rdbpackets.push_back(chunk);
+
+    // Do the send
+    if (debug_headerdata[1] == 0)
+    {
+        std::string packet = "";
+
+        // Copy the data over
+        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
+            packet += (char*)(*it)->data;
+
+        // Send it to GDB
+        log_colored("Replying with '%s'\n", CRDEF_INFO, packet.c_str());
+        gdb_reply((char*)packet.c_str());
+
+        // Cleanup
+        for (std::list<RDBPacketChunk*>::iterator it = local_rdbpackets.begin(); it != local_rdbpackets.end(); ++it)
+        {
+            free((*it)->data);
+            free(*it);
+        }
+        local_rdbpackets.clear();
+    }
+    else
+        debug_headerdata[1]--;
+}
+
+
+/*==============================
     debug_send
     Sends data to the flashcart
+    @param The data type
+    @param The data itself
+    @param The size of the data
+==============================*/
+
+void debug_send(USBDataType type, char* data, size_t size)
+{
+    SendData* mesg;
+
+    // Allocate memory for the message
+    mesg = (SendData*)malloc(sizeof(SendData));
+    if (mesg == NULL)
+        terminate("Unable to malloc message for debug send.");
+    mesg->data = (byte*)malloc(size);
+    if (mesg->data == NULL)
+        terminate("Unable to malloc message data for debug send.");
+
+    // Fill up the data
+    mesg->original = NULL;
+    memcpy(mesg->data, data, size);
+    mesg->type = type;
+    mesg->size = size;
+
+    // Send the message to the debug thread
+    local_mesgqueue.push(mesg);
+}
+
+
+/*==============================
+    debug_sendtext
+    Sends text to the flashcart
     TODO: Does not handle edge case of 
     two @ between different files not
     separated by a space
@@ -331,7 +420,7 @@ void debug_handle_heartbeat(uint32_t size, byte* buffer)
            to send
 ==============================*/
 
-void debug_send(char* data)
+void debug_sendtext(char* data)
 {
     byte*     copy;
     char*     token;

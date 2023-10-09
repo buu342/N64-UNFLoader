@@ -19,7 +19,7 @@ ASSETS_PNG = $(wildcard assets/*.png)
 
 ASSETS_CONV = $(addprefix filesystem/,$(notdir $(ASSETS_PNG:%.png=%.sprite)))
 
-MKSPRITE_FLAGS ?= 
+MKSPRITE_FLAGS ?= --compress 0
 
 
 ################################################################

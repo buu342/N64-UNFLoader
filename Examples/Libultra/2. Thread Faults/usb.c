@@ -335,7 +335,7 @@ static inline void usb_dma_read(void *ram_address, u32 pi_address, size_t size)
             osPiRawStartDma(OS_READ, pi_address, ram_address, size);
         #else
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_READ, pi_address, ram_address, size, &dmaMessageQ);
-            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            while (osRecvMesg(&dmaMessageQ, NULL, OS_MESG_NOBLOCK) != 0);
         #endif
     #else
         data_cache_hit_writeback_invalidate(ram_address, size);

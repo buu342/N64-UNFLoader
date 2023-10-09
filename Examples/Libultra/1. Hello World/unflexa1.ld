@@ -47,10 +47,4 @@ SECTIONS
       codesegment.o(.bss*);
    }
    END_NOLOAD(code)
-
-   /* Discard everything not specifically mentioned above. */
-   /DISCARD/ :
-   {
-      *(*);
-   }
 }

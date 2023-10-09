@@ -6,6 +6,7 @@
         #include <ctype.h>
         #include <stdbool.h>
         #ifndef LINUX
+            #include <winsock2.h>
             #include <windows.h> // Needed to prevent a macro redefinition due to curses.h
         #else
             #include <unistd.h>
@@ -43,6 +44,7 @@
 
     extern FILE*   global_debugoutptr;
     extern bool    global_badpackets;
+    extern char*   global_gdbaddr;
     extern std::atomic<bool> global_terminating;
 
 
