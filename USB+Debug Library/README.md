@@ -106,7 +106,8 @@ void usb_sendheartbeat();
 ### How to use the Debug library
 The debug library is a basic practical implementation of the USB library. Simply include the `debug.c` and `debug.h` in your project (along with the usb library). If you intend to use the USB library in libdragon, you must uncomment `#define LIBDRAGON` in `usb.h`. </br></br>
 You must call `debug_initialize()` once before doing anything else. If you are using this library, there is no need to worry about anything regarding the USB library as this one takes care of everything for you (initialization, includes, etc...). You can edit `debug.h` to enable/disable debug mode (which makes your ROM smaller if disabled), as well as configure other aspects of the library. The library features some basic debug functions and, if you are using libultra, two threads: one that handles all USB calls, and another that catches `OS_EVENT_FAULT` events and dumps registers through USB. The library runs in its own thread, it blocks the thread that called a debug function until it is finished reading/writing to the USB. If you are using libdragon, the library will instead halt the program until it is finished reading/writing to the USB.
-Similar to the USB library, you must call `debug_pollcommands` once per game loop in order for the library to be able to read incoming data. This also applies to detecting changes to the 64Drive's button state.
+
+Similar to the USB library, you must call poll for incoming USB data. This can be done in two ways, either by manually calling `debug_pollcommands` once per game loop, or you can set the `AUTOPOLL_ENABLED` macro to `1` so that it is done automatically at an interval of `AUTOPOLL_TIME` milliseconds. Changes to the 64Drive's button state are only detected during said polling.
 <details><summary>Included functions list</summary>
 <p>
     
@@ -114,6 +115,7 @@ Similar to the USB library, you must call `debug_pollcommands` once per game loo
 /*==============================
     debug_initialize
     Initializes the debug and USB library.
+    Should be called last during game initialization.
 ==============================*/
 void debug_initialize();
 
