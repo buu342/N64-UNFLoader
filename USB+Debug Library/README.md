@@ -214,6 +214,7 @@ The steps for connecting GDB are as follows:
 6. If GDB is attached correctly, you should be able to do what you want (set breakpoints, etc...) and then resume ROM execution with `c` or `continue`.
 
 #### Notes about GDB debugging
+* Stepping into or breakpointing at functions related to the USB/debug library will probably have unintended side-effects. Please use GDB responsibly.
 * Thread specific features are unsupported.
 * Watchpoints are unsupported.
 * Overlays/Relocation is currently unsupported. I'm not even sure how to start supporting it to be honest.
