@@ -169,6 +169,7 @@ https://github.com/buu342/N64-UNFLoader
             static void debug_thread_rdb(void* arg);
         #else
             static void debug_thread_rdb(exception_t* arg);
+            static void debug_thread_rdb_pause();
         #endif
         static void debug_thread_rdb_loop(OSThread* t);
         static void debug_rdb_qsupported(OSThread* t);
@@ -354,11 +355,14 @@ https://github.com/buu342/N64-UNFLoader
         #endif
 
         // RDB status globals
-        static vu8       debug_rdbpaused = FALSE;
-        #ifdef LIBDRAGON
-            static u8    debug_initpaused = TRUE;
+        static vu8        debug_rdbpaused = FALSE;
+        #ifndef LIBDRAGON
+            static OSTime debug_pausetime = 0;
+        #else
+            static u32    debug_pausetime = 0;
+            static u8     debug_ismanualpause = FALSE;
         #endif
-        static bPoint    debug_bpoints[BPOINT_COUNT];
+        static bPoint     debug_bpoints[BPOINT_COUNT];
 
         // Remote debugger packet lookup table
         RDBPacketLUT lut_rdbpackets[] = {
@@ -446,7 +450,7 @@ https://github.com/buu342/N64-UNFLoader
                 register_exception_handler(debug_thread_rdb);
                 usb_purge();
                 usb_write(DATATYPE_TEXT, "Pausing main thread until GDB connects and resumes\n", 51+1);
-                asm volatile("break"); // Jank workaround because I can't "message" the exception handler "thread"
+                debug_thread_rdb_pause();
             #endif
         #endif
         
@@ -982,7 +986,17 @@ https://github.com/buu342/N64-UNFLoader
                         #ifndef LIBDRAGON
                             osSendMesg(&rdbMessageQ, (OSMesg)MSG_RDB_PACKET, OS_MESG_BLOCK);
                         #else
-                            debug_thread_rdb_loop(NULL);
+                    
+                            // Exceptional case, handle pausing through CTRL+C
+                            char packetstart;
+                            usb_read(&packetstart, 1);
+                            if (packetstart == '\x03')
+                            {
+                                usb_rewind(1);
+                                debug_thread_rdb_pause();
+                            }
+                            else
+                                debug_thread_rdb_loop(NULL);
                         #endif
                         continue;
                     }
@@ -1282,6 +1296,7 @@ https://github.com/buu342/N64-UNFLoader
                         case MSG_RDB_BPHIT:
                             affected = mainthread;
                             debug_rdbpaused = TRUE;
+                            debug_pausetime = osGetTime();
                             
                             // Find out which thread hit the bp exception
                             while (1) 
@@ -1296,6 +1311,7 @@ https://github.com/buu342/N64-UNFLoader
                         case MSG_RDB_PAUSE:
                             affected = mainthread;
                             debug_rdbpaused = TRUE;
+                            debug_pausetime = osGetTime();
                             break;
                     }
 
@@ -1306,23 +1322,41 @@ https://github.com/buu342/N64-UNFLoader
         #else
 
             /*==============================
+                debug_thread_rdb_pause
+                "Pauses" the program execution in Libdragon.
+                @param The received exception
+            ==============================*/
+
+            static void debug_thread_rdb_pause()
+            {
+                debug_ismanualpause = TRUE;
+                debug_pausetime = C0_COUNT();
+                asm volatile("break"); // Jank workaround because I can't "message" the exception handler "thread"
+            }
+
+
+            /*==============================
                 debug_thread_rdb
                 Handles the remote debugger logic (Libdragon)
                 @param The received exception
             ==============================*/
 
-            void debug_thread_rdb(exception_t* exc)
+            static void debug_thread_rdb(exception_t* exc)
             {
                 switch (exc->code)
                 {
                     case EXCEPTION_CODE_BREAKPOINT:
                         debug_rdbpaused = TRUE;
-                        usb_purge();
-                        usb_write(DATATYPE_RDBPACKET, "T05swbreak:;", 12+1);
-                        debug_thread_rdb_loop(exc);
-                        if (debug_initpaused)
+                        if (!debug_ismanualpause)
                         {
-                            debug_initpaused = FALSE;
+                            usb_purge();
+                            usb_write(DATATYPE_RDBPACKET, "T05swbreak:;", 12+1);
+                        }
+                        debug_pausetime = C0_COUNT();
+                        debug_thread_rdb_loop(exc);
+                        if (debug_ismanualpause)
+                        {
+                            debug_ismanualpause = FALSE;
                             exc->regs->epc += 4; // Gotta increment PC otherwise the program will likely hit the breakpoint again in debug_initialize
                         }
                         break;
@@ -1341,7 +1375,7 @@ https://github.com/buu342/N64-UNFLoader
                    (Libdragon) A pointer to the exception struct
         ==============================*/
 
-        void debug_thread_rdb_loop(OSThread* affected)
+        static void debug_thread_rdb_loop(OSThread* affected)
         {                
             // Handle the RDB packet
             do
@@ -2020,6 +2054,11 @@ https://github.com/buu342/N64-UNFLoader
             debug_rdbpaused = FALSE;
             usb_purge();
             usb_write(DATATYPE_RDBPACKET, "OK", 2+1);
+            #ifndef LIBDRAGON
+                osSetTime(debug_pausetime);
+            #else
+                C0_WRITE_COUNT(debug_pausetime);
+            #endif
         }
         
         
@@ -2034,6 +2073,11 @@ https://github.com/buu342/N64-UNFLoader
             debug_rdbpaused = TRUE;
             usb_purge();
             usb_write(DATATYPE_RDBPACKET, "S02", 3+1);
+            #ifndef LIBDRAGON
+                debug_pausetime = osGetTime();
+            #else
+                debug_pausetime = C0_COUNT();
+            #endif
         }
     #endif
 #endif
