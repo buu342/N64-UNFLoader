@@ -1798,13 +1798,13 @@ https://github.com/buu342/N64-UNFLoader
             
             // Extract the size value
             commandp = strtok(NULL, ",");
-            size = atoi(commandp);
+            size = (u32)hex2u64(commandp);
             
             // We need to translate the address before trying to read it
             addr = debug_rdb_translateaddr(addr);
             
             // Ensure we are reading a valid memory address
-            if (addr >= 0x80000000 && addr < 0x80000000 + osMemSize)
+            if (addr >= 0x80000000 && addr < 0x80000000 + osMemSize && size < 128)
             {
                 #ifndef LIBDRAGON
                     osWritebackDCache((u32*)addr, size);
@@ -1813,6 +1813,7 @@ https://github.com/buu342/N64-UNFLoader
                 #endif
                 
                 // Read the memory address, one byte at a time
+                // TODO, properly handle size > 128
                 for (i=0; i<size; i++)
                 {
                     u8 val = *(((vu8*)addr)+i);                    
@@ -1858,7 +1859,7 @@ https://github.com/buu342/N64-UNFLoader
             
             // Extract the size value
             commandp = strtok(NULL, ":");
-            size = atoi(commandp);
+            size = (u32)hex2u64(commandp);
             
             // Finally, point to the data we're actually gonna write
             commandp = strtok(NULL, "\0");
