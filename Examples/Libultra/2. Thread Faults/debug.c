@@ -1780,8 +1780,13 @@ https://github.com/buu342/N64-UNFLoader
         static void debug_rdb_readmemory(OSThread* t)
         {
             int i;
+            u32 written = 0;
+            u32 read = 0;
             u32 addr;
             u32 size;
+            u32 chunkcount;
+            u32 header[2];
+            u8 validaddress = FALSE;
             char command[32];
             char* commandp = &command[0];
             #ifdef LIBDRAGON
@@ -1799,38 +1804,49 @@ https://github.com/buu342/N64-UNFLoader
             // Extract the size value
             commandp = strtok(NULL, ",");
             size = (u32)hex2u64(commandp);
+            chunkcount = 2+size/128;
+                    
+            // Start by sending a HEADER packet with the chunk count
+            header[0] = DATATYPE_RDBPACKET;
+            header[1] = chunkcount;
+            usb_purge();
+            usb_write(DATATYPE_HEADER, &header, sizeof(u32)*2);
             
             // We need to translate the address before trying to read it
             addr = debug_rdb_translateaddr(addr);
             
             // Ensure we are reading a valid memory address
-            if (addr >= 0x80000000 && addr < 0x80000000 + osMemSize && size < 128)
+            if (addr >= 0x80000000 && addr < 0x80000000 + osMemSize)
             {
                 #ifndef LIBDRAGON
                     osWritebackDCache((u32*)addr, size);
                 #else
                     data_cache_hit_writeback((u32*)addr, size);
                 #endif
-                
-                // Read the memory address, one byte at a time
-                // TODO, properly handle size > 128
-                for (i=0; i<size; i++)
-                {
-                    u8 val = *(((vu8*)addr)+i);                    
-                    sprintf(debug_buffer+(i*2), "%02x", val);
-                }
-                
-                // Send the address dump
-                usb_purge();
-                usb_write(DATATYPE_RDBPACKET, &debug_buffer, strlen(debug_buffer)+1);
+                validaddress = TRUE;
             }
-            else
+            
+            // Read the memory address, one byte at a time
+            while (read < size)
             {
-                for (i=0; i<size; i++)
-                    sprintf(debug_buffer+(i*2), "00");
-                usb_purge();
-                usb_write(DATATYPE_RDBPACKET, &debug_buffer, strlen(debug_buffer)+1);
+                u8 val = 0;
+                if (validaddress)
+                    val = *((vu8*)(addr+read));
+                written += sprintf(debug_buffer+written, "%02x", val);
+                
+                // Send the partial address dump if we're almost overrunning the buffer, or if we've finished
+                read++;
+                if (written+3 >= BUFFER_SIZE || read == size)
+                {
+                    usb_write(DATATYPE_RDBPACKET, &debug_buffer, strlen(debug_buffer)+1);
+                    written = 0;
+                    chunkcount--;
+                }
             }
+            
+            // Finish sending the other chunks
+            for (i=chunkcount; i>=0; i--)
+                usb_write(DATATYPE_RDBPACKET, "\0", 1);
         }
         
         
