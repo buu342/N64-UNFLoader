@@ -840,12 +840,12 @@ static void show_help()
                        PROGRAM_GITHUB"\n");
             break;
         case '6':
-            log_simple("1) If you haven't already, you must first install gdb-multiarch.");
-            log_simple("2) In a separate terminal, start GDB by calling:");
-            log_colored(                                            " gdb-multiarch PATH/TO/ROMNAME.out\n", CRDEF_PRINT);
+            log_simple("1) If you haven't already, you must first install gdb-multiarch.\n");
+            log_simple("2) In a separate terminal, start GDB by calling:\n");
+            log_colored("   gdb-multiarch PATH/TO/ROMNAME.out\n", CRDEF_PRINT);
             log_simple("   This should boot GDB with the ELF file of your ROM.\n"
-                       "3) Now start UNFLoader with the -d and -g argument. You can optionally provide\n"
-                       "   an address and port pair separated by a colon, or just the port number. By\n"
+                       "3) Now start UNFLoader with the -g argument. You can optionally provide an\n"
+                       "   address and port pair separated by a colon, or just the port number. By\n"
                        "   default, the -g command will use " DEFAULT_GDBADDR " and port " DEFAULT_GDBPORT ".\n"
                        "4) Once UNFLoader is in debug mode, switch back to the terminal with gdb and\n"
                        "   call:");
@@ -853,7 +853,7 @@ static void show_help()
             log_simple("   where \"ADDRESS:PORT\" obviously match your -g argument.\n");
             log_simple("5) Now, any commands you type in GDB will be piped through UNFLoader and sent\n"
                        "   to the N64 through USB. This requires your ROM to have the UNFLoader debug\n"
-                       "   library included for GDB to work.\n");
+                       "   library included, with the USE_RDBTHREAD flag enabled, for GDB to work.\n");
             break;
         default:
             terminate("Unknown category."); 
