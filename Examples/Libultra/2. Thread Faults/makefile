@@ -62,7 +62,7 @@ ifeq ($(DEBUG_MODE), 0)
     MAKEROMFLAGS    = 
 else
     CODEOBJECTS     = $(CODECFILES:.c=.o) $(NUOBJ) $(DEBUGFILES:.c=.o)
-    OPTIMIZER       = -g
+    OPTIMIZER       = -g -O0
     LCDEFS          = -DDEBUG  -DF3DEX_GBI_2 -DNOT_SPEC
     N64LIB          = -lnusys_d -lgultra_d 
     MAKEROMFLAGS    = -d
@@ -76,7 +76,7 @@ endif
 LCINCS =	-I. -I$(ROOT)/usr/include/PR -I $(ROOT)/usr/include -I$(NUSYSINC)
 LCOPTS =	-G 0
 LDIRT  =	$(APP)
-LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR -L$(NUSYSLIB) $(N64LIB) -L$(GCCDIR)/mipse/lib -lkmc
+LDFLAGS=	$(MKDEPOPT) -L$(ROOT)/usr/lib -L$(ROOT)/usr/lib/PR -L$(NUSYSLIB) $(N64LIB) -L$(GCCDIR)/mipse/lib -lkmc -g
 
 
 ################################################################
