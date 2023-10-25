@@ -205,6 +205,7 @@ void debug_printcommands();
 </br>
 
 ### How to debug with GDB
+[A video tutorial is available for this section.](https://www.youtube.com/watch?v=Fr8rSqsFuWk)
 A GDB stub is provided with `debug.c`. In order to debug with GDB, the `USE_RDBTHREAD` macro in `debug.h` must be set to `1` (it is set to `0` by default), and UNFLoader must be launched with the `-g` command (for more information, check the [How to use UNFLoader](../UNFLoader/README.md#how-to-use-unfloader) section in the UNFLoader README). 
 
 The steps for connecting GDB are as follows:
