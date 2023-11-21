@@ -166,6 +166,7 @@
     uint32_t swap_endian(uint32_t val);
     uint32_t calc_padsize(uint32_t size);
     uint32_t romhash(byte* buff, uint32_t len);
-    CICType  cic_from_hash(uint32_t hash);
+    CICType  cic_from_bootcode(byte *bootcode);
+
 
 #endif

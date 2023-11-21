@@ -658,24 +658,120 @@ uint32_t romhash(byte *buff, uint32_t len)
 }
 
 /*==============================
-    cic_from_hash
-    Returns a CIC value from the hash number
-    @param  The hash number
+    ipl2checksum
+    Compute the IPL2 checksum of a bootcode
+    @param  The bootcode
+    @return The 48-bit checksum
+==============================*/
+
+uint64_t ipl2checksum(uint8_t seed, byte *rom)
+{
+    auto rotl = [](uint32_t value, uint32_t shift) -> uint32_t {
+        return (value << shift) | (value >> (-shift&31));
+    };
+        auto rotr = [](uint32_t value, uint32_t shift) -> uint32_t {
+        return (value >> shift) | (value << (-shift&31));
+    };
+
+    auto csum = [](uint32_t a0, uint32_t a1, uint32_t a2) -> uint32_t {
+        if (a1 == 0) a1 = a2;
+        uint64_t prod = (uint64_t)a0 * (uint64_t)a1;
+        uint32_t hi = (uint32_t)(prod >> 32);
+        uint32_t lo = (uint32_t)prod;
+        uint32_t diff = hi - lo;
+        return diff ? diff : a0;
+    };
+
+    // create the initialization data
+    uint32_t init = 0x6c078965 * (seed & 0xff) + 1;
+    uint32_t data = (rom[0] << 24) | (rom[1] << 16) | (rom[2] << 8) | rom[3];
+    rom += 4;
+    init ^= data;
+
+
+    // copy to the state
+    uint32_t state[16];
+    for(auto &s : state) s = init;
+
+    uint32_t dataNext = data, dataLast;
+    uint32_t loop = 0;
+    while(1) {
+        loop++;
+        dataLast = data;
+        data = dataNext;
+
+        state[0] += csum(1007 - loop, data, loop);
+        state[1]  = csum(state[1], data, loop);
+        state[2] ^= data;
+        state[3] += csum(data + 5, 0x6c078965, loop);
+        state[9]  = (dataLast < data) ? csum(state[9], data, loop) : state[9] + data;
+        state[4] += rotr(data, dataLast & 0x1f);
+        state[7]  = csum(state[7], rotl(data, dataLast & 0x1f), loop);
+        state[6]  = (data < state[6]) ? (state[3] + state[6]) ^ (data + loop) : (state[4] + data) ^ state[6];
+        state[5] += rotl(data, dataLast >> 27);
+        state[8]  = csum(state[8], rotr(data, dataLast >> 27), loop);
+
+        if (loop == 1008) break;
+
+        dataNext   = (rom[0] << 24) | (rom[1] << 16) | (rom[2] << 8) | rom[3];
+        rom += 4;
+        state[15]  = csum(csum(state[15], rotl(data, dataLast  >> 27), loop), rotl(dataNext, data  >> 27), loop);
+        state[14]  = csum(csum(state[14], rotr(data, dataLast & 0x1f), loop), rotr(dataNext, data & 0x1f), loop);
+        state[13] += rotr(data, data & 0x1f) + rotr(dataNext, dataNext & 0x1f);
+        state[10]  = csum(state[10] + data, dataNext, loop);
+        state[11]  = csum(state[11] ^ data, dataNext, loop);
+        state[12] += state[8] ^ data;
+    }
+
+    uint32_t buf[4];
+    for(auto &b : buf) b = state[0];
+
+    for(loop = 0; loop < 16; loop++) {
+        data = state[loop];
+        uint32_t tmp = buf[0] + rotr(data, data & 0x1f);
+        buf[0] = tmp;
+        buf[1] = data < tmp ? buf[1]+data : csum(buf[1], data, loop);
+
+        tmp = (data & 0x02) >> 1;
+        uint32_t tmp2 = data & 0x01;
+        buf[2] = tmp == tmp2 ? buf[2]+data : csum(buf[2], data, loop);
+        buf[3] = tmp2 == 1 ? buf[3]^data : csum(buf[3], data, loop);
+    }
+
+    uint64_t checksum = (uint64_t)csum(buf[0], buf[1], 16) << 32;
+    checksum |= buf[3] ^ buf[2];
+    return checksum & 0xffffffffffffull;
+}
+
+
+/*==============================
+    cic_from_bootcode
+    Returns a CIC value from the bootcode
+    @param  The bootcode
     @return The global_cictype value
 ==============================*/
 
-CICType cic_from_hash(uint32_t hash)
+CICType cic_from_bootcode(byte *bootcode)
 {
-    switch (hash)
-    {
-        case 0x033A27: return CIC_6101;
-        case 0x034044: return CIC_6102;
-        case 0x03421E: return CIC_7102;
-        case 0x0357D0: return CIC_X103;
-        case 0x047A81: return CIC_X105;
-        case 0x0371CC: return CIC_X106;
-        case 0x02ABB7: return CIC_5101;
-        case 0x04F90E: return CIC_8303;
+    switch (ipl2checksum(0x3F, bootcode)) {
+        case 0x45cc73ee317aull: return CIC_6101;
+        case 0x44160ec5d9afull: return CIC_7102;
+        case 0xa536c0f1d859ull: return CIC_6102;
+    }
+    switch (ipl2checksum(0x78, bootcode)) {
+        case 0x586fd4709867ull: return CIC_X103;
+    }
+    switch (ipl2checksum(0x91, bootcode)) {
+        case 0x8618a45bc2d3ull: return CIC_X105;
+    }
+    switch (ipl2checksum(0x85, bootcode)) {
+        case 0x2bbad4e6eb74ull: return CIC_X106;
+    }
+    switch (ipl2checksum(0xdd, bootcode)) {
+        case 0x32b294e2ab90ull: return CIC_8303;
+        // case 0x6ee8d9e84970ull: return CIC_8401;
+        // case 0x083c6c77e0b1ull: return CIC_5167;
+        // case 0x05ba2ef0a5f1ull: return CIC_DDUS;
     }
     return CIC_NONE;
 }
