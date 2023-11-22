@@ -222,9 +222,18 @@ static void parse_args(std::list<char*>* args)
     {
         char* command = (*it);
 
-        // Only allow valid command formats
-        if ((command[0] != '-' || command[1] == '\0') && device_getrom() != NULL)
-            terminate("Unknown command '%s'", command);
+        // Check if a ROM is provided, without the '-' character.
+        if (command[0] != '-')
+        {
+            if (command[1] != '\0' && device_getrom() == NULL)
+            {
+                if (!device_setrom(*it))
+                    terminate("'%s' is not a file.", *it);
+                continue;
+            }
+            else
+                terminate("Unknown command '%s'", command);
+        }
 
         // Handle the rest of the commands
         switch(command[1])
@@ -232,6 +241,8 @@ static void parse_args(std::list<char*>* args)
             case 'r': // ROM to upload
                 if (nextarg_isvalid(it, args))
                 {
+                    if (device_getrom() != NULL)
+                        terminate("A ROM has already been loaded.");
                     if (!device_setrom(*it))
                         terminate("'%s' is not a file.");
                 }
@@ -348,13 +359,7 @@ static void parse_args(std::list<char*>* args)
                 global_badpackets = false;
                 break;
             default:
-                if (device_getrom() == NULL)
-                {
-                    if (!device_setrom(*it))
-                        terminate("'%s' is not a file.", *it);
-                }
-                else
-                    terminate("Unknown command '%s'", command);
+                terminate("Unknown command '%s'", command);
                 break;
         }
     }
