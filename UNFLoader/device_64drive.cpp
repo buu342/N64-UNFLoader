@@ -191,7 +191,7 @@ bool device_explicitcic_64drive1(byte* bootcode)
 
 bool device_explicitcic_64drive2(byte* bootcode)
 {
-    device_setcic(cic_from_hash(romhash(bootcode, 4032)));
+    device_setcic(cic_from_bootcode(bootcode));
     return true;
 }
 

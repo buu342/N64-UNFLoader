@@ -448,7 +448,7 @@ uint32_t device_rompadding_sc64(uint32_t romsize)
 
 bool device_explicitcic_sc64(byte *bootcode)
 {
-    device_setcic(cic_from_hash(romhash(bootcode, 4032)));
+    device_setcic(cic_from_bootcode(bootcode));
     return true;
 }
 
