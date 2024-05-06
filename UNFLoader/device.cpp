@@ -668,11 +668,11 @@ uint64_t ipl2checksum(uint8_t seed, byte *rom)
 {
     auto rotl = [](uint32_t value, uint32_t shift) -> uint32_t 
     {
-        return (value << shift) | (value >> (-shift&31));
+        return (value << shift) | (value >> (-((int32_t)shift)&31));
     };
     auto rotr = [](uint32_t value, uint32_t shift) -> uint32_t
     {
-        return (value >> shift) | (value << (-shift&31));
+        return (value >> shift) | (value << (-((int32_t)shift)&31));
     };
 
     auto csum = [](uint32_t a0, uint32_t a1, uint32_t a2) -> uint32_t
