@@ -368,3 +368,4 @@ UNFLoader/UNFLoader
 *.o
 *.a
 *.so
+.directory
