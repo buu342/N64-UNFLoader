@@ -61,6 +61,7 @@ jobs:
   - task: VSBuild@1
     inputs:
       solution: '**\*.sln' 
+      configuration: 'Release'
       vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
       msbuildArchitecture: 'x86' # Optional. Options: x86, x64
 
@@ -69,7 +70,7 @@ jobs:
   - task: PublishBuildArtifacts@1
     displayName: Publish Build Artifacts
     inputs:
-      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Debug/UNFLoader.exe'
+      pathtoPublish: '$(Build.SourcesDirectory)/UNFLoader/Release/UNFLoader.exe'
       #pathtoPublish: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'unfloader-windows' 
       publishLocation: 'Container' # Options: container, filePath
