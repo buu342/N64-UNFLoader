@@ -64,7 +64,7 @@ Append `-g` to open a GDB server. By default, the address `127.0.0.1:8080` is us
 </br>
 </br>
 ### How to Build UNFLoader for Windows
-Simply load the project file in Visual Studio 2019 or higher. The <a href="https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp?view=msvc-160">Windows XP toolset</a> needs to be installed, as it is optional in VS 2019.
+Simply load the project solution file in Visual Studio 2019 or higher. The <a href="https://docs.microsoft.com/en-us/cpp/build/configuring-programs-for-windows-xp?view=msvc-160">Windows XP toolset</a> needs to be installed, as it is optional in VS 2019.
 
 **The Include folder should already have everything you need for Windows.**
 <details><summary>Updating libs to latest version (if required)</summary>

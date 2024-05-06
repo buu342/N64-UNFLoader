@@ -1,6 +1,8 @@
 #ifndef __DEVICE_HEADER
 #define __DEVICE_HEADER
 
+    typedef struct IUnknown IUnknown;
+
     #include <stdint.h>
     #include <stdlib.h>
     #include <stdio.h>

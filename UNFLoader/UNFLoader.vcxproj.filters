@@ -9,10 +9,6 @@
     <ClCompile Include="include\lodepng.cpp">
       <Filter>Include</Filter>
     </ClCompile>
-    <ClCompile Include="device.cpp" />
-    <ClCompile Include="device_64drive.cpp" />
-    <ClCompile Include="device_everdrive.cpp" />
-    <ClCompile Include="device_sc64.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="debug.h" />
@@ -29,23 +25,13 @@
     <ClInclude Include="include\curspriv.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="include\ftd2xx.h">
-      <Filter>Include</Filter>
-    </ClInclude>
     <ClInclude Include="include\curses.h">
       <Filter>Include</Filter>
     </ClInclude>
-    <ClInclude Include="device.h" />
-    <ClInclude Include="device_64drive.h" />
-    <ClInclude Include="device_everdrive.h" />
-    <ClInclude Include="device_sc64.h" />
     <ClInclude Include="term_internal.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\pdcurses.lib">
-      <Filter>Include</Filter>
-    </Library>
-    <Library Include="include\ftd2xx.lib">
       <Filter>Include</Filter>
     </Library>
   </ItemGroup>
@@ -53,5 +39,8 @@
     <Filter Include="Include">
       <UniqueIdentifier>{d38ee22a-45ca-42e1-bc7d-048d756773b7}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="FlashcartLib_Static.vcxproj" />
   </ItemGroup>
 </Project>
