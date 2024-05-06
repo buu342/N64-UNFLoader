@@ -366,3 +366,5 @@ UNFLoader/Dependencies/
 UNFLoader/UNFLoader
 
 *.o
+*.a
+*.so

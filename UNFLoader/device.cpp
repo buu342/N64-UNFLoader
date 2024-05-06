@@ -16,9 +16,9 @@ Passes flashcart communication to more specific functions
 #endif
 #include <atomic>
 #ifdef _WIN64
-#pragma comment(lib, "Include/FTD2XX_x64.lib")
+    #pragma comment(lib, "Include/FTD2XX_x64.lib")
 #else
-#pragma comment(lib, "Include/FTD2XX.lib")
+    #pragma comment(lib, "Include/FTD2XX.lib")
 #endif
 
 
@@ -666,15 +666,19 @@ uint32_t romhash(byte *buff, uint32_t len)
 
 uint64_t ipl2checksum(uint8_t seed, byte *rom)
 {
-    auto rotl = [](uint32_t value, uint32_t shift) -> uint32_t {
+    auto rotl = [](uint32_t value, uint32_t shift) -> uint32_t 
+    {
         return (value << shift) | (value >> (-shift&31));
     };
-        auto rotr = [](uint32_t value, uint32_t shift) -> uint32_t {
+    auto rotr = [](uint32_t value, uint32_t shift) -> uint32_t
+    {
         return (value >> shift) | (value << (-shift&31));
     };
 
-    auto csum = [](uint32_t a0, uint32_t a1, uint32_t a2) -> uint32_t {
-        if (a1 == 0) a1 = a2;
+    auto csum = [](uint32_t a0, uint32_t a1, uint32_t a2) -> uint32_t
+    {
+        if (a1 == 0) 
+            a1 = a2;
         uint64_t prod = (uint64_t)a0 * (uint64_t)a1;
         uint32_t hi = (uint32_t)(prod >> 32);
         uint32_t lo = (uint32_t)prod;
@@ -682,20 +686,21 @@ uint64_t ipl2checksum(uint8_t seed, byte *rom)
         return diff ? diff : a0;
     };
 
-    // create the initialization data
+    // Create the initialization data
     uint32_t init = 0x6c078965 * (seed & 0xff) + 1;
     uint32_t data = (rom[0] << 24) | (rom[1] << 16) | (rom[2] << 8) | rom[3];
     rom += 4;
     init ^= data;
 
-
-    // copy to the state
+    // Copy to the state
     uint32_t state[16];
-    for(auto &s : state) s = init;
+    for(auto &s : state) 
+        s = init;
 
     uint32_t dataNext = data, dataLast;
     uint32_t loop = 0;
-    while(1) {
+    while(1)
+    {
         loop++;
         dataLast = data;
         data = dataNext;
@@ -711,7 +716,8 @@ uint64_t ipl2checksum(uint8_t seed, byte *rom)
         state[5] += rotl(data, dataLast >> 27);
         state[8]  = csum(state[8], rotr(data, dataLast >> 27), loop);
 
-        if (loop == 1008) break;
+        if (loop == 1008)
+            break;
 
         dataNext   = (rom[0] << 24) | (rom[1] << 16) | (rom[2] << 8) | rom[3];
         rom += 4;
@@ -724,9 +730,11 @@ uint64_t ipl2checksum(uint8_t seed, byte *rom)
     }
 
     uint32_t buf[4];
-    for(auto &b : buf) b = state[0];
+    for(auto &b : buf) 
+        b = state[0];
 
-    for(loop = 0; loop < 16; loop++) {
+    for(loop = 0; loop < 16; loop++)
+    {
         data = state[loop];
         uint32_t tmp = buf[0] + rotr(data, data & 0x1f);
         buf[0] = tmp;
@@ -753,21 +761,26 @@ uint64_t ipl2checksum(uint8_t seed, byte *rom)
 
 CICType cic_from_bootcode(byte *bootcode)
 {
-    switch (ipl2checksum(0x3F, bootcode)) {
+    switch (ipl2checksum(0x3F, bootcode))
+    {
         case 0x45cc73ee317aull: return CIC_6101;
         case 0x44160ec5d9afull: return CIC_7102;
         case 0xa536c0f1d859ull: return CIC_6102;
     }
-    switch (ipl2checksum(0x78, bootcode)) {
+    switch (ipl2checksum(0x78, bootcode))
+    {
         case 0x586fd4709867ull: return CIC_X103;
     }
-    switch (ipl2checksum(0x91, bootcode)) {
+    switch (ipl2checksum(0x91, bootcode))
+    {
         case 0x8618a45bc2d3ull: return CIC_X105;
     }
-    switch (ipl2checksum(0x85, bootcode)) {
+    switch (ipl2checksum(0x85, bootcode))
+    {
         case 0x2bbad4e6eb74ull: return CIC_X106;
     }
-    switch (ipl2checksum(0xdd, bootcode)) {
+    switch (ipl2checksum(0xdd, bootcode))
+    {
         case 0x32b294e2ab90ull: return CIC_8303;
         // case 0x6ee8d9e84970ull: return CIC_8401;
         // case 0x083c6c77e0b1ull: return CIC_5167;

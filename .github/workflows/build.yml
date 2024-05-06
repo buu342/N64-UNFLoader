@@ -132,7 +132,6 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'created'
     needs: [build-windows, build-linux, build-macos]
 
     steps:
@@ -154,18 +153,25 @@ jobs:
       with:
         name: ${{ env.MACOS_ARTIFACT_NAME }}
 
-    - name: Get release
-      id: get_release
-      uses: bruceadams/get-release@v1.2.2
+    - name: Create Release
+      id: create_release
+      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: pre
+        release_name: Prerelease
+        body: |
+          This release contains the latest build of UNFLoader. Might be unstable!
+        draft: false
+        prerelease: false
 
     - name: Upload Windows release asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ steps.download-windows.outputs.download-path }}/UNFLoader.exe
         asset_name: UNFLoader.exe
         asset_content_type: application/octet-stream
@@ -175,7 +181,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ steps.download-linux.outputs.download-path }}/UNFLoader
         asset_name: UNFLoader
         asset_content_type: application/octet-stream
@@ -185,7 +191,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.get_release.outputs.upload_url }}
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ${{ steps.download-macos.outputs.download-path }}/UNFLoader
         asset_name: UNFLoader
         asset_content_type: application/octet-stream
