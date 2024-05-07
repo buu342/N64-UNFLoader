@@ -1,6 +1,6 @@
 # UNFLoader Program
 
-This folder holds the source code for the UNFLoader program itself. This readme contains information on how to use, and how to build UNFLoader for Windows, macOS, and Linux operating systems.
+This folder holds the source code for the UNFLoader program itself. This README contains information on how to use, and how to build UNFLoader for Windows, macOS, and Linux operating systems. It also contains instructions for building the flashcart handling library, so that you can use it in your own projects.
 </br>
 </br>
 ### Table of Contents
@@ -9,6 +9,7 @@ This folder holds the source code for the UNFLoader program itself. This readme 
 * [How to Build UNFLoader for Windows](#how-to-build-unfloader-for-windows)
 * [How to Build UNFLoader for macOS](#how-to-build-unfloader-for-macos)
 * [How to Build UNFLoader for Linux](#how-to-build-unfloader-for-linux)
+* [Building only the Flashcart Library](#building-only-the-flashcart-library)
 </br>
 
 ### System Requirements
@@ -165,3 +166,9 @@ sudo make uninstall
 
 Once you have all of these files built and put in the `Include` folder, you're set to compile!
 </details>
+
+### Building only the Flashcart Library
+
+The flashcart handling part of the code can be compiled separately and then linked into your own separate project. When compiling the UNFLoader tool, it will compile a static library and then link it into the final executable. However if you wish to only compile the library, either a static or dynamic/shared form, that can be done as well. Said library includes the D2XX library inside it.
+
+Compiling on Windows is as simple as loading and compiling either the "FlashcartLib_Dynamic" or "FlashcartLib_Static" Visual Studio project. On Linux and macOS, you can use `make static` or `make shared` respectively.

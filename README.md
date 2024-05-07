@@ -20,6 +20,7 @@ Currently supported flashcarts:
     - [How to build UNFLoader for Windows](UNFLoader/README.md#how-to-build-unfloader-for-windows)
     - [How to build UNFLoader for macOS](UNFLoader/README.md#how-to-build-unfloader-for-macOS)
     - [How to build UNFLoader for Linux](UNFLoader/README.md#how-to-build-unfloader-for-linux)
+    - [Building only the Flashcart Library](UNFLoader/README.md#building-only-the-flashcart-library)
 * [USB + Debug Library](USB%2BDebug%20Library/README.md)
     - [How to use the USB library](USB%2BDebug%20Library/README.md#how-to-use-the-usb-library)
     - [How to use the Debug library](USB%2BDebug%20Library/README.md#how-to-use-the-debug-library)
