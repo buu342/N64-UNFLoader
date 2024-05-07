@@ -143,6 +143,18 @@ while true; do
                     * ) echo "Please answer yes or no.";;
                 esac
             fi
+            TARGET="30-sc64_phenom.rules"
+            echo
+            echo -e -n ${Green}
+            if [ -f "/etc/udev/rules.d/${TARGET}" ]; then
+                echo "udev rules already setup for SC64 (Phenom Mods). Skipping."
+            else
+                echo -e -n ${ColorOff}
+                echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy/Mena\", OWNER=\"${USERNAME}\"" >> ${TARGET}
+                echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy/Mena\", RUN{program}+=\"/bin/bash -c 'echo \$kernel > /sys/bus/usb/drivers/ftdi_sio/unbind'\"" >> ${TARGET}
+                sudo mv ${TARGET} "/etc/udev/rules.d"
+                UDEVUPDATED=true
+            fi
 
             # Reload udev rules
             if [ ${UDEVUPDATED} = true ]; then
@@ -171,7 +183,7 @@ while true; do
             echo -e -n ${ColorOff}
             sudo cp -f "UNFLoader" "/usr/local/bin/UNFLoader"
             break;;
-        [Nn]* ) exit;;
+        [Nn]* ) break;;
         * ) echo "Please answer yes or no.";;
     esac
 done
