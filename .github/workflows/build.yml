@@ -25,10 +25,10 @@ jobs:
       BUILD_DIRECTORY: ./UNFLoader/Release
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.1
+      uses: microsoft/setup-msbuild@v2
       with:
         vs-version: '16.0'
         msbuild-architecture: x86
@@ -51,7 +51,7 @@ jobs:
       BUILD_DIRECTORY: ./UNFLoader
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: sudo apt-get install libncurses5-dev libncursesw5-dev
@@ -93,7 +93,7 @@ jobs:
       BUILD_DIRECTORY: ./UNFLoader
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Build
         run: |
@@ -131,6 +131,7 @@ jobs:
           path: ${{ env.BUILD_DIRECTORY }}/UNFLoader
 
   release:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     needs: [build-windows, build-linux, build-macos]
 
