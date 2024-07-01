@@ -7,7 +7,7 @@ http://64drive.retroactive.be/support.php
 ***************************************************************/
 
 #include "device_64drive.h"
-#include "Include/ftd2xx.h"
+#include "device_usb.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
