@@ -21,6 +21,9 @@
     <ClInclude Include="device.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="device_usb.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="device_64drive.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -36,6 +39,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="device.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="device_usb.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="device_64drive.cpp">

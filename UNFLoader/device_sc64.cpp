@@ -10,7 +10,7 @@ https://github.com/Polprzewodnikowy/SummerCart64
 #include <deque>
 #include <thread>
 #include "device_sc64.h"
-#include "Include/ftd2xx.h"
+#include "device_usb.h"
 
 /*********************************
               Macros
@@ -86,8 +86,8 @@ typedef struct
 
 typedef struct
 {
-    DWORD device_number;
-    FT_HANDLE handle;
+    uint32_t device_number;
+    USBHandle handle;
     std::deque<SC64Packet> packets;
 } SC64Device;
 
@@ -100,18 +100,18 @@ typedef struct
 
 static DeviceError device_reset_and_sync_sc64(SC64Device *device)
 {
-    ULONG modem_status;
+    uint32_t modem_status;
 
     // Perform controller reset by setting DTR line and checking DSR line status
-    if (FT_SetDtr(device->handle) != FT_OK)
+    if (device_usb_setdtr(device->handle) != USB_OK)
         return DEVICEERR_SETDTRFAIL;
     for (int i = 0; i < 100; i++)
     {
         // Purge USB contents
-        if (FT_Purge(device->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+        if (device_usb_purge(device->handle, USB_PURGE_RX | USB_PURGE_TX) != USB_OK)
             return DEVICEERR_PURGEFAIL;
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        if (FT_GetModemStatus(device->handle, &modem_status) != FT_OK)
+        if (device_usb_getmodemstatus(device->handle, &modem_status) != USB_OK)
             return DEVICEERR_GETMODEMSTATUSFAIL;
         if (modem_status & 0x20)
             break;
@@ -120,16 +120,16 @@ static DeviceError device_reset_and_sync_sc64(SC64Device *device)
         return DEVICEERR_SC64_CTRLRESETFAIL;
 
     // Purge USB contents again
-    if (FT_Purge(device->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+    if (device_usb_purge(device->handle, USB_PURGE_RX | USB_PURGE_TX) != USB_OK)
         return DEVICEERR_PURGEFAIL;
 
     // Release reset
-    if (FT_ClrDtr(device->handle) != FT_OK)
+    if (device_usb_cleardtr(device->handle) != USB_OK)
         return DEVICEERR_CLEARDTRFAIL;
     for (int i = 0; i < 100; i++)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        if (FT_GetModemStatus(device->handle, &modem_status) != FT_OK)
+        if (device_usb_getmodemstatus(device->handle, &modem_status) != USB_OK)
             return DEVICEERR_GETMODEMSTATUSFAIL;
         if (!(modem_status & 0x20))
             break;
@@ -155,7 +155,7 @@ static DeviceError device_reset_and_sync_sc64(SC64Device *device)
 
 static DeviceError device_send_command_sc64(SC64Device *device, uint8_t cmd, uint32_t arg1, uint32_t arg2)
 {
-    DWORD bytes;
+    uint32_t bytes;
     uint8_t header[12];
 
     // Prepare command header
@@ -167,7 +167,7 @@ static DeviceError device_send_command_sc64(SC64Device *device, uint8_t cmd, uin
     *(uint32_t *)(&header[8]) = swap_endian(arg2);
 
     // Send command and parameters
-    if (FT_Write(device->handle, header, sizeof(header), &bytes) != FT_OK)
+    if (device_usb_write(device->handle, header, sizeof(header), &bytes) != USB_OK)
         return DEVICEERR_WRITEFAIL;
     if (bytes != sizeof(header))
         return DEVICEERR_TXREPLYMISMATCH;
@@ -186,13 +186,13 @@ static DeviceError device_send_command_sc64(SC64Device *device, uint8_t cmd, uin
 
 static DeviceError device_process_incoming_data_sc64(SC64Device *device, SC64Packet *response)
 {
-    DWORD bytes;
+    uint32_t bytes;
     uint8_t buffer[4];
 
     // If processing data only for packets return if there's no header data yet
     if (response == NULL)
     {
-        if (FT_GetQueueStatus(device->handle, &bytes) != FT_OK)
+        if (device_usb_getqueuestatus(device->handle, &bytes) != USB_OK)
             return DEVICEERR_POLLFAIL;
         if (bytes < 4)
             return DEVICEERR_OK;
@@ -201,7 +201,7 @@ static DeviceError device_process_incoming_data_sc64(SC64Device *device, SC64Pac
     while (true)
     {
         // Read response/packet header
-        if (FT_Read(device->handle, buffer, 4, &bytes) != FT_OK)
+        if (device_usb_read(device->handle, buffer, 4, &bytes) != USB_OK)
             return DEVICEERR_READFAIL;
         if (bytes != 4)
             return DEVICEERR_BADPACKSIZE;
@@ -219,7 +219,7 @@ static DeviceError device_process_incoming_data_sc64(SC64Device *device, SC64Pac
         uint8_t id = buffer[3];
 
         // Read response/packet size
-        if (FT_Read(device->handle, &buffer, 4, &bytes) != FT_OK)
+        if (device_usb_read(device->handle, &buffer, 4, &bytes) != USB_OK)
             return DEVICEERR_READFAIL;
         if (bytes != 4)
             return DEVICEERR_BADPACKSIZE;
@@ -231,7 +231,7 @@ static DeviceError device_process_incoming_data_sc64(SC64Device *device, SC64Pac
             return DEVICEERR_MALLOCFAIL;
         if (size > 0)
         {
-            if (FT_Read(device->handle, data.get(), size, &bytes) != FT_OK)
+            if (device_usb_read(device->handle, data.get(), size, &bytes) != USB_OK)
                 return DEVICEERR_READFAIL;
             if (bytes != size)
                 return DEVICEERR_BADPACKSIZE;
@@ -286,8 +286,8 @@ static DeviceError device_execute_command_sc64(SC64Device *device, uint8_t id, u
     // Send command data if required
     if (data != NULL && size > 0)
     {
-        DWORD bytes;
-        if (FT_Write(device->handle, data, size, &bytes) != FT_OK)
+        uint32_t bytes;
+        if (device_usb_write(device->handle, data, size, &bytes) != USB_OK)
             return DEVICEERR_WRITEFAIL;
         if (bytes != size)
             return DEVICEERR_TXREPLYMISMATCH;
@@ -375,10 +375,10 @@ static DeviceError device_program_flash_sc64(SC64Device *device, uint32_t addres
 
 DeviceError device_test_sc64(CartDevice *cart)
 {
-    DWORD device_count;
+    uint32_t device_count;
 
     // Initialize FTDI
-    if (FT_CreateDeviceInfoList(&device_count) != FT_OK)
+    if (device_usb_createdeviceinfolist(&device_count) != USB_OK)
         return DEVICEERR_USBBUSY;
 
     // Check if the device exists
@@ -386,14 +386,14 @@ DeviceError device_test_sc64(CartDevice *cart)
         return DEVICEERR_NODEVICES;
 
     // Allocate storage and get device info list
-    std::unique_ptr<FT_DEVICE_LIST_INFO_NODE[]> device_info(new FT_DEVICE_LIST_INFO_NODE[device_count]);
-    FT_GetDeviceInfoList(device_info.get(), &device_count);
+    std::unique_ptr<USB_DeviceInfoListNode[]> device_info(new USB_DeviceInfoListNode[device_count]);
+    device_usb_getdeviceinfolist(device_info.get(), &device_count);
 
     // Search the devices
-    for (DWORD i = 0; i < device_count; i++)
+    for (uint32_t i = 0; i < device_count; i++)
     {
         // Look for SC64
-        if (device_info[i].ID == 0x04036014 && memcmp(device_info[i].Description, "SC64", 4) == 0)
+        if (device_info[i].id == 0x04036014 && memcmp(device_info[i].description, "SC64", 4) == 0)
         {
             SC64Device *device = new SC64Device;
             if (device == NULL)
@@ -481,13 +481,13 @@ DeviceError device_open_sc64(CartDevice *cart)
     SC64Packet response;
 
     // Open the cart
-    if (FT_Open(device->device_number, &device->handle) != FT_OK || device->handle == NULL)
+    if (device_usb_open(device->device_number, &device->handle) != USB_OK || device->handle == NULL)
         return DEVICEERR_CANTOPEN;
 
     // Reset the cart and set its timeouts and latency timer
-    if (FT_ResetDevice(device->handle) != FT_OK)
+    if (device_usb_resetdevice(device->handle) != USB_OK)
         return DEVICEERR_RESETFAIL;
-    if (FT_SetTimeouts(device->handle, 5000, 5000) != FT_OK)
+    if (device_usb_settimeouts(device->handle, 5000, 5000) != USB_OK)
         return DEVICEERR_TIMEOUTSETFAIL;
 
     // Reset and sync communication with SC64
@@ -763,7 +763,7 @@ DeviceError device_receivedata_sc64(CartDevice *cart, uint32_t *dataheader, byte
 DeviceError device_close_sc64(CartDevice *cart)
 {
     SC64Device *device = (SC64Device *)cart->structure;
-    if (FT_Close(device->handle) != FT_OK)
+    if (device_usb_close(device->handle) != USB_OK)
         return DEVICEERR_CLOSEFAIL;
     free(device);
     cart->structure = NULL;

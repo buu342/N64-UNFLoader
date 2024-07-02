@@ -55,16 +55,20 @@
     USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices);
     USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* num_devices);
 
-    USBStatus device_usb_open(int32_t devnumber, USBHandle handle);
+    USBStatus device_usb_open(int32_t devnumber, USBHandle* handle);
     USBStatus device_usb_close(USBHandle handle);
 
-    USBStatus device_usb_write(USBHandle handle, USBHandle buffer, uint32_t size, uint32_t* written);
-    USBStatus device_usb_read(USBHandle handle, USBHandle buffer, uint32_t size, uint32_t* read);
+    USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32_t* written);
+    USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_t* read);
     USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft);
 
     USBStatus device_usb_resetdevice(USBHandle handle);
     USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t writetimout);
     USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable);
     USBStatus device_usb_purge(USBHandle handle, uint32_t mask);
+
+    USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus);
+    USBStatus device_usb_setdtr(USBHandle handle);
+    USBStatus device_usb_cleardtr(USBHandle handle);
 
 #endif
