@@ -8,6 +8,7 @@ LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CARTLIBNAME 	= flashcart
 CARTLIBFILES	= device.cpp \
+				  device_usb.cpp \
             	  device_64drive.cpp \
                   device_everdrive.cpp \
                   device_sc64.cpp
