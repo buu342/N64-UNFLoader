@@ -1,6 +1,8 @@
 #ifndef __DEVICE_USB_HEADER
 #define __DEVICE_USB_HEADER
 
+    typedef struct IUnknown IUnknown;
+
     #include <stdint.h>
 
     #define USB_PURGE_RX  1

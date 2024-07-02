@@ -11,7 +11,7 @@
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
 {
-    return FT_CreateDeviceInfoList(num_devices);
+    return FT_CreateDeviceInfoList((LPDWORD)num_devices);
 }
 
 USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* num_devices)
@@ -19,7 +19,7 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
     uint32_t i;
     USBStatus stat;
     FT_DEVICE_LIST_INFO_NODE* ftdidevs = (FT_DEVICE_LIST_INFO_NODE*)malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*(*num_devices));
-    stat = FT_GetDeviceInfoList(ftdidevs, num_devices);
+    stat = FT_GetDeviceInfoList(ftdidevs, (LPDWORD)num_devices);
     for (i=0; i<(*num_devices); i++)
     {
         list[i].flags = ftdidevs[i].Flags;
@@ -46,17 +46,17 @@ USBStatus device_usb_close(USBHandle handle)
 
 USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32_t* written)
 {
-    return FT_Write(handle, buffer, size, written);
+    return FT_Write(handle, buffer, size, (LPDWORD)written);
 }
 
 USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_t* read)
 {
-    return FT_Read(handle, buffer, size, read);
+    return FT_Read(handle, buffer, size, (LPDWORD)read);
 }
 
 USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
 {
-    return FT_GetQueueStatus(handle, bytesleft);
+    return FT_GetQueueStatus(handle, (DWORD*)bytesleft);
 }
 
 USBStatus device_usb_resetdevice(USBHandle handle)
@@ -81,7 +81,7 @@ USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
 
 USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
 {
-    return FT_GetModemStatus(handle, modemstatus);
+    return FT_GetModemStatus(handle, (ULONG*)modemstatus);
 }
 
 USBStatus device_usb_setdtr(USBHandle handle)
