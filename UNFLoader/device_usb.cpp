@@ -6,7 +6,7 @@
 #ifdef _WIN64
     #pragma comment(lib, "Include/FTD2XX_x64.lib")
 #else
-    #pragma comment(lib, "Include/FTD2XX.lib")
+    
 #endif
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
