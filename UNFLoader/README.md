@@ -29,14 +29,7 @@ This folder holds the source code for the UNFLoader program itself. This README 
 * Run the included `installer_linux.sh` script to set up everything for you. If you are unable to launch the script, remember to mark it as executable.
 
 If you do not wish to run the script, then you must:
-* [Get the relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * You must run UNFLoader with `sudo`.
-* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands every time you start a new terminal session: 
-```
-sudo rmmod usbserial
-sudo rmmod ftdi_sio
-```
-</p>
 </details>
 
 <details><summary>macOS</summary>
