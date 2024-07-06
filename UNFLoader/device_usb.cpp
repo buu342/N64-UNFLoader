@@ -2,9 +2,13 @@
 #include <string.h>
 #include "device_usb.h"
 
-#ifdef _WIN64
+#ifndef LINUX
     #include "Include/ftd2xx.h"
-    #pragma comment(lib, "Include/FTD2XX_x64.lib")
+    #ifdef _WIN64
+        #pragma comment(lib, "Include/FTD2XX_x64.lib")
+    #else
+        #pragma comment(lib, "Include/FTD2XX.lib")
+    #endif
 #else
     #include <ftdi.h>
     ftdi_context* context = NULL;
@@ -29,8 +33,7 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
                 ftdi_usb_find_all(context, &devlist[i], 0x0403, products_ftdi[i]); // 0:0 isn't working, so for loop it is...
         for (i=0; i<5; i++)
             for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
-                if (curdev->dev != NULL)
-                    count++;
+                count++;
         if (count < 0)
             status = USB_DEVICE_LIST_NOT_READY;
         (*num_devices) = count;
@@ -96,20 +99,18 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
             struct ftdi_device_list *curdev;
             for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
             {
-                if (curdev->dev != NULL)
-                {
                     if (devcount == devnumber)
                     {
                         ftdi_usb_open_desc_index(context, 0x0403, products_ftdi[i], NULL, NULL, curprodnum);
+                        (*handle) = (void*)context;
+                        return USB_OK;
                     }
                     devcount++;
                     curprodnum++;
                 }
             }
         }
-        
-        (*handle) = (void*)context;
-        return USB_OK;
+        return USB_DEVICE_NOT_OPENED;
     #endif 
 }
 
