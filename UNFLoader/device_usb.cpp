@@ -8,7 +8,8 @@
 #else
     #include <ftdi.h>
     ftdi_context* context = NULL;
-    ftdi_device_list* devlist = NULL;
+    ftdi_device_list* devlist[5] = {NULL};
+    uint32_t products_ftdi[5] = {0x6001,0x6010,0x6011,0x6014,0x6015};
 #endif
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
@@ -17,13 +18,19 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
         return FT_CreateDeviceInfoList((LPDWORD)num_devices);
     #else
         // TODO: Handle status
+        int i;
         int status = USB_OK;
         int count = 0;
+        struct ftdi_device_list *curdev;
         if (context == NULL)
             context = ftdi_new();
-        if (devlist != NULL)
-            ftdi_list_free(&devlist);
-        count = ftdi_usb_find_all(context, &devlist, 0x0403, 0x6014);
+        if (devlist[0] == NULL)
+            for (i=0; i<5; i++)
+                ftdi_usb_find_all(context, &devlist[i], 0x0403, products_ftdi[i]); // 0:0 isn't working, so for loop it is...
+        for (i=0; i<5; i++)
+            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
+                if (curdev->dev != NULL)
+                    count++;
         if (count < 0)
             status = USB_DEVICE_LIST_NOT_READY;
         (*num_devices) = count;
@@ -53,19 +60,23 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
     #else
         // TODO: Handle status
         int i = 0;
-        char manufacturer[16], description[64], id[16];
-        struct ftdi_device_list *curdev;
-        for (curdev = devlist; curdev != NULL; curdev = curdev->next)
+        int count = 0;
+        for (i=0; i<5; i++)
         {
-            if (ftdi_usb_get_strings(context, curdev->dev, manufacturer, 16, description, 64, id, 16) < 0)
-                return USB_DEVICE_NOT_OPENED;
-            list[i].flags = 0;
-            list[i].type = 0;
-            list[i].id = (0x0403 << 16) | 0x6014;
-            list[i].locid = 0;
-            memcpy(&list[i].serial, manufacturer, sizeof(char)*16);
-            memcpy(&list[i].description, description, sizeof(char)*64);
-            i++;
+            struct ftdi_device_list *curdev;
+            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
+            {
+                char manufacturer[16], description[64], id[16];
+                if (ftdi_usb_get_strings(context, curdev->dev, manufacturer, 16, description, 64, id, 16) < 0)
+                    return USB_DEVICE_NOT_OPENED;
+                list[count].flags = 0;
+                list[count].type = 0;
+                list[count].id = (0x0403 << 16) | products_ftdi[i];
+                list[count].locid = 0;
+                memcpy(&list[count].serial, manufacturer, sizeof(char)*16);
+                memcpy(&list[count].description, description, sizeof(char)*64);
+                count++;
+            }
         }
         return USB_OK;
     #endif
@@ -77,7 +88,26 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
         return FT_Open(devnumber, handle);
     #else
         // TODO: Handle status
-        ftdi_usb_open_desc_index(context, 0x0403, 0x6014, NULL, NULL, devnumber);
+        int i = 0;
+        int devcount = 0;
+        for (i=0; i<5; i++)
+        {
+            int curprodnum = 0;
+            struct ftdi_device_list *curdev;
+            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
+            {
+                if (curdev->dev != NULL)
+                {
+                    if (devcount == devnumber)
+                    {
+                        ftdi_usb_open_desc_index(context, 0x0403, products_ftdi[i], NULL, NULL, curprodnum);
+                    }
+                    devcount++;
+                    curprodnum++;
+                }
+            }
+        }
+        
         (*handle) = (void*)context;
         return USB_OK;
     #endif 
@@ -142,7 +172,7 @@ USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t
     #ifdef _WIN64
         return FT_SetTimeouts(handle, readtimout, writetimout);
     #else
-        // TODO: Am I doing this right???
+        // TODO: Am I doing this right??? There's no timeout setting functions
         ((ftdi_context*)handle)->usb_read_timeout = readtimout;
         ((ftdi_context*)handle)->usb_write_timeout = writetimout;
         return USB_OK;
@@ -213,6 +243,8 @@ USBStatus device_usb_setdtr(USBHandle handle)
     #ifdef _WIN64
         return FT_SetDtr(handle);
     #else
+        // TODO: Handle status
+        ftdi_setdtr((ftdi_context*)handle, 1);
         return USB_OK;
     #endif
 }
@@ -222,6 +254,8 @@ USBStatus device_usb_cleardtr(USBHandle handle)
     #ifdef _WIN64
         return FT_ClrDtr(handle);
     #else
+        // TODO: Handle status
+        ftdi_setdtr((ftdi_context*)handle, 0);
         return USB_OK;
     #endif
 }
