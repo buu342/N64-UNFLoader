@@ -123,7 +123,7 @@ You need to have the FTDI driver installed (This is in the [requirements](#syste
 Install ncurses by invoking:
 
 ```
-sudo apt-get install libncurses5-dev libncursesw5-dev libudev-dev
+sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev
 ```
 
 Once the dependencies are installed, simply execute the makefile:

@@ -18,7 +18,7 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -lftdi1 -lusb-1.0 -ludev
+DEPENDENCIESLIB := -lftdi1 -lusb-1.0
 ifeq ($(OS_NAME),Darwin)
 	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else

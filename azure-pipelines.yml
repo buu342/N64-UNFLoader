@@ -11,7 +11,7 @@ jobs:
   steps:
   - script: |
       echo Add Linux dependencies
-      sudo apt-get install libncurses5-dev libncursesw5-dev libudev-dev
+      sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev
       # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.cpp --output ./UNFLoader/Include/lodepng.cpp
       # curl -L https://raw.githubusercontent.com/lvandeve/lodepng/master/lodepng.h --output ./UNFLoader/Include/lodepng.h
       

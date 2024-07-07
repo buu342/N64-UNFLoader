@@ -10,8 +10,8 @@
         #pragma comment(lib, "Include/FTD2XX.lib")
     #endif
 #else
-    #include "Include/libusb.h"
-    #include "Include/ftdi.h"
+    #include <libusb-1.0/libusb.h>
+    #include <libftdi1/ftdi.h>
     ftdi_context* context = NULL;
     ftdi_device_list* devlist = NULL;
 #endif
