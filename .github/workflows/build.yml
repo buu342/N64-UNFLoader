@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get install libncurses5-dev libncursesw5-dev libudev-dev
+        run: sudo apt-get install libncurses5-dev libncursesw5-dev libudev-dev libusb-1.0-0-dev
 
       - name: Download and unzip libftd2xx
         run: |
