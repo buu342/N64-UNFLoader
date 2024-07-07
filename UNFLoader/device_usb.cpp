@@ -12,8 +12,16 @@
 #else
     #include <libusb-1.0/libusb.h>
     #include <libftdi1/ftdi.h>
+    #include <thread>
+    #include <chrono>
+
+    #define BUFFER_SIZE 8*1024*1024
+
     ftdi_context* context = NULL;
     ftdi_device_list* devlist = NULL;
+    uint8_t* readbuffer = NULL;
+    uint32_t readbuffer_left = 0;
+    uint32_t readbuffer_offset = 0;
 #endif
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
@@ -26,6 +34,12 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
         int status = USB_OK;
         if (context == NULL)
             context = ftdi_new();
+        if (readbuffer == NULL)
+        {
+            readbuffer = (uint8_t*)malloc(BUFFER_SIZE);
+            if (readbuffer == NULL)
+                return USB_INSUFFICIENT_RESOURCES;
+        }
         if (devlist != NULL)
             ftdi_list_free(&devlist);
         count = ftdi_usb_find_all(context, &devlist, 0, 0);
@@ -94,7 +108,7 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
         ftdi_device_list* curdev = devlist;
         while (curdev_index < devnumber)
             curdev = curdev->next;
-        ftdi_usb_open_dev((ftdi_context*)handle, curdev->dev);
+        ftdi_usb_open_dev(context, devlist[0].dev);
         (*handle) = (void*)context;
         return USB_OK;
     #endif 
@@ -124,8 +138,6 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
             status = USB_DEVICE_NOT_FOUND;
         else if (ret < 0)
             status = USB_IO_ERROR;
-        else if (ret == 0)
-            status = USB_INSUFFICIENT_RESOURCES;
         (*written) = ret;
         return status;
     #endif
@@ -137,17 +149,30 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
         return FT_Read(handle, buffer, size, (LPDWORD)read);
     #else
         // TODO: Handle status
-        int ret;
-        USBStatus status = USB_OK;
-        ret = ftdi_read_data((ftdi_context*)handle, (unsigned char*)buffer, size);
-        if (ret == -666)
-            status = USB_DEVICE_NOT_FOUND;
-        else if (ret < 0)
-            status = USB_IO_ERROR;
-        else if (ret == 0)
-            status = USB_INSUFFICIENT_RESOURCES;
-        (*read) = ret;
-        return status;
+        uint32_t min;
+        if (readbuffer_left == 0)
+        {
+            uint32_t bytesleft = 0;
+            USBStatus status = USB_OK;
+            int attempts = 4;
+            while (bytesleft == 0 && attempts != 0)
+            {
+                attempts--;
+                status = device_usb_getqueuestatus(handle, &bytesleft);
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            if (status != USB_OK)
+                return status;
+        }
+
+        min = readbuffer_left;
+        if (min > size)
+            min = size;
+        memcpy(buffer, readbuffer + readbuffer_offset, min);
+        (*read) = min;
+        readbuffer_left -= min;
+        readbuffer_offset += min;
+        return USB_OK;
     #endif
 }
 
@@ -156,7 +181,19 @@ USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
     #ifdef _WIN64
         return FT_GetQueueStatus(handle, (DWORD*)bytesleft);
     #else
-        // TODO: Doesn't exist in libfdti?
+        if (readbuffer_left == 0)
+        {
+            int ret = ftdi_read_data((ftdi_context*)handle, readbuffer, BUFFER_SIZE);
+            if (ret == -666)
+                return USB_DEVICE_NOT_FOUND;
+            else if (ret < 0)
+                return USB_IO_ERROR;
+            readbuffer_left = ret;
+            readbuffer_offset = 0;
+            (*bytesleft) = ret;
+        }
+        else
+            (*bytesleft) = readbuffer_left;
         return USB_OK;
     #endif
 }
