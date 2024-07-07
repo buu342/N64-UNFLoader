@@ -10,10 +10,10 @@
         #pragma comment(lib, "Include/FTD2XX.lib")
     #endif
 #else
-    #include <ftdi.h>
+    #include <libusb-1.0/libusb.h>
+    #include <libftdi1/ftdi.h>
     ftdi_context* context = NULL;
-    ftdi_device_list* devlist[5] = {NULL};
-    uint32_t products_ftdi[5] = {0x6001,0x6010,0x6011,0x6014,0x6015};
+    ftdi_device_list* devlist = NULL;
 #endif
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
@@ -22,18 +22,13 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
         return FT_CreateDeviceInfoList((LPDWORD)num_devices);
     #else
         // TODO: Handle status
-        int i;
+        int count;
         int status = USB_OK;
-        int count = 0;
-        struct ftdi_device_list *curdev;
         if (context == NULL)
             context = ftdi_new();
-        if (devlist[0] == NULL)
-            for (i=0; i<5; i++)
-                ftdi_usb_find_all(context, &devlist[i], 0x0403, products_ftdi[i]); // 0:0 isn't working, so for loop it is...
-        for (i=0; i<5; i++)
-            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
-                count++;
+        if (devlist != NULL)
+            ftdi_list_free(&devlist);
+        count = ftdi_usb_find_all(context, &devlist, 0, 0);
         if (count < 0)
             status = USB_DEVICE_LIST_NOT_READY;
         (*num_devices) = count;
@@ -62,24 +57,28 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
         return stat;
     #else
         // TODO: Handle status
-        int i = 0;
         int count = 0;
-        for (i=0; i<5; i++)
+        ftdi_device_list* curdev;
+        for (curdev = devlist; curdev != NULL; curdev = curdev->next)
         {
-            struct ftdi_device_list *curdev;
-            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
-            {
-                char manufacturer[16], description[64], id[16];
-                if (ftdi_usb_get_strings(context, curdev->dev, manufacturer, 16, description, 64, id, 16) < 0)
-                    return USB_DEVICE_NOT_OPENED;
-                list[count].flags = 0;
-                list[count].type = 0;
-                list[count].id = (0x0403 << 16) | products_ftdi[i];
-                list[count].locid = 0;
-                memcpy(&list[count].serial, manufacturer, sizeof(char)*16);
-                memcpy(&list[count].description, description, sizeof(char)*64);
-                count++;
-            }
+            libusb_device* dev = curdev->dev;
+            struct libusb_device_descriptor desc;
+            char manufacturer[16], description[64], id[16];
+
+            if (ftdi_usb_get_strings(context, curdev->dev, manufacturer, 16, description, 64, id, 16) < 0)
+                return USB_DEVICE_NOT_OPENED;
+            if (libusb_get_device_descriptor(dev, &desc) < 0)
+                return USB_DEVICE_NOT_OPENED;
+
+            list[count].flags = 0;
+            list[count].type = 0;
+            list[count].id = (0x0403 << 16) | desc.idProduct;
+            list[count].locid = 0;
+
+            memcpy(&list[count].serial, manufacturer, sizeof(char)*16);
+            memcpy(&list[count].description, description, sizeof(char)*64);
+
+            count++;
         }
         return USB_OK;
     #endif
@@ -91,26 +90,13 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
         return FT_Open(devnumber, handle);
     #else
         // TODO: Handle status
-        int i = 0;
-        int devcount = 0;
-        for (i=0; i<5; i++)
-        {
-            int curprodnum = 0;
-            struct ftdi_device_list *curdev;
-            for (curdev = devlist[i]; curdev != NULL; curdev = curdev->next)
-            {
-                    if (devcount == devnumber)
-                    {
-                        ftdi_usb_open_desc_index(context, 0x0403, products_ftdi[i], NULL, NULL, curprodnum);
-                        (*handle) = (void*)context;
-                        return USB_OK;
-                    }
-                    devcount++;
-                    curprodnum++;
-                }
-            }
-        }
-        return USB_DEVICE_NOT_OPENED;
+        int curdev_index = 0;
+        ftdi_device_list* curdev = devlist;
+        while (curdev_index < devnumber)
+            curdev = curdev->next;
+        ftdi_usb_open_dev((ftdi_context*)handle, curdev->dev);
+        (*handle) = (void*)context;
+        return USB_OK;
     #endif 
 }
 
@@ -131,8 +117,17 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
         return FT_Write(handle, buffer, size, (LPDWORD)written);
     #else
         // TODO: Handle status
-        (*written) = ftdi_write_data((ftdi_context*)handle, (unsigned char*)buffer, size);
-        return USB_OK;
+        int ret;
+        USBStatus status = USB_OK;
+        ret = ftdi_write_data((ftdi_context*)handle, (unsigned char*)buffer, size);
+        if (ret == -666)
+            status = USB_DEVICE_NOT_FOUND;
+        else if (ret < 0)
+            status = USB_IO_ERROR;
+        else if (ret == 0)
+            status = USB_INSUFFICIENT_RESOURCES;
+        (*written) = ret;
+        return status;
     #endif
 }
 
@@ -142,8 +137,17 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
         return FT_Read(handle, buffer, size, (LPDWORD)read);
     #else
         // TODO: Handle status
-        (*read) = ftdi_read_data((ftdi_context*)handle, (unsigned char*)buffer, size);
-        return USB_OK;
+        int ret;
+        USBStatus status = USB_OK;
+        ret = ftdi_read_data((ftdi_context*)handle, (unsigned char*)buffer, size);
+        if (ret == -666)
+            status = USB_DEVICE_NOT_FOUND;
+        else if (ret < 0)
+            status = USB_IO_ERROR;
+        else if (ret == 0)
+            status = USB_INSUFFICIENT_RESOURCES;
+        (*read) = ret;
+        return status;
     #endif
 }
 
@@ -186,32 +190,7 @@ USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
         return FT_SetBitMode(handle, mask, enable);
     #else
         // TODO: Handle status
-        int i;
-        uint8_t modes_d2xx[8] = {
-            USB_BITMODE_RESET,
-            USB_BITMODE_ASYNC_BITBANG,
-            USB_BITMODE_MPSSE,
-            USB_BITMODE_SYNC_BITBANG,
-            USB_BITMODE_MCU_HOST,
-            USB_BITMODE_FAST_SERIAL,
-            USB_BITMODE_CBUS_BITBANG,
-            USB_BITMODE_SYNC_FIFO,
-        };
-        uint8_t modes_libftdi[8] = {
-            BITMODE_RESET,
-            BITMODE_BITBANG,
-            BITMODE_MPSSE,
-            BITMODE_SYNCBB,
-            BITMODE_MCU,
-            BITMODE_OPTO,
-            BITMODE_CBUS,
-            BITMODE_SYNCFF,
-        };
-        uint8_t converted = 0;
-        for (i=0; i<8; i++)
-            if (enable & modes_d2xx[i])
-                converted |= modes_libftdi[i];
-        ftdi_set_bitmode((ftdi_context*)handle, mask, converted);
+        ftdi_set_bitmode((ftdi_context*)handle, mask, enable);
         return USB_OK;
     #endif
 }
@@ -223,9 +202,9 @@ USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
     #else
         // TODO: Handle status
         if (mask & USB_PURGE_RX)
-            ftdi_usb_purge_rx_buffer((ftdi_context*)handle);
+            ftdi_tciflush((ftdi_context*)handle);
         if (mask & USB_PURGE_TX)
-            ftdi_usb_purge_tx_buffer((ftdi_context*)handle);
+            ftdi_tcoflush((ftdi_context*)handle);
         return USB_OK;
     #endif
 }

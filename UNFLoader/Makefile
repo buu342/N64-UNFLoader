@@ -18,7 +18,7 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -lftdi
+DEPENDENCIESLIB := -lftdi1 -lusb-1.0
 ifeq ($(OS_NAME),Darwin)
 	DEPENDENCIES := -lncurses $(DEPENDENCIESLIB) -lpthread
 else
@@ -26,7 +26,7 @@ else
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11
+CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -g -std=c++11
 
 default: $(APP)
 

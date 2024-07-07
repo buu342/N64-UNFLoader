@@ -241,6 +241,7 @@ DeviceError device_testdebug_64drive(CartDevice* cart)
     @return The device error, or OK
 ==============================*/
 
+#include "term.h"
 DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
 {
     byte     send_buff[32];
@@ -270,6 +271,8 @@ DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bo
         return DEVICEERR_WRITEFAIL;
     if (fthandle->bytes_written == 0)
         return DEVICEERR_WRITEZERO;
+
+    log_simple("Wrote %d bytes\n", fthandle->bytes_written);
 
     // If the command expects a response
     if (reply)
@@ -378,7 +381,8 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
         DeviceError err = device_sendcmd_64drive(fthandle, DEV_CMD_SETCIC, false, NULL, 1, (1 << 31) | ((uint32_t)cart->cictype), 0);
         if (err != DEVICEERR_OK)
             return err;
-        device_usb_read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read);
+        log_simple("Read %d bytes\n", device_usb_read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read));
+        log_simple("Got CMP %c %c %c %02x\n", cmpbuff[0], cmpbuff[1], cmpbuff[2], cmpbuff[3]);
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_SETCIC)
             return DEVICEERR_64D_BADCMP;
     }
@@ -423,6 +427,7 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
         // Read the success response
         if (device_usb_read(fthandle->handle, cmpbuff, 4, &fthandle->bytes_read)  != USB_OK)
             return DEVICEERR_READFAIL;
+        log_simple("Got CMP %c %c %c %x\n", cmpbuff[0], cmpbuff[1], cmpbuff[2], cmpbuff[3]);
         if (cmpbuff[0] != 'C' || cmpbuff[1] != 'M' || cmpbuff[2] != 'P' || cmpbuff[3] != DEV_CMD_LOADRAM)
             return DEVICEERR_64D_BADCMP;
 
