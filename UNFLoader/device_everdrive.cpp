@@ -341,11 +341,11 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     // Write the filename of the save file if necessary
     if (cart->savetype != SAVE_NONE)
     {
-        int32_t  i;
-        char*    path = device_getrom();
-        uint32_t pathlen = strlen(device_getrom());
-        char*    filename = (char*)malloc(pathlen+1);
-        int32_t  extension_start = -1;
+        size_t i;
+        char*   path = device_getrom();
+        size_t  pathlen = strlen(device_getrom());
+        char*   filename = (char*)malloc(pathlen+1);
+        int32_t extension_start = -1;
         if (filename == NULL)
             return DEVICEERR_MALLOCFAIL;
 
@@ -353,7 +353,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         for (i=pathlen; i>=0; i--)
         {
             if (path[i] == '.' && extension_start == -1)
-                extension_start = i;
+                extension_start = (int32_t)i;
             if (path[i] == '\\' || path[i] == '/')
             {
                 i++;
@@ -363,7 +363,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
 
         // Copy the string and send it over to the cart
         if (extension_start == -1)
-            extension_start = pathlen;
+            extension_start = (int32_t)pathlen;
         memcpy(filename, path+i, (extension_start-i));
         if (device_usb_write(fthandle->handle, filename, 256, &fthandle->bytes_written) != USB_OK)
             return DEVICEERR_WRITEFAIL;
