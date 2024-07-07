@@ -8,7 +8,7 @@ LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CARTLIBNAME 	= flashcart
 CARTLIBFILES	= device.cpp \
-				  device_usb.cpp \
+		  device_usb.cpp \
             	  device_64drive.cpp \
                   device_everdrive.cpp \
                   device_sc64.cpp
@@ -18,21 +18,21 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -lftdi1 -lusb-1.0
+DEPENDENCIESLIB := -lftdi1 -lusb-1.0 -ludev
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncurses $(DEPENDENCIESLIB) -lpthread
+	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else
-	DEPENDENCIES := -lncursesw $(DEPENDENCIESLIB) -lpthread -lrt 
+	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
-LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
+LINKER_OPTIONS := -Wl,-rpath /usr/local/lib -L/usr/local/lib
 CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -g -std=c++11
 
 default: $(APP)
 
 $(APP): static $(CODEOBJECTS) $(LIBOBJECTS) 
 	@echo "Linking $@"
-	@$(CXX) $(CFLAGS) -o $(APP) $(CODEOBJECTS) $(CARTLIBOBJECTS) $(LIBOBJECTS) $(CARTLIBNAME_STATIC) $(DEPENDENCIES) $(LINKER_OPTIONS) -L/usr/local/lib
+	@$(CXX) $(CFLAGS) -o $(APP) $(CODEOBJECTS) $(CARTLIBOBJECTS) $(LIBOBJECTS) $(CARTLIBNAME_STATIC) $(LINKER_OPTIONS) -LInclude $(DEPENDENCIES) 
 
 %.o: %.cpp
 	@echo "Compiling $<"
