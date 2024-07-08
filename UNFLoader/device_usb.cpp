@@ -370,6 +370,10 @@ USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
         return FT_GetModemStatus(handle, (ULONG*)modemstatus);
     #else
         // TODO: Implement
+        unsigned short tempstatus;
+        if (ftdi_poll_modem_status((ftdi_context*)handle, &tempstatus) < 0)
+            return USB_OTHER_ERROR;
+        (*modemstatus) = tempstatus & 0x00FF;
         return USB_OK;
     #endif
 }
