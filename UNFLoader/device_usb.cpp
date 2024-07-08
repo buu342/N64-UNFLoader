@@ -49,7 +49,6 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
     #ifndef LINUX
         return FT_CreateDeviceInfoList((LPDWORD)num_devices);
     #else
-        // TODO: Handle status
         int count;
         int status = USB_OK;
         if (context == NULL)
@@ -99,7 +98,6 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
         free(ftdidevs);
         return stat;
     #else
-        // TODO: Handle status
         int count = 0;
         ftdi_device_list* curdev;
         for (curdev = devlist; curdev != NULL; curdev = curdev->next)
@@ -141,12 +139,12 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
     #ifndef LINUX
         return FT_Open(devnumber, handle);
     #else
-        // TODO: Handle status
         int curdev_index = 0;
         ftdi_device_list* curdev = devlist;
         while (curdev_index < devnumber)
             curdev = curdev->next;
-        ftdi_usb_open_dev(context, devlist[0].dev);
+        if (ftdi_usb_open_dev(context, devlist[0].dev) < 0)
+            return USB_DEVICE_NOT_OPENED;
         (*handle) = (void*)context;
         return USB_OK;
     #endif 
@@ -165,8 +163,8 @@ USBStatus device_usb_close(USBHandle handle)
     #ifndef LINUX
         return FT_Close(handle);
     #else
-        // TODO: Handle status
-        ftdi_usb_close((ftdi_context*)handle);
+        if (ftdi_usb_close((ftdi_context*)handle) < 0)
+            return USB_INVALID_HANDLE;
         return USB_OK;
     #endif
 }
@@ -187,7 +185,6 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
     #ifndef LINUX
         return FT_Write(handle, buffer, size, (LPDWORD)written);
     #else
-        // TODO: Handle status
         int ret;
         USBStatus status = USB_OK;
         ret = ftdi_write_data((ftdi_context*)handle, (unsigned char*)buffer, size);
@@ -216,21 +213,19 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
     #ifndef LINUX
         return FT_Read(handle, buffer, size, (LPDWORD)read);
     #else
-        // TODO: Handle status
         uint32_t min;
         if (readbuffer_left == 0)
         {
             uint32_t bytesleft = 0;
-            USBStatus status = USB_OK;
             int attempts = 4;
             while (bytesleft == 0 && attempts != 0)
             {
+                USBStatus status = device_usb_getqueuestatus(handle, &bytesleft);
+                if (status != USB_OK)
+                    return status;
                 attempts--;
-                status = device_usb_getqueuestatus(handle, &bytesleft);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            if (status != USB_OK)
-                return status;
         }
 
         min = readbuffer_left;
@@ -288,8 +283,8 @@ USBStatus device_usb_resetdevice(USBHandle handle)
     #ifndef LINUX
         return FT_ResetDevice(handle);
     #else
-        // TODO: Handle status
-        ftdi_usb_reset((ftdi_context*)handle);
+        if (ftdi_usb_reset((ftdi_context*)handle) < 0)
+            return USB_OTHER_ERROR;
         return USB_OK;
     #endif
 }
@@ -309,7 +304,6 @@ USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t
     #ifndef LINUX
         return FT_SetTimeouts(handle, readtimout, writetimout);
     #else
-        // TODO: Am I doing this right??? There's no timeout setting functions
         ((ftdi_context*)handle)->usb_read_timeout = readtimout;
         ((ftdi_context*)handle)->usb_write_timeout = writetimout;
         return USB_OK;
@@ -331,8 +325,8 @@ USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
     #ifndef LINUX
         return FT_SetBitMode(handle, mask, enable);
     #else
-        // TODO: Handle status
-        ftdi_set_bitmode((ftdi_context*)handle, mask, enable);
+        if (ftdi_set_bitmode((ftdi_context*)handle, mask, enable) < 0)
+            return USB_OTHER_ERROR;
         return USB_OK;
     #endif
 }
@@ -351,11 +345,12 @@ USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
     #ifndef LINUX
         return FT_Purge(handle, mask);
     #else
-        // TODO: Handle status
         if (mask & USB_PURGE_RX)
-            ftdi_tciflush((ftdi_context*)handle);
+            if (ftdi_tciflush((ftdi_context*)handle) < 0)
+                return USB_OTHER_ERROR;
         if (mask & USB_PURGE_TX)
-            ftdi_tcoflush((ftdi_context*)handle);
+            if (ftdi_tcoflush((ftdi_context*)handle) < 0)
+                return USB_OTHER_ERROR;
         return USB_OK;
     #endif
 }
@@ -374,6 +369,7 @@ USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
     #ifndef LINUX
         return FT_GetModemStatus(handle, (ULONG*)modemstatus);
     #else
+        // TODO: Implement
         return USB_OK;
     #endif
 }
@@ -391,8 +387,8 @@ USBStatus device_usb_setdtr(USBHandle handle)
     #ifndef LINUX
         return FT_SetDtr(handle);
     #else
-        // TODO: Handle status
-        ftdi_setdtr((ftdi_context*)handle, 1);
+        if (ftdi_setdtr((ftdi_context*)handle, 1) < 0)
+            return USB_OTHER_ERROR;
         return USB_OK;
     #endif
 }
@@ -410,8 +406,8 @@ USBStatus device_usb_cleardtr(USBHandle handle)
     #ifndef LINUX
         return FT_ClrDtr(handle);
     #else
-        // TODO: Handle status
-        ftdi_setdtr((ftdi_context*)handle, 0);
+        if (ftdi_setdtr((ftdi_context*)handle, 0) < 0)
+            return USB_OTHER_ERROR;
         return USB_OK;
     #endif
 }
