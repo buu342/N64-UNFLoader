@@ -59,4 +59,4 @@ All known issues are mentioned in the [issues page](https://github.com/buu342/N6
 
 
 
-This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, and the [D2XX drivers](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI.
+This project uses [lodePNG](https://github.com/lvandeve/lodepng) by Lode Vandevenne, [ncurses](https://invisible-island.net/ncurses/) by the GNU Project, [pdcurses](https://github.com/wmcbrine/PDCurses) by William McBrine, the [D2XX library and driver](https://www.ftdichip.com/Drivers/D2XX.htm) by FTDI, and [libftdi](https://www.intra2net.com/en/developer/libftdi/index.php) by intra2net.
