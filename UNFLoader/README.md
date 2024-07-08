@@ -119,8 +119,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for Linux
-You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses.
-Install ncurses by invoking:
+First, you need to install the dependencies. These are ncurses, libftdi, and libusb. Those can be installed in Ubuntu like so:
 
 ```
 sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev
@@ -148,11 +147,6 @@ sudo make uninstall
 **The Include folder should already have everything you need for Linux.**
 <details><summary>Updating libs to latest version (if required)</summary>
 
-**ftd2xx + WinTypes**
-* Download the FTDI driver provided in the **Requirements** section and extract the zip.
-* Go into the `release` folder.
-* Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
-
 **lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
@@ -162,6 +156,6 @@ Once you have all of these files built and put in the `Include` folder, you're s
 
 ### Building only the Flashcart Library
 
-The flashcart handling part of the code can be compiled separately and then linked into your own separate project. When compiling the UNFLoader tool, it will compile a static library and then link it into the final executable. However if you wish to only compile the library, either a static or dynamic/shared form, that can be done as well. Said library includes the D2XX library inside it.
+The flashcart handling part of the code can be compiled separately and then linked into your own separate project. When compiling the UNFLoader tool, it will compile a static library and then link it into the final executable. However if you wish to only compile the library, either a static or dynamic/shared form, that can be done as well. When linking this library into your own custom tools, you also need to link their dependencies. On Windows, this will be the D2XX library, while on MacOS and Linux it will be libftdi and libusb.
 
 Compiling on Windows is as simple as loading and compiling either the "FlashcartLib_Dynamic" or "FlashcartLib_Static" Visual Studio project. On Linux and macOS, you can use `make static` or `make shared` respectively.

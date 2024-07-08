@@ -5,6 +5,11 @@
 
     #include <stdint.h>
 
+
+    /*********************************
+                  Macros
+    *********************************/
+
     #define USB_PURGE_RX  1
     #define USB_PURGE_TX  2
 
@@ -16,6 +21,11 @@
     #define USB_BITMODE_FAST_SERIAL    0x10
     #define USB_BITMODE_CBUS_BITBANG   0x20
     #define USB_BITMODE_SYNC_FIFO      0x40
+
+
+    /*********************************
+                  Types
+    *********************************/
 
     enum {
         USB_OK,
@@ -53,6 +63,10 @@
         USBHandle handle;
     } USB_DeviceInfoListNode;
 
+
+    /*********************************
+            Function Prototypes
+    *********************************/
 
     USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices);
     USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* num_devices);

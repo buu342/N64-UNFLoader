@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "device_usb.h"
-
 #ifndef LINUX
     #include "Include/ftd2xx.h"
 #else
@@ -9,15 +8,41 @@
     #include <libftdi1/ftdi.h>
     #include <thread>
     #include <chrono>
+#endif
 
+
+/*********************************
+              Macros
+*********************************/
+
+#ifdef LINUX
     #define BUFFER_SIZE 8*1024*1024
+#endif
 
+
+/*********************************
+         Global Variables
+*********************************/
+
+#ifdef LINUX
     ftdi_context* context = NULL;
     ftdi_device_list* devlist = NULL;
     uint8_t* readbuffer = NULL;
     uint32_t readbuffer_left = 0;
     uint32_t readbuffer_offset = 0;
 #endif
+
+
+/*********************************
+         Global Variables
+*********************************/
+
+/*==============================
+    device_usb_createdeviceinfolist
+    Creates a list of known devices
+    @param  A pointer to an integer to fill with the number of detected devices
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
 {
@@ -44,6 +69,15 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
         return status;
     #endif
 }
+
+
+/*==============================
+    device_usb_getdeviceinfolist
+    Populates a list of known devices
+    @param  A pointer to a list of USB device descriptions to fill
+    @param  A pointer to an integer with the number of detected devices
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* num_devices)
 {
@@ -93,6 +127,15 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
     #endif
 }
 
+
+/*==============================
+    device_usb_open
+    Opens a USB device
+    @param  The device number to open
+    @param  The USB handle to use
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
 {
     #ifndef LINUX
@@ -109,6 +152,14 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
     #endif 
 }
 
+
+/*==============================
+    device_usb_close
+    Closes a USB device
+    @param  The USB handle to use
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_close(USBHandle handle)
 {
     #ifndef LINUX
@@ -119,6 +170,17 @@ USBStatus device_usb_close(USBHandle handle)
         return USB_OK;
     #endif
 }
+
+
+/*==============================
+    device_usb_write
+    Writes data to a USB device
+    @param  The USB handle to use
+    @param  The buffer to use
+    @param  The size of the data
+    @param  A pointer to store the number of bytes written
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32_t* written)
 {
@@ -137,6 +199,17 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
         return status;
     #endif
 }
+
+
+/*==============================
+    device_usb_read
+    Reads data from a USB device
+    @param  The USB handle to use
+    @param  The buffer to read into
+    @param  The size of the data to read
+    @param  A pointer to store the number of bytes read
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_t* read)
 {
@@ -171,6 +244,15 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
     #endif
 }
 
+
+/*==============================
+    device_usb_getqueuestatus
+    Checks how many bytes are in the rx buffer
+    @param  The USB handle to use
+    @param  A pointer to store the number of bytes in the queue
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
 {
     #ifndef LINUX
@@ -193,6 +275,14 @@ USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
     #endif
 }
 
+
+/*==============================
+    device_usb_resetdevice
+    Resets a USB device
+    @param  The USB handle to use
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_resetdevice(USBHandle handle)
 {
     #ifndef LINUX
@@ -203,6 +293,16 @@ USBStatus device_usb_resetdevice(USBHandle handle)
         return USB_OK;
     #endif
 }
+
+
+/*==============================
+    device_usb_settimeouts
+    Sets the timeouts on a USB device
+    @param  The USB handle to use
+    @param  The read timeout
+    @param  The write timeout
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t writetimout)
 {
@@ -216,6 +316,16 @@ USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t
     #endif
 }
 
+
+/*==============================
+    device_usb_setbitmode
+    Sets bitmodes for the USB device
+    @param  The USB handle to use
+    @param  The bit mask
+    @param  The bits to enable
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
 {
     #ifndef LINUX
@@ -226,6 +336,15 @@ USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
         return USB_OK;
     #endif
 }
+
+
+/*==============================
+    device_usb_purge
+    Purges the USB buffers
+    @param  The USB handle to use
+    @param  The bit mask
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
 {
@@ -241,6 +360,15 @@ USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
     #endif
 }
 
+
+/*==============================
+    device_usb_getmodemstatus
+    Gets the USB modem status the USB buffers
+    @param  The USB handle to use
+    @param  A pointer to store the modem status into
+    @return The USB status
+==============================*/
+
 USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
 {
     #ifndef LINUX
@@ -249,6 +377,14 @@ USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
         return USB_OK;
     #endif
 }
+
+
+/*==============================
+    device_usb_setdtr
+    Enables DTR on a USB device
+    @param  The USB handle to use
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_setdtr(USBHandle handle)
 {
@@ -260,6 +396,14 @@ USBStatus device_usb_setdtr(USBHandle handle)
         return USB_OK;
     #endif
 }
+
+
+/*==============================
+    device_usb_cleardtr
+    Disables DTR on a USB device
+    @param  The USB handle to use
+    @return The USB status
+==============================*/
 
 USBStatus device_usb_cleardtr(USBHandle handle)
 {
