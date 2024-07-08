@@ -68,32 +68,13 @@ jobs:
     vmImage: 'macOS-latest'
   steps:
   - script: |
-      echo Install helper package
-      curl -L https://www.ftdichip.com/old2020/Drivers/D2XX/MacOSX/D2xxHelper_v2.0.0.pkg --output helper.pkg
-      sudo installer -pkg ./helper.pkg -target /
-
-      echo Install D2XX drivers
-      curl -L https://ftdichip.com/wp-content/uploads/2021/05/D2XX1.4.24.zip --output macos_drivers.zip
-      unzip ./macos_drivers.zip
-
-      echo Attach drivers disk image
-      hdiutil attach ./D2XX1.4.24.dmg
-
-      echo Install drivers to installation location
-      sudo mkdir -p /usr/local/lib
-      sudo mkdir -p /usr/local/include
-      sudo cp /Volumes/dmg/release/build/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.1.4.24.dylib
-      sudo ln -sf /usr/local/lib/libftd2xx.1.4.24.dylib /usr/local/lib/libftd2xx.dylib
-      sudo cp /Volumes/dmg/release/ftd2xx.h /usr/local/include/ftd2xx.h
-      sudo cp /Volumes/dmg/release/WinTypes.h /usr/local/include/WinTypes.h
+      echo Installing Prerequisites
+      brew install libftdi
 
       echo Build macOS App
       cd ./UNFLoader/
       make
       cd ..
-
-      echo Detatch drivers disk image
-      diskutil eject /Volumes/dmg
     displayName: 'Build Program'
     continueOnError: false
   # Publish build artifacts to Azure Artifacts/TFS or a file share
