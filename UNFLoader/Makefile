@@ -18,15 +18,16 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -l:libftdi1.a -l:libusb-1.0.a -ludev
+DEPENDENCIESLIB := -l:libftdi1.a -l:libusb-1.0.a
 ifeq ($(OS_NAME),Darwin)
 	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else
+	DEPENDENCIESLIB += -ludev
 	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib -L/usr/local/lib
-CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11
+CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
 
 default: $(APP)
 
