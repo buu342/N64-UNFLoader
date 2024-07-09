@@ -164,6 +164,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="device.h" />
+    <ClInclude Include="device_usb.h" />
     <ClInclude Include="device_64drive.h" />
     <ClInclude Include="device_everdrive.h" />
     <ClInclude Include="device_sc64.h" />
@@ -171,6 +172,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="device_usb.cpp" />
     <ClCompile Include="device_64drive.cpp" />
     <ClCompile Include="device_everdrive.cpp" />
     <ClCompile Include="device_sc64.cpp" />

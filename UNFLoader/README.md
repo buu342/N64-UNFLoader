@@ -29,14 +29,7 @@ This folder holds the source code for the UNFLoader program itself. This README 
 * Run the included `installer_linux.sh` script to set up everything for you. If you are unable to launch the script, remember to mark it as executable.
 
 If you do not wish to run the script, then you must:
-* [Get the relevant FTDI driver for your processor architecture](https://www.ftdichip.com/Drivers/D2XX.htm) (Check the README inside the downloaded tar for install instructions)
 * You must run UNFLoader with `sudo`.
-* Due to how Linux defaultly sets the vcp driver when plugging in FTDI devices, you need to invoke these commands every time you start a new terminal session: 
-```
-sudo rmmod usbserial
-sudo rmmod ftdi_sio
-```
-</p>
 </details>
 
 <details><summary>macOS</summary>
@@ -44,10 +37,6 @@ sudo rmmod ftdi_sio
     
 ![The macOS System Information window showing an FTDI device connected to a USB3 port](../Content/macos_system_report.png)
 * Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
-* Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
-* [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
-* Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
-* You must run UNFLoader with `sudo`.
 * If you grabbed a pre-built UNFLoader binary (AKA you didn't compile it yourself from the source code), you'll have to deal with the fact that macOS prevents running unsigned binaries by default. To fix this, go to the Security & Privacy panel in the System Preferences menu and explicitly allow UNFLoader to be run.
 </p>
 </details>
@@ -96,9 +85,12 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for macOS
-You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses. ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
-Install ncurses by invoking:
+You will need to install libftdi in order to compile UNFLoader. Do this by invoking:
+```
+brew install libftdi
+```
 
+ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
 ```
 brew install ncurses
 ```
@@ -126,11 +118,10 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for Linux
-You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses.
-Install ncurses by invoking:
+First, you need to install the dependencies. These are ncurses, libftdi, and libusb. Those can be installed in Ubuntu like so:
 
 ```
-sudo apt-get install libncurses5-dev libncursesw5-dev
+sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev libudev-dev
 ```
 
 Once the dependencies are installed, simply execute the makefile:
@@ -155,11 +146,6 @@ sudo make uninstall
 **The Include folder should already have everything you need for Linux.**
 <details><summary>Updating libs to latest version (if required)</summary>
 
-**ftd2xx + WinTypes**
-* Download the FTDI driver provided in the **Requirements** section and extract the zip.
-* Go into the `release` folder.
-* Grab `ftd2xx.h` and `WinTypes.h` and put it in `UNFLoader/Include`.
-
 **lodepng**
 * Download the latest version of LodePNG from [here](https://lodev.org/lodepng/).
 * Place `lodepng.cpp` and `lodepng.h` in `UNFLoader/Include`.
@@ -169,6 +155,6 @@ Once you have all of these files built and put in the `Include` folder, you're s
 
 ### Building only the Flashcart Library
 
-The flashcart handling part of the code can be compiled separately and then linked into your own separate project. When compiling the UNFLoader tool, it will compile a static library and then link it into the final executable. However if you wish to only compile the library, either a static or dynamic/shared form, that can be done as well. Said library includes the D2XX library inside it.
+The flashcart handling part of the code can be compiled separately and then linked into your own separate project. When compiling the UNFLoader tool, it will compile a static library and then link it into the final executable. However if you wish to only compile the library, either a static or dynamic/shared form, that can be done as well. When linking this library into your own custom tools, you also need to link their dependencies. On Windows, this will be the D2XX library, while on MacOS and Linux it will be libftdi and libusb.
 
 Compiling on Windows is as simple as loading and compiling either the "FlashcartLib_Dynamic" or "FlashcartLib_Static" Visual Studio project. On Linux and macOS, you can use `make static` or `make shared` respectively.

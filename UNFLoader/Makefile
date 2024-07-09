@@ -8,6 +8,7 @@ LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CARTLIBNAME 	= flashcart
 CARTLIBFILES	= device.cpp \
+		  		  device_usb.cpp \
             	  device_64drive.cpp \
                   device_everdrive.cpp \
                   device_sc64.cpp
@@ -17,21 +18,26 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -lftd2xx
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncurses $(DEPENDENCIESLIB) -lpthread
+	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else
-	DEPENDENCIES := -lncursesw $(DEPENDENCIESLIB) -lpthread -lrt 
+	DEPENDENCIESLIB += -l:libftdi1.a -l:libusb-1.0.a -ludev
+	DEPENDENCIESLIB_SHARED = -lftdi1 -lusb-1.0
+	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
-LINKER_OPTIONS := -Wl,-rpath /usr/local/lib
-CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11
+CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
+
+ifeq ($(OS_NAME),Darwin)
+	CFLAGS += -I/opt/homebrew/include
+	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) /opt/homebrew/Cellar/libusb/1.0.27/lib/libusb-1.0.a /opt/homebrew/Cellar/libftdi/1.5_2/lib/libftdi1.a
+endif
 
 default: $(APP)
 
 $(APP): static $(CODEOBJECTS) $(LIBOBJECTS) 
 	@echo "Linking $@"
-	@$(CXX) $(CFLAGS) -o $(APP) $(CODEOBJECTS) $(CARTLIBOBJECTS) $(LIBOBJECTS) $(CARTLIBNAME_STATIC) $(DEPENDENCIES) $(LINKER_OPTIONS) -L/usr/local/lib
+	@$(CXX) $(CFLAGS) -o $(APP) $(CODEOBJECTS) $(CARTLIBOBJECTS) $(LIBOBJECTS) $(CARTLIBNAME_STATIC) $(LINKER_OPTIONS) -LInclude $(DEPENDENCIES) 
 
 %.o: %.cpp
 	@echo "Compiling $<"
@@ -43,7 +49,7 @@ static: $(CARTLIBOBJECTS)
 
 shared: $(CARTLIBOBJECTS)
 	@echo "Creating shared library $(CARTLIBNAME_SHARED)"
-	@$(CXX) $(CFLAGS) $(CARTLIBFILES) -o $(CARTLIBNAME_SHARED) $(DEPENDENCIESLIB) $(LINKER_OPTIONS) -L/usr/local/lib -fPIC -shared
+	@$(CXX) $(CFLAGS) $(CARTLIBFILES) -o $(CARTLIBNAME_SHARED) $(DEPENDENCIESLIB_SHARED) $(LINKER_OPTIONS) -fPIC -shared
 
 clean:
 	@echo "Cleaning built artifacts.."

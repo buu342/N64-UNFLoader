@@ -6,8 +6,8 @@ is courtesy of KRIKzz's USB tool:
 http://krikzz.com/pub/support/everdrive-64/x-series/dev/
 ***************************************************************/
 
+#include "device_usb.h"
 #include "device_everdrive.h"
-#include "Include/ftd2xx.h"
 #include <string.h>
 #include <thread>
 #include <chrono>
@@ -15,9 +15,9 @@ http://krikzz.com/pub/support/everdrive-64/x-series/dev/
 typedef struct 
 {
     uint32_t  device_index;
-    FT_HANDLE handle;
-    DWORD     bytes_written;
-    DWORD     bytes_read;
+    USBHandle handle;
+    uint32_t  bytes_written;
+    uint32_t  bytes_read;
 } ED64Handle;
 
 
@@ -33,11 +33,11 @@ typedef struct
 
 DeviceError device_test_everdrive(CartDevice* cart)
 {
-    DWORD device_count;
-    FT_DEVICE_LIST_INFO_NODE* device_info;
+    uint32_t device_count;
+    USB_DeviceInfoListNode* device_info;
 
     // Initialize FTD
-    if (FT_CreateDeviceInfoList(&device_count) != FT_OK)
+    if (device_usb_createdeviceinfolist(&device_count) != USB_OK)
         return DEVICEERR_USBBUSY;
 
     // Check if the device exists
@@ -45,18 +45,18 @@ DeviceError device_test_everdrive(CartDevice* cart)
         return DEVICEERR_NODEVICES;
 
     // Allocate storage and get device info list
-    device_info = (FT_DEVICE_LIST_INFO_NODE*) malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*device_count);
-    FT_GetDeviceInfoList(device_info, &device_count);
+    device_info = (USB_DeviceInfoListNode*) malloc(sizeof(USB_DeviceInfoListNode)*device_count);
+    device_usb_getdeviceinfolist(device_info, &device_count);
 
     // Search the devices
     for (uint32_t i=0; i<device_count; i++)
     {
         // Look for an EverDrive
-        if (strcmp(device_info[i].Description, "FT245R USB FIFO") == 0 && device_info[i].ID == 0x04036001)
+        if (strcmp(device_info[i].description, "FT245R USB FIFO") == 0 && device_info[i].id == 0x04036001)
         {
-            FT_HANDLE temphandle;
-            DWORD bytes_written;
-            DWORD bytes_read;
+            USBHandle temphandle;
+            uint32_t bytes_written;
+            uint32_t bytes_read;
             char send_buff[16];
             char recv_buff[16];
             memset(send_buff, 0, 16);
@@ -79,41 +79,41 @@ DeviceError device_test_everdrive(CartDevice* cart)
             send_buff[3] = 't';
 
             // Open the device
-            if (FT_Open(i, &temphandle) != FT_OK || !temphandle)
+            if (device_usb_open(i, &temphandle) != USB_OK || !temphandle)
             {
                 free(device_info);
                 return DEVICEERR_CANTOPEN;
             }
 
             // Initialize the USB
-            if (FT_ResetDevice(temphandle) != FT_OK)
+            if (device_usb_resetdevice(temphandle) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_RESETFAIL;
             }
-            if (FT_SetTimeouts(temphandle, 500, 500) != FT_OK)
+            if (device_usb_settimeouts(temphandle, 500, 500) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_TIMEOUTSETFAIL;
             }
-            if (FT_Purge(temphandle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+            if (device_usb_purge(temphandle, USB_PURGE_RX | USB_PURGE_TX) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_PURGEFAIL;
             }
 
             // Send the test command
-            if (FT_Write(temphandle, send_buff, 16, &bytes_written) != FT_OK)
+            if (device_usb_write(temphandle, send_buff, 16, &bytes_written) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_WRITEFAIL;
             }
-            if (FT_Read(temphandle, recv_buff, 16, &bytes_read) != FT_OK)
+            if (device_usb_read(temphandle, recv_buff, 16, &bytes_read) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_READFAIL;
             }
-            if (FT_Close(temphandle) != FT_OK)
+            if (device_usb_close(temphandle) != USB_OK)
             {
                 free(device_info);
                 return DEVICEERR_CLOSEFAIL;
@@ -194,15 +194,15 @@ DeviceError device_open_everdrive(CartDevice* cart)
     ED64Handle* fthandle = (ED64Handle*) cart->structure;
 
     // Open the cart
-    if (FT_Open(fthandle->device_index, &fthandle->handle) != FT_OK || fthandle->handle == NULL)
+    if (device_usb_open(fthandle->device_index, &fthandle->handle) != USB_OK || fthandle->handle == NULL)
         return DEVICEERR_CANTOPEN;
 
     // Reset the cart
-    if (FT_ResetDevice(fthandle->handle) != FT_OK)
+    if (device_usb_resetdevice(fthandle->handle) != USB_OK)
         return DEVICEERR_RESETFAIL;
-    if (FT_SetTimeouts(fthandle->handle, 500, 500) != FT_OK)
+    if (device_usb_settimeouts(fthandle->handle, 500, 500) != USB_OK)
         return DEVICEERR_TIMEOUTSETFAIL;
-    if (FT_Purge(fthandle->handle, FT_PURGE_RX | FT_PURGE_TX) != FT_OK)
+    if (device_usb_purge(fthandle->handle, USB_PURGE_RX | USB_PURGE_TX) != USB_OK)
         return DEVICEERR_PURGEFAIL;
 
     // Ok
@@ -241,7 +241,7 @@ static DeviceError device_sendcmd_everdrive(ED64Handle* cart, char command, int 
     cmd_buffer[13]= (char) (arg >> 16);
     cmd_buffer[14]= (char) (arg >> 8);
     cmd_buffer[15]= (char) (arg);
-    if (FT_Write(cart->handle, cmd_buffer, 16, &cart->bytes_written) != FT_OK)
+    if (device_usb_write(cart->handle, cmd_buffer, 16, &cart->bytes_written) != USB_OK)
         return DEVICEERR_WRITEFAIL;
     return DEVICEERR_OK;
 }
@@ -275,7 +275,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         err = device_sendcmd_everdrive(fthandle, 't', 0, 0, 0);
         if (err != DEVICEERR_OK)
             return err;
-        if (FT_Read(fthandle->handle, recv_buff, 16, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_read(fthandle->handle, recv_buff, 16, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
     }
 
@@ -315,7 +315,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
            break;
 
         // Send the data to the everdrive
-        if (FT_Write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written)  != FT_OK)
+        if (device_usb_write(fthandle->handle, rom + bytes_done, bytes_do, &fthandle->bytes_written)  != USB_OK)
             return DEVICEERR_WRITEFAIL;
         if (fthandle->bytes_written == 0)
             return DEVICEERR_TIMEOUT;
@@ -341,11 +341,11 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     // Write the filename of the save file if necessary
     if (cart->savetype != SAVE_NONE)
     {
-        int32_t  i;
-        char*    path = device_getrom();
-        uint32_t pathlen = strlen(device_getrom());
-        char*    filename = (char*)malloc(pathlen+1);
-        int32_t  extension_start = -1;
+        size_t i;
+        char*   path = device_getrom();
+        size_t  pathlen = strlen(device_getrom());
+        char*   filename = (char*)malloc(pathlen+1);
+        int32_t extension_start = -1;
         if (filename == NULL)
             return DEVICEERR_MALLOCFAIL;
 
@@ -353,7 +353,7 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         for (i=pathlen; i>=0; i--)
         {
             if (path[i] == '.' && extension_start == -1)
-                extension_start = i;
+                extension_start = (int32_t)i;
             if (path[i] == '\\' || path[i] == '/')
             {
                 i++;
@@ -363,9 +363,9 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
 
         // Copy the string and send it over to the cart
         if (extension_start == -1)
-            extension_start = pathlen;
+            extension_start = (int32_t)pathlen;
         memcpy(filename, path+i, (extension_start-i));
-        if (FT_Write(fthandle->handle, filename, 256, &fthandle->bytes_written) != FT_OK)
+        if (device_usb_write(fthandle->handle, filename, 256, &fthandle->bytes_written) != USB_OK)
             return DEVICEERR_WRITEFAIL;
         free(filename);
     }
@@ -423,13 +423,13 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     buffer[7] = header & 0xFF;
 
     // Send the DMA message
-    if (FT_Write(fthandle->handle, buffer, 8, &fthandle->bytes_written) != FT_OK)
+    if (device_usb_write(fthandle->handle, buffer, 8, &fthandle->bytes_written) != USB_OK)
         return DEVICEERR_WRITEFAIL;
 
     // Handle old protocol (doesn't matter what we sent, just needs to make the DMA message 16 bytes aligned)
     if (device_getprotocol() == PROTOCOL_VERSION1)
     {
-        if (FT_Write(fthandle->handle, buffer, 8, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_write(fthandle->handle, buffer, 8, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
     }
 
@@ -446,7 +446,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
         uint32_t bytes_do = 512;
         if (bytes_left < 512)
             bytes_do = bytes_left;
-        if (FT_Write(fthandle->handle, datacopy+bytes_done, bytes_do, &fthandle->bytes_written) != FT_OK)
+        if (device_usb_write(fthandle->handle, datacopy+bytes_done, bytes_do, &fthandle->bytes_written) != USB_OK)
             return DEVICEERR_WRITEFAIL;
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
@@ -458,13 +458,13 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
     buffer[1] = 'M';
     buffer[2] = 'P';
     buffer[3] = 'H';
-    if (FT_Write(fthandle->handle, buffer, 4, &fthandle->bytes_written) != FT_OK)
+    if (device_usb_write(fthandle->handle, buffer, 4, &fthandle->bytes_written) != USB_OK)
         return DEVICEERR_WRITEFAIL;
 
     // Handle old protocol (doesn't matter what we sent, just needs to make the CMP message 16 bytes aligned)
     if (device_getprotocol() == PROTOCOL_VERSION1)
     {
-        if (FT_Write(fthandle->handle, buffer, 12, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_write(fthandle->handle, buffer, 12, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
     }
 
@@ -490,11 +490,11 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
 DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader, byte** buff)
 {
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
-    DWORD size;
+    uint32_t size;
     uint32_t alignment = device_getprotocol() == PROTOCOL_VERSION2 ? 2 : 16;
 
     // First, check if we have data to read
-    if (FT_GetQueueStatus(fthandle->handle, &size) != FT_OK)
+    if (device_usb_getqueuestatus(fthandle->handle, &size) != USB_OK)
         return DEVICEERR_POLLFAIL;
 
     // If we do
@@ -505,14 +505,14 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         byte     temp[4];
 
         // Ensure we have valid data by reading the header
-        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
         if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
             return DEVICEERR_64D_BADDMA;
         totalread += fthandle->bytes_read;
 
         // Get information about the incoming data and store it in dataheader
-        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
         (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
         totalread += fthandle->bytes_read;
@@ -530,7 +530,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
             uint32_t readamount = size-dataread;
             if (readamount > 512)
                 readamount = 512;
-            if (FT_Read(fthandle->handle, (*buff)+dataread, readamount, &fthandle->bytes_read) != FT_OK)
+            if (device_usb_read(fthandle->handle, (*buff)+dataread, readamount, &fthandle->bytes_read) != USB_OK)
                 return DEVICEERR_READFAIL;
             totalread += fthandle->bytes_read;
             dataread += fthandle->bytes_read;
@@ -538,7 +538,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         }
 
         // Read the completion signal
-        if (FT_Read(fthandle->handle, temp, 4, &fthandle->bytes_read) != FT_OK)
+        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
         if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
             return DEVICEERR_64D_BADCMP;
@@ -549,7 +549,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         {
             byte* tempbuff = (byte*)malloc(alignment*sizeof(byte));
             int left = alignment - (totalread % alignment);
-            if (FT_Read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != FT_OK)
+            if (device_usb_read(fthandle->handle, tempbuff, left, &fthandle->bytes_read) != USB_OK)
                 return DEVICEERR_READFAIL;
             free(tempbuff);
         }
@@ -576,7 +576,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
 DeviceError device_close_everdrive(CartDevice* cart)
 {
     ED64Handle* fthandle = (ED64Handle*) cart->structure;
-    if (FT_Close(fthandle->handle) != FT_OK)
+    if (device_usb_close(fthandle->handle) != USB_OK)
         return DEVICEERR_CLOSEFAIL;
     free(fthandle);
     cart->structure = NULL;

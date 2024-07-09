@@ -614,7 +614,7 @@ void debug_setbinaryout(char* path)
     debug_getdebugout
     Gets the file where debug logs are
     written to.
-    @param The file pointer to the debug log file
+    @return The file pointer to the debug log file
 ==============================*/
 
 FILE* debug_getdebugout()

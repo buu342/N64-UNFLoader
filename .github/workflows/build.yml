@@ -54,23 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get install libncurses5-dev libncursesw5-dev
-
-      - name: Download and unzip libftd2xx
-        run: |
-          curl -L https://ftdichip.com/wp-content/uploads/2022/07/libftd2xx-x86_64-${{ env.LIBFTD2XX_VERSION }}.tgz --output libftd2xx.gz
-          mkdir ./libftd2xx
-          tar xvzf libftd2xx.gz -C libftd2xx
-          
-      - name: Copy header files from libftd2xx
-        run: cp ./libftd2xx/release/WinTypes.h ./libftd2xx/release/ftd2xx.h ${{ env.SOURCES_DIRECTORY }}/Include
-
-      - name: Install FTDI driver
-        run: |
-          sudo cp ./libftd2xx/release/build/libftd2xx.so.${{ env.LIBFTD2XX_VERSION }} /usr/local/lib
-          cd /usr/local/lib
-          sudo ln -s libftd2xx.so.${{ env.LIBFTD2XX_VERSION }} libftd2xx.so
-          sudo chmod 0755 libftd2xx.so.${{ env.LIBFTD2XX_VERSION }}
+        run: sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev libudev-dev
 
       - name: Build
         run: |
@@ -97,32 +81,13 @@ jobs:
 
       - name: Build
         run: |
-          echo Install helper package
-          curl -L https://www.ftdichip.com/old2020/Drivers/D2XX/MacOSX/D2xxHelper_v2.0.0.pkg --output helper.pkg
-          sudo installer -pkg ./helper.pkg -target /
-
-          echo Install D2XX drivers
-          curl -L https://ftdichip.com/wp-content/uploads/2021/05/D2XX${{ env.LIBFTD2XX_VERSION }}.zip --output macos_drivers.zip
-          unzip ./macos_drivers.zip
-
-          echo Attach drivers disk image
-          hdiutil attach ./D2XX${{ env.LIBFTD2XX_VERSION }}.dmg
-
-          echo Install drivers to installation location
-          sudo mkdir -p /usr/local/lib
-          sudo mkdir -p /usr/local/include
-          sudo cp /Volumes/dmg/release/build/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib /usr/local/lib/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib
-          sudo ln -sf /usr/local/lib/libftd2xx.${{ env.LIBFTD2XX_VERSION }}.dylib /usr/local/lib/libftd2xx.dylib
-          sudo cp /Volumes/dmg/release/ftd2xx.h /usr/local/include/ftd2xx.h
-          sudo cp /Volumes/dmg/release/WinTypes.h /usr/local/include/WinTypes.h
+          echo Installing Prerequisites
+          brew install libftdi
 
           echo Build macOS App
           cd ${{ env.SOURCES_DIRECTORY }}
           make
           cd ..
-
-          echo Detatch drivers disk image
-          diskutil eject /Volumes/dmg
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -197,6 +197,14 @@
                 >
             </File>
             <File
+                RelativePath=".\device_usb.cpp"
+                >
+            </File>
+            <File
+                RelativePath=".\device_usb.h"
+                >
+            </File>
+            <File
                 RelativePath=".\device_64drive.cpp"
                 >
             </File>
