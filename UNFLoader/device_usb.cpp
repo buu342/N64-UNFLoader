@@ -49,20 +49,27 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
     #else
         int count;
         int status = USB_OK;
+
+        // Initialize FTDI
         if (context == NULL)
             context = ftdi_new();
+
+        // Initialize the usb_read buffer
         if (readbuffer == NULL)
         {
             readbuffer = (uint8_t*)malloc(BUFFER_SIZE);
             if (readbuffer == NULL)
                 return USB_INSUFFICIENT_RESOURCES;
         }
+
+        // Initialize the device list and store the number of devices in the pointer
         if (devlist != NULL)
             ftdi_list_free(&devlist);
         count = ftdi_usb_find_all(context, &devlist, 0, 0);
         if (count < 0)
             status = USB_DEVICE_LIST_NOT_READY;
-        (*num_devices) = count;
+        else
+            (*num_devices) = count;
         return status;
     #endif
 }
@@ -80,9 +87,13 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
 {
     #ifndef LINUX
         uint32_t i;
-        USBStatus stat;
+        USBStatus status;
         FT_DEVICE_LIST_INFO_NODE* ftdidevs = (FT_DEVICE_LIST_INFO_NODE*)malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*(*num_devices));
-        stat = FT_GetDeviceInfoList(ftdidevs, (LPDWORD)num_devices);
+        if (ftdidevs == NULL)
+            return USB_INSUFFICIENT_RESOURCES;
+        status = FT_GetDeviceInfoList(ftdidevs, (LPDWORD)num_devices);
+
+        // Fill in our USB data structures
         for (i=0; i<(*num_devices); i++)
         {
             list[i].flags = ftdidevs[i].Flags;
@@ -93,8 +104,10 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
             memcpy(&list[i].description, ftdidevs[i].Description, sizeof(char)*64);
             list[i].handle = ftdidevs[i].ftHandle;
         }
+
+        // Cleanup
         free(ftdidevs);
-        return stat;
+        return status;
     #else
         int count = 0;
         ftdi_device_list* curdev;
@@ -104,16 +117,17 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
             struct libusb_device_descriptor desc;
             char manufacturer[16], description[64], id[16];
 
+            // Get the device strings
             if (ftdi_usb_get_strings(context, curdev->dev, manufacturer, 16, description, 64, id, 16) < 0)
                 return USB_DEVICE_NOT_OPENED;
             if (libusb_get_device_descriptor(dev, &desc) < 0)
                 return USB_DEVICE_NOT_OPENED;
 
+            // Fill in our USB data structure
             list[count].flags = 0;
             list[count].type = 0;
             list[count].id = (0x0403 << 16) | desc.idProduct;
             list[count].locid = 0;
-
             memcpy(&list[count].serial, manufacturer, sizeof(char)*16);
             memcpy(&list[count].description, description, sizeof(char)*64);
 
@@ -139,8 +153,12 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
     #else
         int curdev_index = 0;
         ftdi_device_list* curdev = devlist;
+
+        // Find the device we want to open
         while (curdev_index < devnumber)
             curdev = curdev->next;
+
+        // Open the device
         if (ftdi_usb_open_dev(context, devlist[0].dev) < 0)
             return USB_DEVICE_NOT_OPENED;
         (*handle) = (void*)context;
@@ -185,12 +203,17 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
     #else
         int ret;
         USBStatus status = USB_OK;
+
+        // Perform the write
         ret = ftdi_write_data((ftdi_context*)handle, (unsigned char*)buffer, size);
+
+        // Handle errors
         if (ret == -666)
             status = USB_DEVICE_NOT_FOUND;
         else if (ret < 0)
             status = USB_IO_ERROR;
-        (*written) = ret;
+        else
+            (*written) = ret;
         return status;
     #endif
 }
@@ -212,10 +235,15 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
         return FT_Read(handle, buffer, size, (LPDWORD)read);
     #else
         uint32_t min;
+
+        // Because there's no way to poll for data in libftdi, the polling function actually performs the read into a buffer
+        // This means that we must first check if our buffer has data, and if not, "poll" it
         if (readbuffer_left == 0)
         {
             uint32_t bytesleft = 0;
             int attempts = 4;
+
+            // Make 4 attempts at a read. This is needed because libftdi is bad.
             while (bytesleft == 0 && attempts != 0)
             {
                 USBStatus status = device_usb_getqueuestatus(handle, &bytesleft);
@@ -225,11 +253,14 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
             }
         }
 
+        // Now that we have data in our buffer, memcpy it
         min = readbuffer_left;
         if (min > size)
             min = size;
         memcpy(buffer, readbuffer + readbuffer_offset, min);
         (*read) = min;
+
+        // Increment the helper variables
         readbuffer_left -= min;
         readbuffer_offset += min;
         return USB_OK;
@@ -250,6 +281,8 @@ USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
     #ifndef LINUX
         return FT_GetQueueStatus(handle, (DWORD*)bytesleft);
     #else
+        // If we have no bytes in our buffer, try to read some and update the helper variables
+        // Otherwise, just return the number of bytes left to be processed by the user
         if (readbuffer_left == 0)
         {
             int ret = ftdi_read_data((ftdi_context*)handle, readbuffer, BUFFER_SIZE);
