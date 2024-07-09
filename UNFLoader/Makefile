@@ -18,16 +18,21 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
 CXX = g++
 
-DEPENDENCIESLIB := -l:libftdi1.a -l:libusb-1.0.a
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
+	DEPENDENCIESLIB := -l:libftdi1.a -l:libusb-1.0.a -ludev
 else
-	DEPENDENCIESLIB += -ludev
+	DEPENDENCIESLIB_SHARED = -lftdi1 -lusb-1.0
+	DEPENDENCIESLIB += -l:libftdi1.a -l:libusb-1.0.a -ludev
 	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
 LINKER_OPTIONS := -Wl,-rpath /usr/local/lib -L/usr/local/lib
 CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
+
+ifeq ($(OS_NAME),Darwin)
+	CFLAGS += -I/opt/homebrew/include
+	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) /opt/homebrew/Cellar/libusb/1.0.27/lib/libusb-1.0.a /opt/homebrew/Cellar/libftdi/1.5_2/lib/libftdi1.a
+endif
 
 default: $(APP)
 
@@ -45,7 +50,7 @@ static: $(CARTLIBOBJECTS)
 
 shared: $(CARTLIBOBJECTS)
 	@echo "Creating shared library $(CARTLIBNAME_SHARED)"
-	@$(CXX) $(CFLAGS) $(CARTLIBFILES) -o $(CARTLIBNAME_SHARED) $(DEPENDENCIESLIB) $(LINKER_OPTIONS) -L/usr/local/lib -fPIC -shared
+	@$(CXX) $(CFLAGS) $(CARTLIBFILES) -o $(CARTLIBNAME_SHARED) $(DEPENDENCIESLIB_SHARED) $(LINKER_OPTIONS) -fPIC -shared
 
 clean:
 	@echo "Cleaning built artifacts.."
