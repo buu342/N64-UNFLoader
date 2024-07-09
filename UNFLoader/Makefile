@@ -8,7 +8,7 @@ LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CARTLIBNAME 	= flashcart
 CARTLIBFILES	= device.cpp \
-		  device_usb.cpp \
+		  		  device_usb.cpp \
             	  device_64drive.cpp \
                   device_everdrive.cpp \
                   device_sc64.cpp
@@ -19,14 +19,13 @@ CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 CXX = g++
 
 ifeq ($(OS_NAME),Darwin)
-	DEPENDENCIESLIB := -l:libftdi1.a -l:libusb-1.0.a -ludev
+	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else
-	DEPENDENCIESLIB_SHARED = -lftdi1 -lusb-1.0
 	DEPENDENCIESLIB += -l:libftdi1.a -l:libusb-1.0.a -ludev
+	DEPENDENCIESLIB_SHARED = -lftdi1 -lusb-1.0
 	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
-LINKER_OPTIONS := -Wl,-rpath /usr/local/lib -L/usr/local/lib
 CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
 
 ifeq ($(OS_NAME),Darwin)
