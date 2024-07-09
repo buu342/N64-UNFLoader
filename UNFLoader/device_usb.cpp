@@ -6,8 +6,6 @@
 #else
     #include <libusb-1.0/libusb.h>
     #include <libftdi1/ftdi.h>
-    #include <thread>
-    #include <chrono>
 #endif
 
 
@@ -224,7 +222,6 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
                 if (status != USB_OK)
                     return status;
                 attempts--;
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
         }
 
