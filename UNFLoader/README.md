@@ -122,7 +122,7 @@ Once you have all of these files built and put in the `Include` folder, you're s
 First, you need to install the dependencies. These are ncurses, libftdi, and libusb. Those can be installed in Ubuntu like so:
 
 ```
-sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev
+sudo apt-get install libncurses5-dev libncursesw5-dev libftdi1-dev libusb-1.0-0-dev libudev-dev
 ```
 
 Once the dependencies are installed, simply execute the makefile:
