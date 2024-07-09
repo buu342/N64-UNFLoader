@@ -37,10 +37,6 @@ If you do not wish to run the script, then you must:
     
 ![The macOS System Information window showing an FTDI device connected to a USB3 port](../Content/macos_system_report.png)
 * Connect your flashcart to your computer via a Micro-USB cable. Confirm that the corresponding FTDI USB device appears in **System Information** window.
-* Run the **D2xxHelper** installer from [the **Comments** column](https://www.ftdichip.com/Drivers/D2XX.htm) before installing the FTDI driver.
-* [The macOS FTDI driver available here](https://www.ftdichip.com/Drivers/D2XX.htm).
-* Once you've run **D2xxHelper** and installed the FTDI driver, restart your computer. This is necessary to have the driver working.
-* You must run UNFLoader with `sudo`.
 * If you grabbed a pre-built UNFLoader binary (AKA you didn't compile it yourself from the source code), you'll have to deal with the fact that macOS prevents running unsigned binaries by default. To fix this, go to the Security & Privacy panel in the System Preferences menu and explicitly allow UNFLoader to be run.
 </p>
 </details>
@@ -89,9 +85,12 @@ Once you have all of these files built and put in the `Include` folder, you're s
 </br>
 
 ### How to Build UNFLoader for macOS
-You need to have the FTDI driver installed (This is in the [requirements](#system-requirements) section so you should've already done this step), as well as ncurses. ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
-Install ncurses by invoking:
+You will need to install libftdi in order to compile UNFLoader. Do this by invoking:
+```
+brew install libftdi
+```
 
+ncurses should come with your stock macOS, but it can be an old revision. If you want to update it, you can do so by invoking
 ```
 brew install ncurses
 ```

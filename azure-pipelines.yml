@@ -70,7 +70,6 @@ jobs:
   - script: |
       echo Installing Prerequisites
       brew install libftdi
-      brew install libusb-compat
 
       echo Build macOS App
       cd ./UNFLoader/
