@@ -3,6 +3,7 @@
 # Setup useful variables
 Green='\033[0;32m'
 ColorOff='\033[0m'
+USERNAME=`whoami`
 
 # Introduce the script
 echo -e -n ${Green}
@@ -31,9 +32,14 @@ while true; do
     case $yn in
         [Yy]* )
             # 64Drive
-            TARGET="30-64drive.rules"
+            TARGET_OLD="30-64drive.rules"
+            TARGET="31-64drive.rules"
             echo
             echo -e -n ${Green}
+            if [ -f "/etc/udev/rules.d/${TARGET_OLD}" ]; then
+                sudo rm "/etc/udev/rules.d/${TARGET_OLD}"
+                UDEVUPDATED=true
+            fi
             if [ -f "/etc/udev/rules.d/${TARGET}" ]; then
                 echo "udev rules already setup for 64Drive. Skipping."
             else
@@ -41,8 +47,7 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{product}==\"64drive USB device\", TAG+=\"uaccess\"" >> ${TARGET}
-                        echo "ATTRS{product}==\"64drive USB device\", RUN{program}" >> ${TARGET}
+                        echo "ATTRS{product}==\"64drive USB device\", OWNER=\"${USERNAME}\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
@@ -52,9 +57,14 @@ while true; do
             fi
 
             # EverDrive
-            TARGET="30-everdrive.rules"
+            TARGET_OLD="30-everdrive.rules"
+            TARGET="31-everdrive.rules"
             echo
             echo -e -n ${Green}
+            if [ -f "/etc/udev/rules.d/${TARGET_OLD}" ]; then
+                sudo rm "/etc/udev/rules.d/${TARGET_OLD}"
+                UDEVUPDATED=true
+            fi
             if [ -f "/etc/udev/rules.d/${TARGET}" ]; then
                 echo "udev rules already setup for EverDrive. Skipping."
             else
@@ -65,8 +75,7 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{product}==\"FT245R USB FIFO\", TAG+=\"uaccess\"" >> ${TARGET}
-                        echo "ATTRS{product}==\"FT245R USB FIFO\", RUN{program}" >> ${TARGET}
+                        echo "ATTRS{product}==\"FT245R USB FIFO\", OWNER=\"${USERNAME}\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
@@ -76,8 +85,18 @@ while true; do
             fi
 
             # SC64
-            TARGET="30-sc64.rules"
+            TARGET_OLD1="30-sc64.rules"
+            TARGET_OLD2="30-sc64_phenom.rules"
+            TARGET="31-sc64.rules"
             echo
+            if [ -f "/etc/udev/rules.d/${TARGET_OLD1}" ]; then
+                sudo rm "/etc/udev/rules.d/${TARGET_OLD1}"
+                UDEVUPDATED=true
+            fi
+            if [ -f "/etc/udev/rules.d/${TARGET_OLD2}" ]; then
+                sudo rm "/etc/udev/rules.d/${TARGET_OLD2}"
+                UDEVUPDATED=true
+            fi
             echo -e -n ${Green}
             if [ -f "/etc/udev/rules.d/${TARGET}" ]; then
                 echo "udev rules already setup for SC64. Skipping."
@@ -87,26 +106,13 @@ while true; do
                 case $yn in
                     [Yy]* )
                         echo -e -n ${ColorOff}
-                        echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy\", TAG+=\"uaccess\"" >> ${TARGET}
-                        echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy\", RUN{program}" >> ${TARGET}
+                        echo "ATTRS{product}==\"SC64\", ATTRS{idVendor}==\"0403\", ATTRS{idProduct}==\"6014\", OWNER=\"${USERNAME}\"" >> ${TARGET}
                         sudo mv ${TARGET} "/etc/udev/rules.d"
                         UDEVUPDATED=true
                         ;;
                     [Nn]* ) ;;
                     * ) echo "Please answer yes or no.";;
                 esac
-            fi
-            TARGET="30-sc64_phenom.rules"
-            echo
-            echo -e -n ${Green}
-            if [ -f "/etc/udev/rules.d/${TARGET}" ]; then
-                echo "udev rules already setup for SC64 (Phenom Mods). Skipping."
-            else
-                echo -e -n ${ColorOff}
-                echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy/Mena\", TAG+=\"uaccess\"" >> ${TARGET}
-                echo "ATTRS{product}==\"SC64\", ATTRS{manufacturer}==\"Polprzewodnikowy/Mena\", RUN{program}" >> ${TARGET}
-                sudo mv ${TARGET} "/etc/udev/rules.d"
-                UDEVUPDATED=true
             fi
 
             # Reload udev rules
