@@ -68,6 +68,8 @@ jobs:
     vmImage: 'macOS-latest'
   steps:
   - script: |
+      export HOMEBREW_CELLAR=$(brew --cellar) 
+      export HOMEBREW_PREFIX=$(brew --prefix)
       echo Installing Prerequisites
       brew install libftdi
 

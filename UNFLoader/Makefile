@@ -29,8 +29,10 @@ endif
 CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
 
 ifeq ($(OS_NAME),Darwin)
-	CFLAGS += -I/opt/homebrew/include
-	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) /opt/homebrew/Cellar/libusb/1.0.27/lib/libusb-1.0.a /opt/homebrew/Cellar/libftdi/1.5_2/lib/libftdi1.a
+	HOMEBREW_PREFIX=$(shell brew --prefix)
+	HOMEBREW_CELLAR=$(shell brew --cellar)
+	CFLAGS += -I$(HOMEBREW_PREFIX)/include
+	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/1.0.27/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/1.5_2/lib/libftdi1.a
 endif
 
 default: $(APP)
