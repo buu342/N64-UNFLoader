@@ -123,6 +123,7 @@ while true; do
                 sudo udevadm control --reload-rules && udevadm trigger > /dev/null 2>&1
                 sudo udevadm control --reload
                 echo "Done!"
+                echo "If your flashcart is currently plugged in, unplug it and plug it back so that the new rules are applied to the USB device."
             fi
             break;;
         [Nn]* ) break;;
