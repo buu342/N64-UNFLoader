@@ -1,6 +1,8 @@
 APP=UNFLoader
 OS_NAME := $(shell uname -s)
 
+PREFIX ?= /usr/local
+
 CODEFILES = main.cpp helper.cpp term.cpp debug.cpp gdbstub.cpp
 CODEOBJECTS =	$(CODEFILES:.cpp=.o)
 LIBFILES = Include/lodepng.cpp
@@ -21,12 +23,12 @@ CXX = g++
 ifeq ($(OS_NAME),Darwin)
 	DEPENDENCIES := -lncurses -lpthread $(DEPENDENCIESLIB)
 else
-	DEPENDENCIESLIB += -l:libftdi1.a -l:libusb-1.0.a -ludev
+	DEPENDENCIESLIB += -lftdi1 -lusb-1.0 -ludev
 	DEPENDENCIESLIB_SHARED = -lftdi1 -lusb-1.0
 	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
-CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I /usr/local/include
+CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I "$(PREFIX)/include"
 
 ifeq ($(OS_NAME),Darwin)
 	HOMEBREW_PREFIX=$(shell brew --prefix)
@@ -58,10 +60,10 @@ clean:
 	@rm -f $(APP) $(CODEOBJECTS) $(CARTLIBOBJECTS) $(LIBOBJECTS) $(CARTLIBNAME_STATIC) $(CARTLIBNAME_SHARED)
 
 install: $(APP)
-	@echo "Installing $(APP) to /usr/local/bin"
-	@mkdir -p /usr/local/bin
-	@cp $(APP) /usr/local/bin/$(APP)
+	@echo "Installing $(APP) to $(PREFIX)/bin"
+	@mkdir -p "$(PREFIX)/bin"
+	@cp "$(APP)" "$(PREFIX)/bin/$(APP)"
 
 uninstall: $(APP)
-	@echo "Removing $(APP) from /usr/local/bin"
-	@rm -f /usr/local/bin/$(APP)
+	@echo "Removing $(APP) from $(PREFIX)/bin"
+	@rm -f "$(PREFIX)/bin/$(APP)"
