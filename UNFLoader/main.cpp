@@ -808,10 +808,11 @@ static void show_help()
                        " 4) Once the upload process is finished, your ROM should execute.\n");
             break;
         case '3':
-            log_simple(" 1) Plug the SC64 USB into your PC.\n"
+            log_simple(" 1) Plug the SC64 USB into your PC, ensuring the console is turned OFF.\n"
                        " 2) Run this program to upload a ROM. Example:\n" 
                        " \t UNFLoader.exe -r myrom.n64\n"
-                       " 3) Once the upload process is finished, your ROM should execute.\n");
+                       " 3) Once the upload process is finished, turn the console on. Your ROM should\n"
+                       "    execute.\n");
             break;
         case '4':
             log_simple("Listen mode automatically re-uploads the ROM via USB when it is modified. This\n"
