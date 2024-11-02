@@ -272,11 +272,6 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         err = device_sendcmd_everdrive(fthandle, 'c', 0x10000000, crc_area, 0);
         if (err != DEVICEERR_OK)
             return err;
-        err = device_sendcmd_everdrive(fthandle, 't', 0, 0, 0);
-        if (err != DEVICEERR_OK)
-            return err;
-        if (device_usb_read(fthandle->handle, recv_buff, 16, &fthandle->bytes_read) != USB_OK)
-            return DEVICEERR_READFAIL;
     }
 
     // Set the save type
