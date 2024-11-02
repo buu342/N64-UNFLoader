@@ -264,11 +264,11 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     uint32_t    bytes_done = 0;
     uint32_t    bytes_left = size;
     uint32_t    crc_area = 0x100000 + 4096;
+    char recv_buff[16];
 
     // Fill memory if the file is too small
     if (size < crc_area)
     {
-        char recv_buff[16];
         err = device_sendcmd_everdrive(fthandle, 'c', 0x10000000, crc_area, 0);
         if (err != DEVICEERR_OK)
             return err;
@@ -337,6 +337,8 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     err = device_sendcmd_everdrive(fthandle, 's', 0, 0, 0);
     if (err != DEVICEERR_OK)
         return err;
+    if (device_usb_read(fthandle->handle, recv_buff, 16, &fthandle->bytes_read) != USB_OK)
+        return DEVICEERR_READFAIL;
 
     // Write the filename of the save file if necessary
     if (cart->savetype != SAVE_NONE)
