@@ -481,7 +481,7 @@ DeviceError device_senddata_everdrive(CartDevice* cart, USBDataType datatype, by
             where the data will be malloc'ed into.
     @return The device error, or OK
 ==============================*/
-#include "term.h"
+
 DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader, byte** buff)
 {
     ED64Handle* fthandle = (ED64Handle*)cart->structure;
@@ -502,7 +502,6 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         // Ensure we have valid data by reading the header
         if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
             return DEVICEERR_READFAIL;
-        log_simple("Received DMA '%02x'\n", temp[3]);
         if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
             return DEVICEERR_64D_BADDMA;
         totalread += fthandle->bytes_read;
