@@ -96,7 +96,7 @@ void terminate(const char* reason, ...)
             WSACleanup();
         TerminateProcess(GetCurrentProcess(), 0);
     #else
-        exit(0);
+        exit(1);
     #endif
 }
 
