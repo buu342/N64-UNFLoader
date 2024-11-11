@@ -513,7 +513,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         totalread += fthandle->bytes_read;
 
         // Read the data into the buffer, in 512 byte chunks
-        size = (*dataheader) & 0xFFFFFF;
+        size = (*dataheader) & 0x00FFFFFF;
         (*buff) = (byte*)malloc(size);
         if ((*buff) == NULL)
             return DEVICEERR_MALLOCFAIL;
