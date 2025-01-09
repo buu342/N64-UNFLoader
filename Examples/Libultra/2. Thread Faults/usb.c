@@ -141,9 +141,9 @@ https://github.com/buu342/N64-UNFLoader
 
 #define ED_REGKEY         0xAA55
 
-#define ED25_VERSION      0xED640007
-#define ED3_VERSION       0xED640008
-#define ED7_VERSION       0xED640013
+#define ED25_VERSION      0xED640007        // V2.5
+#define ED3_VERSION       0xED640008        // V3
+#define EDX_VERSION       0xED640013        // X7, X5
 
 
 /*********************************
@@ -371,7 +371,7 @@ static inline void usb_dma_write(void *ram_address, u32 pi_address, size_t size)
             osPiRawStartDma(OS_WRITE, pi_address, ram_address, size);
         #else
             osPiStartDma(&dmaIOMessageBuf, OS_MESG_PRI_NORMAL, OS_WRITE, pi_address, ram_address, size, &dmaMessageQ);
-            osRecvMesg(&dmaMessageQ, NULL, OS_MESG_BLOCK);
+            while (osRecvMesg(&dmaMessageQ, NULL, OS_MESG_NOBLOCK) != 0);
         #endif
     #else
         data_cache_hit_writeback(ram_address, size);
@@ -526,11 +526,16 @@ static void usb_findcart(void)
         return;
     
     // Check if we have an EverDrive
-    if (buff == ED7_VERSION || buff == ED3_VERSION)
+    if (buff == EDX_VERSION || buff == ED3_VERSION)
     {
         // Set the USB mode
         usb_io_write(ED_REG_SYSCFG, 0);
         usb_io_write(ED_REG_USBCFG, ED_USBMODE_RDNOP);
+
+        // If the USB unit is powered off, it means that this is a 
+        // X variant without USB support (X5).
+        if ((usb_io_read(ED_REG_USBCFG) & ED_USBSTAT_POWER) == 0)
+            return;
         
         // Set the cart to EverDrive
         usb_cart = CART_EVERDRIVE;
