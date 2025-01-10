@@ -1436,7 +1436,7 @@ https://github.com/buu342/N64-UNFLoader
         {
             sprintf(debug_buffer, "swbreak+");
             usb_purge();
-            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer));
+            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer)+1);
         }
         
         
