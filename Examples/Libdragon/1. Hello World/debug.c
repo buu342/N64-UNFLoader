@@ -493,6 +493,10 @@ https://github.com/buu342/N64-UNFLoader
         usbMesg msg;
         va_list args;
         
+        // Stop if debug mode isn't initialized
+        if (!debug_initialized)
+            return;
+        
         // Use the internal libultra printf function to format the string
         va_start(args, message);
         #ifndef LIBDRAGON
@@ -529,6 +533,10 @@ https://github.com/buu342/N64-UNFLoader
     void debug_dumpbinary(void* file, int size)
     {
         usbMesg msg;
+        
+        // Stop if debug mode isn't initialized
+        if (!debug_initialized)
+            return;
         
         // Send the binary file to the usb thread
         msg.msgtype = MSG_WRITE;
@@ -607,6 +615,10 @@ https://github.com/buu342/N64-UNFLoader
     void _debug_assert(const char* expression, const char* file, int line)
     {
         volatile char crash;
+        
+        // Stop if debug mode isn't initialized
+        if (!debug_initialized)
+            return;
         
         // Set the assert data
         assert_expr = expression;
@@ -1424,7 +1436,7 @@ https://github.com/buu342/N64-UNFLoader
         {
             sprintf(debug_buffer, "swbreak+");
             usb_purge();
-            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer));
+            usb_write(DATATYPE_RDBPACKET, debug_buffer, strlen(debug_buffer)+1);
         }
         
         
@@ -2029,23 +2041,10 @@ https://github.com/buu342/N64-UNFLoader
                             data_cache_hit_writeback((u32*)addr, 4);
                             inst_cache_hit_invalidate((u32*)addr, 4);
                         #endif
-                    
-                    // Move all the breakpoints in front of it back
-                    for (i=index; i<BPOINT_COUNT; i++)
-                    {
-                        if (debug_bpoints[i].addr == NULL)
-                            break;
-                        if (i == BPOINT_COUNT-1)
-                        {
-                            debug_bpoints[i].addr = NULL;
-                            debug_bpoints[i].instruction = 0;
-                        }
-                        else
-                        {
-                            debug_bpoints[i].addr = debug_bpoints[i+1].addr;
-                            debug_bpoints[i].instruction = debug_bpoints[i+1].instruction;
-                        }
-                    }
+
+                    // free the breakpoint
+                    debug_bpoints[index].addr = NULL;
+                    debug_bpoints[index].instruction = 0;
                         
                     // Tell GDB we succeeded
                     usb_purge();
