@@ -16,6 +16,7 @@
 #include <queue>
 #include <thread>
 #include <iterator>
+#include <mutex>
 
 
 /*********************************
@@ -59,6 +60,9 @@ typedef struct {
         Function Prototypes
 *********************************/
 
+static void push_mesg(SendData* mesg);
+static SendData* pop_mesg();
+
 static void debug_handle_text(uint32_t size, byte* buffer);
 static void debug_handle_rawbinary(uint32_t size, byte* buffer);
 static void debug_handle_header(uint32_t size, byte* buffer);
@@ -77,6 +81,7 @@ static char* local_binaryoutfolderpath = NULL;
 
 // Other
 static int debug_headerdata[HEADER_SIZE];
+static std::mutex local_mesgqueue_lock;
 static std::queue<SendData*> local_mesgqueue;
 static std::list<RDBPacketChunk*> local_rdbpackets;
 
@@ -96,9 +101,8 @@ void debug_main()
         device_setprotocol(USBPROTOCOL_LATEST);
 
     // Send data to USB if it exists
-    while (!local_mesgqueue.empty())
+    for (SendData* msg = pop_mesg(); msg != nullptr; msg = pop_mesg())
     {
-        SendData* msg = local_mesgqueue.front();
         increment_escapelevel();
         if (term_isusingcurses())
         {
@@ -129,7 +133,6 @@ void debug_main()
             log_replace("Upload cancelled by the user.\n", CRDEF_ERROR);
 
         // Cleanup
-        local_mesgqueue.pop();
         if (msg->original != NULL)
             free(msg->original);
         free(msg->data);
@@ -163,6 +166,40 @@ void debug_main()
         }
     }
     while (dataheader > 0);
+}
+
+
+/*==============================
+    push_mesg
+    Queues a GDB message
+    @param Pointer to GDB message. Must be dynamically allocated.
+==============================*/
+
+static void push_mesg(SendData* mesg)
+{
+    std::lock_guard<std::mutex> lock(local_mesgqueue_lock);
+    local_mesgqueue.push(mesg);
+}
+
+
+/*==============================
+    pop_mesg
+    Returns the next GDB message, or null if there is none
+    @return Pointer to next GDB message
+==============================*/
+
+static SendData* pop_mesg()
+{
+    std::lock_guard<std::mutex> lock(local_mesgqueue_lock);
+
+    if (local_mesgqueue.empty())
+    {
+        return nullptr;
+    }
+
+    SendData* mesg = local_mesgqueue.front();
+    local_mesgqueue.pop();
+    return mesg;
 }
 
 
@@ -406,7 +443,7 @@ void debug_send(USBDataType type, char* data, size_t size)
     mesg->size = size;
 
     // Send the message to the debug thread
-    local_mesgqueue.push(mesg);
+    push_mesg(mesg);
 }
 
 
@@ -572,7 +609,7 @@ void debug_sendtext(char* data)
     }
     
     // Done!
-    local_mesgqueue.push(mesg);
+    push_mesg(mesg);
     for (std::list<ParseHelper*>::iterator it = datasplit.begin(); it != datasplit.end(); ++it)
     {
         ParseHelper* help = *it;

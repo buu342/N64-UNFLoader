@@ -26,6 +26,7 @@ Handles terminal I/O, both with and without curses.
 #include <chrono>
 #include <list>
 #include <iterator>
+#include <mutex>
 
 
 /*********************************
@@ -57,6 +58,10 @@ typedef struct {
 *********************************/
 
 #define ctrl(a) (a & 0x1F)
+
+static void push_mesg(Output* mesg);
+static Output* pop_mesg();
+
 static void termthread();
 static void termthread_simple();
 static void handle_input();
@@ -91,6 +96,7 @@ static std::atomic<bool> local_keypressed (false);
 // Output window globals
 static std::atomic<int> local_padbottom (-1);
 static std::atomic<int> local_scrolly (0);
+static std::mutex local_mesgqueue_lock;
 static std::queue<Output*> local_mesgqueue;
 static uint32_t local_historysize = DEFAULT_HISTORYSIZE;
 static char* local_laststackable = NULL;
@@ -212,6 +218,40 @@ void term_end()
 
 
 /*==============================
+    push_mesg
+    Queues a terminal message
+    @param Pointer to terminal message. Must be dynamically allocated.
+==============================*/
+
+static void push_mesg(Output* mesg)
+{
+    std::lock_guard<std::mutex> lock(local_mesgqueue_lock);
+    local_mesgqueue.push(mesg);
+}
+
+
+/*==============================
+    pop_mesg
+    Returns the next terminal message, or null if there is none
+    @return Pointer to next terminal message
+==============================*/
+
+static Output* pop_mesg()
+{
+    std::lock_guard<std::mutex> lock(local_mesgqueue_lock);
+
+    if (local_mesgqueue.empty())
+    {
+        return nullptr;
+    }
+
+    Output* mesg = local_mesgqueue.front();
+    local_mesgqueue.pop();
+    return mesg;
+}
+
+
+/*==============================
     termthread
     Thread logic for I/O
 ==============================*/
@@ -227,10 +267,8 @@ static void termthread()
             refresh();
 
         // Output stuff
-        while (!local_mesgqueue.empty())
+        for (Output* msg = pop_mesg(); msg != nullptr; msg = pop_mesg())
         {
-            Output* msg = local_mesgqueue.front();
-
             // Disable all the colors
             for (int i=0; i<TOTAL_COLORS; i++)
                 wattroff(local_outputwin, COLOR_PAIR(i+1));
@@ -292,7 +330,6 @@ static void termthread()
             wroteout = true;
 
             // Cleanup
-            local_mesgqueue.pop();
             free(msg->str);
             free(msg);
         }
@@ -346,7 +383,7 @@ void __log_output(const short color, const int32_t y, const bool allowstack, con
 
         va_start(args, str);
         vsprintf(mesg->str, str, args);
-        local_mesgqueue.push(mesg);
+        push_mesg(mesg);
     }
     else
         vprintf(str, args);
