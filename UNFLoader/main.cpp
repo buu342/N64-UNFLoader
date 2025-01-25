@@ -679,7 +679,7 @@ static void autodetect_romheader()
     fseek(fp, 0, SEEK_SET);
 
     // If the savetype hasn't been forced
-    switch (buff[0x3F])
+    switch (buff[0x3F] & 0xF0)
     {
         case 0x10: device_setsave(SAVE_EEPROM4K); break;
         case 0x20: device_setsave(SAVE_EEPROM16K); break;
