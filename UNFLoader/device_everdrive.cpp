@@ -268,7 +268,6 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
     // Fill memory if the file is too small
     if (size < crc_area)
     {
-        char recv_buff[16];
         err = device_sendcmd_everdrive(fthandle, 'c', 0x10000000, crc_area, 0);
         if (err != DEVICEERR_OK)
             return err;

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "device_usb.h"
-#ifndef LINUX
+#ifdef D2XX
     #include "Include/ftd2xx.h"
 #else
     #include <libusb-1.0/libusb.h>
@@ -13,7 +13,7 @@
               Macros
 *********************************/
 
-#ifdef LINUX
+#ifndef D2XX
     #define BUFFER_SIZE 8*1024*1024
 #endif
 
@@ -22,12 +22,13 @@
          Global Variables
 *********************************/
 
-#ifdef LINUX
+#ifndef D2XX
     ftdi_context* context = NULL;
     ftdi_device_list* devlist = NULL;
     uint8_t* readbuffer = NULL;
     uint32_t readbuffer_left = 0;
-    uint32_t readbuffer_offset = 0;
+    uint32_t readbuffer_readoffset = 0;
+    uint32_t readbuffer_copyoffset = 0;
 #endif
 
 
@@ -44,7 +45,7 @@
 
 USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_CreateDeviceInfoList((LPDWORD)num_devices);
     #else
         int count;
@@ -85,7 +86,7 @@ USBStatus device_usb_createdeviceinfolist(uint32_t* num_devices)
 
 USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* num_devices)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         uint32_t i;
         USBStatus status;
         FT_DEVICE_LIST_INFO_NODE* ftdidevs = (FT_DEVICE_LIST_INFO_NODE*)malloc(sizeof(FT_DEVICE_LIST_INFO_NODE)*(*num_devices));
@@ -148,7 +149,7 @@ USBStatus device_usb_getdeviceinfolist(USB_DeviceInfoListNode* list, uint32_t* n
 
 USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_Open(devnumber, handle);
     #else
         int curdev_index = 0;
@@ -162,6 +163,7 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
         if (ftdi_usb_open_dev(context, devlist[0].dev) < 0)
             return USB_DEVICE_NOT_OPENED;
         (*handle) = (void*)context;
+        ftdi_set_latency_timer(context, 1);
         return USB_OK;
     #endif 
 }
@@ -176,7 +178,7 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
 
 USBStatus device_usb_close(USBHandle handle)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_Close(handle);
     #else
         if (ftdi_usb_close((ftdi_context*)handle) < 0)
@@ -198,71 +200,93 @@ USBStatus device_usb_close(USBHandle handle)
 
 USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32_t* written)
 {
-    #ifndef LINUX
-        return FT_Write(handle, buffer, size, (LPDWORD)written);
+    #ifdef D2XX
+        uint32_t totalwritten = 0;
+        while (totalwritten < size)
+        {
+            uint32_t curwrite;
+            FT_STATUS ret = FT_Write(handle, ((uint8_t*)buffer)+totalwritten, size-totalwritten, (LPDWORD)&curwrite);
+            totalwritten += curwrite;
+            if (ret != FT_OK)
+            {
+                (*written) = totalwritten;
+                return ret;
+            }
+        }
+        (*written) = totalwritten;
+        return USB_OK;
     #else
-        int ret;
-        USBStatus status = USB_OK;
-
-        // Perform the write
-        ret = ftdi_write_data((ftdi_context*)handle, (unsigned char*)buffer, size);
-
-        // Handle errors
-        if (ret == -666)
-            status = USB_DEVICE_NOT_FOUND;
-        else if (ret < 0)
-            status = USB_IO_ERROR;
-        else
-            (*written) = ret;
-        return status;
+        uint32_t totalwritten = 0;
+        while (totalwritten < size)
+        {
+            int ret = ftdi_write_data((ftdi_context*)handle, ((unsigned char*)buffer)+totalwritten, size-totalwritten);
+            if (ret == -666)
+            {
+                (*written) = totalwritten;
+                return USB_DEVICE_NOT_FOUND;
+            }
+            else if (ret < 0)
+            {
+                (*written) = totalwritten;
+                return USB_IO_ERROR;
+            }
+            totalwritten += ret;
+        }
+        (*written) = totalwritten;
+        return USB_OK;
     #endif
 }
 
 
 /*==============================
     device_usb_read
-    Reads data from a USB device
+    Reads data from a USB device, blocking until finished
     @param  The USB handle to use
     @param  The buffer to read into
     @param  The size of the data to read
     @param  A pointer to store the number of bytes read
     @return The USB status
 ==============================*/
-
+#include "term.h"
 USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_t* read)
 {
-    #ifndef LINUX
-        return FT_Read(handle, buffer, size, (LPDWORD)read);
-    #else
-        uint32_t min;
-
-        // Because there's no way to poll for data in libftdi, the polling function actually performs the read into a buffer
-        // This means that we must first check if our buffer has data, and if not, "poll" it
-        if (readbuffer_left == 0)
+    #ifdef D2XX
+        uint32_t totalread = 0;
+        while (totalread < size)
         {
-            uint32_t bytesleft = 0;
-            int attempts = 4;
-
-            // Make 4 attempts at a read. This is needed because libftdi is bad.
-            while (bytesleft == 0 && attempts != 0)
+            uint32_t curread;
+            FT_STATUS ret = FT_Read(handle, ((uint8_t*)buffer)+totalread, size-totalread, (LPDWORD)&curread);
+            totalread += curread;
+            if (ret != FT_OK)
             {
-                USBStatus status = device_usb_getqueuestatus(handle, &bytesleft);
-                if (status != USB_OK)
-                    return status;
-                attempts--;
+                (*read) = totalread;
+                return ret;
             }
         }
+        (*read) = totalread;
+        return USB_OK;
+    #else
+        uint32_t readcount = size;
 
-        // Now that we have data in our buffer, memcpy it
-        min = readbuffer_left;
-        if (min > size)
-            min = size;
-        memcpy(buffer, readbuffer + readbuffer_offset, min);
-        (*read) = min;
+        // If we're being asked to read more data than we have in our buffer, check if the USB can give us more
+        while (readcount > readbuffer_left)
+            device_usb_getqueuestatus(handle, NULL);
 
-        // Increment the helper variables
-        readbuffer_left -= min;
-        readbuffer_offset += min;
+        // Copy the data
+        if (readcount > readbuffer_left)
+            readcount = readbuffer_left;
+        memcpy(buffer, readbuffer+readbuffer_readoffset, readcount);
+        readbuffer_left -= readcount;
+        (*read) = readcount;
+
+        // If we have no data left to read, we can safetly reset the buffer position
+        if (readbuffer_left == 0)
+        {
+            readbuffer_readoffset = 0;
+            readbuffer_copyoffset = 0;
+        }
+        else
+            readbuffer_readoffset += readcount;
         return USB_OK;
     #endif
 }
@@ -278,23 +302,22 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
 
 USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_GetQueueStatus(handle, (DWORD*)bytesleft);
     #else
-        // If we have no bytes in our buffer, try to read some and update the helper variables
-        // Otherwise, just return the number of bytes left to be processed by the user
-        if (readbuffer_left == 0)
-        {
-            int ret = ftdi_read_data((ftdi_context*)handle, readbuffer, BUFFER_SIZE);
-            if (ret == -666)
-                return USB_DEVICE_NOT_FOUND;
-            else if (ret < 0)
-                return USB_IO_ERROR;
-            readbuffer_left = ret;
-            readbuffer_offset = 0;
-            (*bytesleft) = ret;
-        }
-        else
+        // Perform a USB read to see how much data is in the actual USB buffer (since libftdi doesn't provide a way to poll)
+        int ret = ftdi_read_data((ftdi_context*)handle, readbuffer+readbuffer_copyoffset, BUFFER_SIZE-readbuffer_copyoffset);
+        if (ret == -666)
+            return USB_DEVICE_NOT_FOUND;
+        else if (ret < 0)
+            return USB_IO_ERROR;
+
+        // Add how much we have left to read
+        readbuffer_left += ret;
+        readbuffer_copyoffset += ret;
+
+        // Done
+        if (bytesleft != NULL)
             (*bytesleft) = readbuffer_left;
         return USB_OK;
     #endif
@@ -310,7 +333,7 @@ USBStatus device_usb_getqueuestatus(USBHandle handle, uint32_t* bytesleft)
 
 USBStatus device_usb_resetdevice(USBHandle handle)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_ResetDevice(handle);
     #else
         if (ftdi_usb_reset((ftdi_context*)handle) < 0)
@@ -331,7 +354,7 @@ USBStatus device_usb_resetdevice(USBHandle handle)
 
 USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t writetimout)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_SetTimeouts(handle, readtimout, writetimout);
     #else
         ((ftdi_context*)handle)->usb_read_timeout = readtimout;
@@ -352,7 +375,7 @@ USBStatus device_usb_settimeouts(USBHandle handle, uint32_t readtimout, uint32_t
 
 USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_SetBitMode(handle, mask, enable);
     #else
         if (ftdi_set_bitmode((ftdi_context*)handle, mask, enable) < 0)
@@ -372,7 +395,7 @@ USBStatus device_usb_setbitmode(USBHandle handle, uint8_t mask, uint8_t enable)
 
 USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_Purge(handle, mask);
     #else
         if (mask & USB_PURGE_RX)
@@ -396,7 +419,7 @@ USBStatus device_usb_purge(USBHandle handle, uint32_t mask)
 
 USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_GetModemStatus(handle, (ULONG*)modemstatus);
     #else
         unsigned short tempstatus;
@@ -417,7 +440,7 @@ USBStatus device_usb_getmodemstatus(USBHandle handle, uint32_t* modemstatus)
 
 USBStatus device_usb_setdtr(USBHandle handle)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_SetDtr(handle);
     #else
         if (ftdi_setdtr((ftdi_context*)handle, 1) < 0)
@@ -436,7 +459,7 @@ USBStatus device_usb_setdtr(USBHandle handle)
 
 USBStatus device_usb_cleardtr(USBHandle handle)
 {
-    #ifndef LINUX
+    #ifdef D2XX
         return FT_ClrDtr(handle);
     #else
         if (ftdi_setdtr((ftdi_context*)handle, 0) < 0)

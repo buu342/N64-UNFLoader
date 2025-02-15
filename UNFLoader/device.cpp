@@ -423,7 +423,7 @@ DeviceError device_close()
     @return True if successful, false otherwise
 ==============================*/
 
-bool device_setrom(char* path)
+bool device_setrom(const char* path)
 {
     #ifndef LINUX
         if (PathIsDirectoryA(path))
@@ -434,7 +434,7 @@ bool device_setrom(char* path)
         if (!S_ISREG(path_stat.st_mode))
             return false;
     #endif
-    local_rompath = path;
+    local_rompath = (char*)path;
     return true;
 }
 

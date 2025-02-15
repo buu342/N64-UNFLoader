@@ -143,7 +143,7 @@
     DeviceError device_close();
 
     // Device configuration
-	bool     device_setrom(char* path);
+	bool     device_setrom(const char* path);
     void     device_setcart(CartType cart);
     void     device_setcic(CICType cic);
     void     device_setsave(SaveType save);

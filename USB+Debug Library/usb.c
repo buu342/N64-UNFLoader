@@ -432,7 +432,7 @@ static char usb_timeout_check(u32 start_ticks, u32 duration)
 /*==============================
     usb_initialize
     Initializes the USB buffers and pointers
-    @returns 1 if the USB initialization was successful, 0 if not
+    @return 1 if the USB initialization was successful, 0 if not
 ==============================*/
 
 char usb_initialize(void)
