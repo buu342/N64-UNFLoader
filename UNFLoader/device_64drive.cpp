@@ -153,10 +153,9 @@ uint32_t device_rompadding_64drive(uint32_t romsize)
     // While the 64Drive does not need ROMs to be padded,
     // there is a firmware bug which causes the last few
     // bytes to get corrupted. This was not fun to debug...
+    // So we need to append 512 bytes as a safety buffer.
     // Since the 64Drive is super fast at uploading, it 
     // doesn't hurt to pad the ROM.
-    // The last 512 bytes like to get corrupted, so we need to add
-    // 512 bytes as a safety buffer
     uint32_t newsize = ALIGN(romsize, 512) + 512;
     return newsize > device_maxromsize_64drive() ? ALIGN(romsize, 512) : newsize;
 }
@@ -466,7 +465,7 @@ DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte
     DeviceError err;
 
     // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
-    if (size > 512 && (size%512) != 0)
+    if (size > 512)
         newsize = ALIGN(size, 512) + 512; // The extra 512 is to workaround a 64Drive bug
     else
         newsize = ALIGN(size, 4);
