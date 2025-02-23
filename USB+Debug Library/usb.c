@@ -106,7 +106,9 @@ https://github.com/buu342/N64-UNFLoader
 
 #define D64_CUI_ARM_MASK          0x0F
 #define D64_CUI_ARM_IDLE          0x00
+#define D64_CUI_ARM_ARMED         0x01
 #define D64_CUI_ARM_UNARMED_DATA  0x02
+#define D64_CUI_ARM_BUSY          0x0F
 
 #define D64_CUI_WRITE_MASK        0xF0
 #define D64_CUI_WRITE_IDLE        0x00
@@ -254,6 +256,7 @@ static int usb_dataleft = 0;
 static int usb_readblock = -1;
 
 // Cart specific globals
+static u8 d64_wasarmed = FALSE;
 static u8 d64_extendedaddr = FALSE;
 
 #ifndef LIBDRAGON
@@ -865,6 +868,51 @@ static void usb_64drive_set_extendedaddress(u8 enable)
 
 
 /*==============================
+    usb_64drive_cui_arm
+    Arms the 64Drive's USB with the guarantee that we will receive data
+    @param The address to put the data into
+    @param The size of the buffer
+==============================*/
+
+static void usb_64drive_cui_arm(u32 offset, u32 size)
+{
+    usb_io_write(D64_REG_USBP0R0, offset >> 1);
+    usb_io_write(D64_REG_USBP1R1, size & 0x00FFFFFF);
+    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
+        ;
+}
+
+
+/*==============================
+    usb_64drive_cui_armcheck
+    Arms the 64Drive's USB to check if we have data or not
+    @param The address to put the data into
+    @param The size of the buffer
+==============================*/
+
+static void usb_64drive_cui_armcheck(u32 offset, u32 size)
+{
+    usb_io_write(D64_REG_USBP0R0, offset >> 1);
+    usb_io_write(D64_REG_USBP1R1, size & 0x00FFFFFF);
+    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_BUSY)
+        ;
+}
+
+
+/*==============================
+    usb_64drive_cui_disarm
+    Disarms the 64Drive's USB
+==============================*/
+
+static void usb_64drive_cui_disarm()
+{
+    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
+}
+
+
+/*==============================
     usb_64drive_cui_write
     Writes data from buffer in the 64drive through USB
     @param Data type
@@ -897,78 +945,61 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 
 
 /*==============================
-    usb_64drive_cui_poll
-    Checks if there is data waiting to be read from USB FIFO
-    @return TRUE if data is waiting, FALSE if otherwise
-==============================*/
-
-static char usb_64drive_cui_poll(void)
-{
-    // Check if we have data waiting in buffer
-    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA)
-        return TRUE;
-    return FALSE;
-}
-
-
-/*==============================
     usb_64drive_cui_read
-    Reads data from USB FIFO to buffer in the 64drive
+    Reads data from USB FIFO to buffer in the 64Drive
+    This code is structured a bit differently from the 
+    instructions in the hardware spec sheet. Reasons for 
+    this are complicated and are down to a firmware bug 
+    that I wasted an entire week figuring out.
+    More info about this bug here:
+    https://github.com/buu342/N64-UNFLoader/wiki/3)-The-64Drive#pc---n64-usb-communication
     @param  Offset in CARTROM memory space
     @return USB header (datatype + size)
 ==============================*/
 
 static u32 usb_64drive_cui_read(u32 offset)
 {
-    u32 header;
-    u32 left;
     u32 datatype;
-    u32 size;
-
-    // Arm USB FIFO with 8 byte sized transfer
-    usb_io_write(D64_REG_USBP0R0, offset >> 1);
-    usb_io_write(D64_REG_USBP1R1, 8);
-    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
-
-    // Wait until data is received
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
-        ;
-
-    // Get datatype and bytes remaining
-    header = usb_io_read(D64_REG_USBP0R0);
-    left = usb_io_read(D64_REG_USBP1R1) & 0x00FFFFFF;
-    datatype = header & 0xFF000000;
-    size = header & 0x00FFFFFF;
-
-    // Determine if we need to read more data
-    if (left > 0)
+    u32 size = 0;
+    u32 left = 0;
+    
+    // Arm the USB to check if we have data to read
+    do
     {
-        // Arm USB FIFO with known transfer size
-        usb_io_write(D64_REG_USBP0R0, (offset + 8) >> 1);
-        usb_io_write(D64_REG_USBP1R1, left);
-        usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_ARM);
-
-        // Wait until data is received
-        while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_UNARMED_DATA)
-            ;
-
-        // Calculate total transfer length
-        size += left;
-    }
-
-    // Disarm USB FIFO
-    usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
-
-    // Wait until USB FIFO is disarmed
-    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
-        ;
+        // Arm the USB to take the data
+        if (!d64_wasarmed || left > 0)
+        {
+            d64_wasarmed = TRUE;
+            usb_64drive_cui_arm(offset + size, DEBUG_ADDRESS_SIZE - size);
+        }
+        else // We recently armed and took data, arm again but check if we have more to serve
+        {
+            usb_64drive_cui_armcheck(offset, DEBUG_ADDRESS_SIZE);
+            
+            // No data, disarm
+            if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_ARMED)
+            {
+                usb_64drive_cui_disarm();
+                d64_wasarmed = FALSE;
+                return 0;
+            }
+            
+            // Otherwise, we have more data to read
+        }
         
-    // Due to a 64drive bug, we need to ignore the last 512 bytes of the transfer if it's larger than 512 bytes
+        // Read the result
+        datatype = usb_io_read(D64_REG_USBP0R0);
+        size += (datatype & 0x00FFFFFF);
+        left = (usb_io_read(D64_REG_USBP1R1) & 0x00FFFFFF);
+    }
+    while (left > 0);
+    
+    // Due to a 64Drive bug, we need to ignore the last 512 bytes of the transfer if it's larger than 512 bytes
     if (size > 512)
         size -= 512;
 
     // Return data header (datatype and size)
-    return (datatype | size);
+    return ((datatype & 0xFF000000) | size);
 }
 
 
@@ -1037,19 +1068,23 @@ static void usb_64drive_write(int datatype, const void* data, int size)
 static u32 usb_64drive_poll(void)
 {
     u32 header;
-
-    // If there's data to service
-    if (usb_64drive_cui_poll())
+    
+    // Check if the CUI is telling us to read data
+    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) == D64_CUI_ARM_UNARMED_DATA)
     {
         // Read data to the buffer in 64drive SDRAM memory
         header = usb_64drive_cui_read(usb_getaddr());
-
+        
+        // Check if we actually had data
+        if (header == 0)
+            return 0;
+        
         // Get the data header
         usb_datatype = USBHEADER_GETTYPE(header);
         usb_dataleft = USBHEADER_GETSIZE(header);
         usb_datasize = usb_dataleft;
         usb_readblock = -1;
-
+        
         // Return the data header
         return USBHEADER_CREATE(usb_datatype, usb_datasize);
     }
