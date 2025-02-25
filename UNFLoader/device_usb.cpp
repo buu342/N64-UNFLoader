@@ -247,7 +247,7 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
     @param  A pointer to store the number of bytes read
     @return The USB status
 ==============================*/
-#include "term.h"
+
 USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_t* read)
 {
     #ifdef D2XX
