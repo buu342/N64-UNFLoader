@@ -4,9 +4,7 @@ OS_NAME := $(shell uname -s)
 PREFIX ?= /usr/local
 
 CODEFILES = main.cpp helper.cpp term.cpp debug.cpp gdbstub.cpp
-CODEOBJECTS =	$(CODEFILES:.cpp=.o)
 LIBFILES = Include/lodepng.cpp
-LIBOBJECTS =	$(LIBFILES:.cpp=.o)
 
 CARTLIBNAME 	= flashcart
 CARTLIBFILES	= device.cpp \
@@ -14,7 +12,17 @@ CARTLIBFILES	= device.cpp \
             	  device_64drive.cpp \
                   device_everdrive.cpp \
                   device_sc64.cpp
-CARTLIBOBJECTS 	= $(CARTLIBFILES:.cpp=.o)
+
+ifeq ($(DEBUG),1)
+	CARTLIBNAME := $(CARTLIBNAME)_d
+	CODEOBJECTS =	$(CODEFILES:.cpp=.od)
+	LIBOBJECTS =	$(LIBFILES:.cpp=.od)
+	CARTLIBOBJECTS 	= $(CARTLIBFILES:.cpp=.od)
+else
+	CODEOBJECTS =	$(CODEFILES:.cpp=.o)
+	LIBOBJECTS =	$(LIBFILES:.cpp=.o)
+	CARTLIBOBJECTS 	= $(CARTLIBFILES:.cpp=.o)
+endif
 CARTLIBNAME_STATIC	= $(CARTLIBNAME).a
 CARTLIBNAME_SHARED	= $(CARTLIBNAME).so
 
@@ -28,7 +36,13 @@ else
 	DEPENDENCIES := -lncursesw -lpthread -lrt $(DEPENDENCIESLIB)
 endif
 
-CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -O3 -std=c++11 -I "$(PREFIX)/include"
+CFLAGS = -D LINUX -D_XOPEN_SOURCE_EXTENDED -Wall -Wno-unknown-pragmas -std=c++11 -I "$(PREFIX)/include"
+ifeq ($(DEBUG),1)
+	CFLAGS += -ggdb -O0 -g
+else
+	CFLAGS += -O3
+endif
+
 
 ifeq ($(OS_NAME),Darwin)
 	HOMEBREW_PREFIX=$(shell brew --prefix)
@@ -45,6 +59,10 @@ $(APP): static $(CODEOBJECTS) $(LIBOBJECTS)
 
 %.o: %.cpp
 	@echo "Compiling $<"
+	@$(CXX) -c $(CFLAGS) -o $@ $<
+
+%.od: %.cpp
+	@echo "Compiling (Debug) $<"
 	@$(CXX) -c $(CFLAGS) -o $@ $<
 
 static: $(CARTLIBOBJECTS) 
