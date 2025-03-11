@@ -256,7 +256,7 @@ static int usb_dataleft = 0;
 static int usb_readblock = -1;
 
 // Cart specific globals
-static u8 d64_wasarmed = FALSE;
+static vu8 d64_wasarmed = FALSE;
 static u8 d64_extendedaddr = FALSE;
 
 #ifndef LIBDRAGON
@@ -694,6 +694,10 @@ void usb_read(void* buffer, int nbytes)
         block = BUFFER_SIZE;
         copystart = 0;
     }
+    
+    // Due to hardware issues, we should re-poll the 64Drive for data (which will unarm the buffer if there really isn't any more data)
+    if (usb_dataleft == 0 && usb_cart == CART_64DRIVE)
+        usb_64drive_poll();
 }
 
 
@@ -708,7 +712,13 @@ void usb_skip(int nbytes)
     // Subtract the amount of bytes to skip to the data pointers
     usb_dataleft -= nbytes;
     if (usb_dataleft < 0)
+    {
         usb_dataleft = 0;
+    
+        // Due to hardware issues, we should re-poll the 64Drive for data (which will unarm the buffer if there really isn't any more data)
+        if (usb_cart == CART_64DRIVE)
+            usb_64drive_poll();
+    }
 }
 
 
@@ -738,6 +748,10 @@ void usb_purge(void)
     usb_datatype = 0;
     usb_datasize = 0;
     usb_readblock = -1;
+
+    // Due to hardware issues, we should re-poll the 64Drive for data (which will unarm the buffer if there really isn't any more data)
+    if (usb_cart == CART_64DRIVE)
+        usb_64drive_poll();
 }
 
 

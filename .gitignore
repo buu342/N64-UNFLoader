@@ -366,6 +366,11 @@ UNFLoader/Dependencies/
 UNFLoader/UNFLoader
 
 *.o
+*.od
+*.cvt
+*.n64
+*.z64
+*.out
 *.a
 *.so
 .directory
