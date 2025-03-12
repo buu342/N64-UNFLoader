@@ -966,6 +966,7 @@ https://github.com/buu342/N64-UNFLoader
     
     static void debug_thread_usb(void *arg)
     {
+        u8 retry = FALSE;
         char errortype = USBERROR_NONE;
         usbMesg* threadMsg;
         
@@ -982,7 +983,8 @@ https://github.com/buu342/N64-UNFLoader
         {
             #ifndef LIBDRAGON
                 // Wait for a USB message to arrive
-                osRecvMesg(&usbMessageQ, (OSMesg *)&threadMsg, OS_MESG_BLOCK);
+                if (!retry)
+                    osRecvMesg(&usbMessageQ, (OSMesg *)&threadMsg, OS_MESG_BLOCK);
             #endif
             
             // Ensure there's no data in the USB (which handles MSG_READ)
@@ -1100,14 +1102,18 @@ https://github.com/buu342/N64-UNFLoader
                     case MSG_WRITE:
                         if (usb_timedout())
                             usb_sendheartbeat();
-                        usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size);
+                        if (usb_write(threadMsg->datatype, threadMsg->buff, threadMsg->size) != 1) // If the write failed, try again
+                            retry = TRUE;
+                        else
+                            retry = FALSE;
                         break;
                 }
             }
             
             // If we're in libdragon, break out of the loop as we don't need it
             #ifdef LIBDRAGON
-                break;
+                if (!retry)
+                    break;
             #endif
         }
     }
