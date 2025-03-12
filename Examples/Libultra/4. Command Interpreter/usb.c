@@ -221,17 +221,17 @@ https://github.com/buu342/N64-UNFLoader
 static void usb_findcart(void);
 static u32  usb_getaddr();
 
-static void usb_64drive_write(int datatype, const void* data, int size);
+static s8   usb_64drive_write(int datatype, const void* data, int size);
 static u32  usb_64drive_poll(void);
 static void usb_64drive_read(void);
 static void usb_64drive_set_extendedaddress(u8 enable);
 static u32  usb_64drive_get_baseaddr();
 
-static void usb_everdrive_write(int datatype, const void* data, int size);
+static s8   usb_everdrive_write(int datatype, const void* data, int size);
 static u32  usb_everdrive_poll(void);
 static void usb_everdrive_read(void);
 
-static void usb_sc64_write(int datatype, const void* data, int size);
+static s8   usb_sc64_write(int datatype, const void* data, int size);
 static u32  usb_sc64_poll(void);
 static void usb_sc64_read(void);
 
@@ -241,7 +241,7 @@ static void usb_sc64_read(void);
 *********************************/
 
 // Function pointers
-void (*funcPointer_write)(int datatype, const void* data, int size);
+s8   (*funcPointer_write)(int datatype, const void* data, int size);
 u32  (*funcPointer_poll)(void);
 void (*funcPointer_read)(void);
 
@@ -477,7 +477,7 @@ char usb_initialize(void)
     }
 
     // Send a heartbeat
-    usb_sendheartbeat();
+    //usb_sendheartbeat();
     return 1;
 }
 
@@ -592,12 +592,13 @@ u32 usb_getaddr()
     usb_write
     Writes data to the USB.
     Will not write if there is data to read from USB
-    @param The DATATYPE that is being sent
-    @param A buffer with the data to send
-    @param The size of the data being sent
+    @param  The DATATYPE that is being sent
+    @param  A buffer with the data to send
+    @param  The size of the data being sent
+    @return 1 on success, 0 on fail, -1 on timeout
 ==============================*/
 
-void usb_write(int datatype, const void* data, int size)
+char usb_write(int datatype, const void* data, int size)
 {
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
@@ -608,7 +609,7 @@ void usb_write(int datatype, const void* data, int size)
         return;
     
     // Call the correct write function
-    funcPointer_write(datatype, data, size);
+    return funcPointer_write(datatype, data, size);
 }
 
 
@@ -923,20 +924,28 @@ static void usb_64drive_cui_armcheck(u32 offset, u32 size)
 static void usb_64drive_cui_disarm()
 {
     usb_io_write(D64_REG_USBCOMSTAT, D64_CUI_DISARM);
+    while ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
+        ;
 }
 
 
 /*==============================
     usb_64drive_cui_write
     Writes data from buffer in the 64drive through USB
-    @param Data type
-    @param Offset in CARTROM memory space
-    @param Transfer size
+    @param  Data type
+    @param  Offset in CARTROM memory space
+    @param  Transfer size
+    @return 1 on success, 0 on fail, -1 on timeout
 ==============================*/
 
-static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
+static s8 usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
 {
     u32 timeout;
+    u32 comstat = usb_io_read(D64_REG_USBCOMSTAT);
+    
+    // Check the arm status. If it's not idle, then we have to bail
+    if ((comstat & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
+        return 0;
 
     // Start USB write
     usb_io_write(D64_REG_USBP0R0, offset >> 1);
@@ -951,10 +960,12 @@ static void usb_64drive_cui_write(u8 datatype, u32 offset, u32 size)
         if (usb_timeout_check(timeout, D64_WRITE_TIMEOUT))
         {
             usb_didtimeout = TRUE;
-            return;
+            return -1;
         }
     }
     while((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) != D64_CUI_WRITE_IDLE);
+    usb_didtimeout = FALSE;
+    return 1;
 }
 
 
@@ -1024,18 +1035,24 @@ static u32 usb_64drive_cui_read(u32 offset)
     @param The DATATYPE that is being sent
     @param A buffer with the data to send
     @param The size of the data being sent
+    @return 1 on success, 0 on fail, -1 on timeout
 ==============================*/
 
-static void usb_64drive_write(int datatype, const void* data, int size)
+static s8 usb_64drive_write(int datatype, const void* data, int size)
 {
     s32 left = size;
     u32 pi_address = D64_BASE + usb_getaddr();
+    u32 comstat = usb_io_read(D64_REG_USBCOMSTAT);
+    
+    // Check the arm status. If there's data, for some reason, we have to bail
+    if ((comstat & D64_CUI_ARM_MASK) != D64_CUI_ARM_IDLE)
+        return 0;
 
     // Return if previous transfer timed out
-    if ((usb_io_read(D64_REG_USBCOMSTAT) & D64_CUI_WRITE_MASK) == D64_CUI_WRITE_BUSY)
+    if ((comstat & D64_CUI_WRITE_MASK) == D64_CUI_WRITE_BUSY)
     {
         usb_didtimeout = TRUE;
-        return;
+        return -1;
     }
 
     // Set the cartridge to write mode
@@ -1067,8 +1084,7 @@ static void usb_64drive_write(int datatype, const void* data, int size)
     usb_64drive_set_writable(FALSE);
 
     // Send the data through USB
-    usb_64drive_cui_write(datatype, usb_getaddr(), size);
-    usb_didtimeout = FALSE;
+    return usb_64drive_cui_write(datatype, usb_getaddr(), size);
 }
 
 
@@ -1207,12 +1223,13 @@ static void usb_everdrive_readusb(void* buffer, int size)
     usb_everdrive_write
     Sends data through USB from the EverDrive
     Will not write if there is data to read from USB
-    @param The DATATYPE that is being sent
-    @param A buffer with the data to send
-    @param The size of the data being sent
+    @param  The DATATYPE that is being sent
+    @param  A buffer with the data to send
+    @param  The size of the data being sent
+    @return 1 on success, 0 on fail, -1 on timeout
 ==============================*/
 
-static void usb_everdrive_write(int datatype, const void* data, int size)
+static s8 usb_everdrive_write(int datatype, const void* data, int size)
 {
     char wrotecmp = 0;
     char cmp[] = {'C', 'M', 'P', 'H'};
@@ -1266,7 +1283,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         if (usb_everdrive_usbbusy())
         {
             usb_didtimeout = TRUE;
-            return;
+            return -1;
         }
         
         // Keep track of what we've read so far
@@ -1275,6 +1292,7 @@ static void usb_everdrive_write(int datatype, const void* data, int size)
         offset = 0;
     }
     usb_didtimeout = FALSE;
+    return 1;
 }
 
 
@@ -1437,12 +1455,13 @@ static u32 usb_sc64_set_writable(u32 enable)
 /*==============================
     usb_sc64_write
     Sends data through USB from the SC64
-    @param The DATATYPE that is being sent
-    @param A buffer with the data to send
-    @param The size of the data being sent
+    @param  The DATATYPE that is being sent
+    @param  A buffer with the data to send
+    @param  The size of the data being sent
+    @return 1 on success, 0 on fail, -1 on timeout
 ==============================*/
 
-static void usb_sc64_write(int datatype, const void* data, int size)
+static s8 usb_sc64_write(int datatype, const void* data, int size)
 {
     u32 left = size;
     u32 pi_address = SC64_BASE + usb_getaddr();
@@ -1456,7 +1475,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     if (result[0] & SC64_USB_WRITE_STATUS_BUSY)
     {
         usb_didtimeout = TRUE;
-        return;
+        return -1;
     }
 
     // Enable SDRAM writes and get previous setting
@@ -1488,7 +1507,7 @@ static void usb_sc64_write(int datatype, const void* data, int size)
     if (usb_sc64_execute_cmd(SC64_CMD_USB_WRITE, args, NULL))
     {
         usb_didtimeout = TRUE;
-        return; // Return if USB write was unsuccessful
+        return 0; // Return if USB write was unsuccessful
     }
 
     // Wait for transfer to end
@@ -1499,12 +1518,13 @@ static void usb_sc64_write(int datatype, const void* data, int size)
         if (usb_timeout_check(timeout, SC64_WRITE_TIMEOUT))
         {
             usb_didtimeout = TRUE;
-            return;
+            return -1;
         }
         usb_sc64_execute_cmd(SC64_CMD_USB_WRITE_STATUS, NULL, result);
     }
     while (result[0] & SC64_USB_WRITE_STATUS_BUSY);
     usb_didtimeout = FALSE;
+    return 1;
 }
 
 
