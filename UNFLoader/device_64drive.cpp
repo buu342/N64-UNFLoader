@@ -61,7 +61,7 @@ DeviceError device_test_64drive1(CartDevice* cart)
     for (uint32_t i=0; i<device_count; i++)
     {
         // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
-        if (strcmp(device_info[i].description, "64drive USB device A") == 0 && device_info[i].id == 0x4036010)
+        if ((strcmp(device_info[i].description, "64drive USB device A") == 0 || strcmp(device_info[i].description, "64drive USB device") == 0) && device_info[i].id == 0x4036010)
         {
             N64DriveHandle* fthandle = (N64DriveHandle*) malloc(sizeof(N64DriveHandle));
             free(device_info);
