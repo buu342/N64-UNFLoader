@@ -602,11 +602,11 @@ char usb_write(int datatype, const void* data, int size)
 {
     // If no debug cart exists, stop
     if (usb_cart == CART_NONE)
-        return;
+        return 0;
     
     // If there's data to read first, stop
     if (usb_dataleft != 0)
-        return;
+        return 0;
     
     // Call the correct write function
     return funcPointer_write(datatype, data, size);
