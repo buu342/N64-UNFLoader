@@ -281,7 +281,12 @@ uint32_t device_rompadding(uint32_t romsize)
 bool device_explicitcic()
 {
     CICType oldcic = local_cart.cictype;
-    FILE* fp = fopen(local_rompath, "rb");
+    FILE* fp;
+    #ifndef LINUX
+    fp = _fsopen(local_rompath, "rb", _SH_DENYNO);
+    #else
+    fp = fopen(local_rompath, "rb");
+    #endif
     byte* bootcode = (byte*) malloc(4032);
 
     // Check fopen/malloc worked

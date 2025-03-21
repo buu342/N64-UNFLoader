@@ -19,6 +19,11 @@ UNFLoader Entrypoint
 #include <chrono>
 
 
+// For _fsopen on windows
+//#ifndef LINUX
+//#include <share.h>
+//#endif
+
 /*********************************
               Macros
 *********************************/
@@ -472,7 +477,13 @@ static void program_loop()
             // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
             for (int i=0; i<5; i++) 
             {
+                // On windows, fopen will lock the file, so hot-reload features will not work.
+                // You have to use _fsopen and specify you want to allow shared access.
+                #ifndef LINUX
+                fp = _fsopen(device_getrom(), "rb", _SH_DENYNO );
+                #else
                 fp = fopen(device_getrom(), "rb");
+                #endif
                 if (fp != NULL)
                     break;
                 else
