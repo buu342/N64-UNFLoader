@@ -72,10 +72,6 @@ static std::list<char*>  local_args;
 static std::atomic<int>  local_esclevel (0);
 static std::atomic<bool> local_reupload (false);
 
-// Local funcs
-//#ifndef LINUX
-//wchar_t *convertCharArrayToLPCWSTR(const char* charArray);
-//#endif
 
 /*==============================
     main
@@ -493,7 +489,7 @@ static void program_loop()
                 #ifndef LINUX
                 HANDLE file_handle = CreateFileA(device_getrom(), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
                 int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
-                fp = _fdopen(file_descriptor, "r");
+                fp = _fdopen(file_descriptor, "rb");
                 stream = std::ifstream(fp);
                 #else
                 fp = fopen(device_getrom(), "rb");
@@ -898,12 +894,3 @@ static void show_help()
     if (!term_isusingcurses())
         while ((category = getchar()) != '\n' && category != EOF);
 }
-
-//#ifndef LINUX
-//wchar_t *convertCharArrayToLPCWSTR(const char* charArray)
-//{
-//    wchar_t* wString=new wchar_t[4096];
-//    MultiByteToWideChar(CP_ACP, 0, charArray, -1, wString, 4096);
-//    return wString;
-//}
-//#endif
