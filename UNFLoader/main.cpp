@@ -487,7 +487,7 @@ static void program_loop()
                 // On windows, fopen will lock the file, so hot-reload features will not work.
                 // You have to use _fsopen and specify you want to allow shared access.
                 #ifndef LINUX
-                HANDLE file_handle = CreateFile(device_getrom(), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
+                HANDLE file_handle = CreateFile(CA2CT(device_getrom()), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
                 int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
                 fp = _fdopen(file_descriptor, "r");
                 stream = std::ifstream(fp);
