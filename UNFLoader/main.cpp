@@ -18,6 +18,14 @@ UNFLoader Entrypoint
 #include <thread>
 #include <chrono>
 
+// For _fsopen on windows
+#ifndef LINUX
+#include <fstream>
+#include <share.h>
+#include <windows.h>
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 /*********************************
               Macros
@@ -469,10 +477,23 @@ static void program_loop()
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
             local_reupload = false;
 
+            #ifndef LINUX
+            std::ifstream stream;
+            #endif
+
             // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
             for (int i=0; i<5; i++) 
             {
+                // On windows, fopen will lock the file, so hot-reload features will not work.
+                // You have to use _fsopen and specify you want to allow shared access.
+                #ifndef LINUX
+                HANDLE file_handle = CreateFile(device_getrom(), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
+                int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
+                fp = _fdopen(file_descriptor, "r");
+                stream = std::ifstream(fp);
+                #else
                 fp = fopen(device_getrom(), "rb");
+                #endif
                 if (fp != NULL)
                     break;
                 else
@@ -522,6 +543,10 @@ static void program_loop()
                 log_replace("ROM upload cancelled by the user.\n", CRDEF_ERROR);
             
             // Update variables and close the file
+            #ifndef LINUX
+            stream.close();
+            #endif
+
             lastmodtime = newmodtime;
             fclose(fp);
         }
