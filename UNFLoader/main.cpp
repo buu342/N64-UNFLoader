@@ -23,6 +23,8 @@ UNFLoader Entrypoint
 #include <fstream>
 #include <share.h>
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
 #endif
 
 /*********************************
@@ -488,7 +490,7 @@ static void program_loop()
                 HANDLE file_handle = CreateFile(device_getrom(), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
                 int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
                 fp = _fdopen(file_descriptor, "r");
-                stream(file)
+                stream = std::ifstream(fp);
                 #else
                 fp = fopen(device_getrom(), "rb");
                 #endif
