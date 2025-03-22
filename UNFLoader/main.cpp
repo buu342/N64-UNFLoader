@@ -18,6 +18,12 @@ UNFLoader Entrypoint
 #include <thread>
 #include <chrono>
 
+
+// For _fsopen on windows
+#ifndef LINUX
+#include <share.h>
+#endif
+
 /*********************************
               Macros
 *********************************/
