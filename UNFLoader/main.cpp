@@ -20,7 +20,6 @@ UNFLoader Entrypoint
 
 // For _fsopen on windows
 #ifndef LINUX
-#include <fstream>
 #include <share.h>
 #include <windows.h>
 #include <fcntl.h>
