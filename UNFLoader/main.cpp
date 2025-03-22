@@ -24,6 +24,7 @@ UNFLoader Entrypoint
 #include <windows.h>
 #include <fcntl.h>
 #include <io.h>
+#include <string>
 #endif
 
 /*********************************
@@ -486,7 +487,10 @@ static void program_loop()
                 // On windows, fopen will lock the file, so hot-reload features will not work.
                 // You have to use _fsopen and specify you want to allow shared access.
                 #ifndef LINUX
-                file_handle = CreateFileA(device_getrom(), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                const char* fileName = device_getrom();
+                size_t length = strlen(fileName);
+                std::wstring text_wchar(length, L'#');
+                file_handle = CreateFileA( mbstowcs(&text_wchar[0], fileName , length), GENERIC_READ, FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
                 int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
                 fp = _fdopen(file_descriptor, "rb");
                 #else
