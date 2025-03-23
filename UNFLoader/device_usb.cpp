@@ -268,9 +268,10 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
     #else
         uint32_t readcount = size;
 
-        // If we're being asked to read more data than we have in our buffer, check if the USB can give us more
+        // If we're being asked to read more data than we have in our buffer, wait for the USB to give us more
         while (readcount > readbuffer_left)
-            device_usb_getqueuestatus(handle, NULL);
+            if (device_usb_getqueuestatus(handle, NULL) != USB_OK)
+                break;
 
         // Copy the data
         if (readcount > readbuffer_left)
