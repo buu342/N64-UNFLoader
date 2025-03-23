@@ -18,6 +18,13 @@ UNFLoader Entrypoint
 #include <thread>
 #include <chrono>
 
+// For _fsopen on windows
+#ifndef LINUX
+#include <windows.h>
+#include <fcntl.h>
+#include <io.h>
+#include <string>
+#endif
 
 /*********************************
               Macros
@@ -469,10 +476,23 @@ static void program_loop()
             uint32_t filesize = 0; // I could use stat, but it doesn't work in WinXP (more info below)
             local_reupload = false;
 
+            #ifndef LINUX
+            HANDLE file_handle;
+            #endif
+
             // Try multiple times to open the file, because sometimes does not work the first time in Listen mode
             for (int i=0; i<5; i++) 
             {
+                // On windows, fopen will lock the file, so hot-reload features will not work.
+                // You have to use manually specify a handle.
+                #ifndef LINUX
+                const char* fileName = device_getrom();
+                file_handle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+                int file_descriptor = _open_osfhandle((intptr_t)file_handle, _O_RDONLY);
+                fp = _fdopen(file_descriptor, "rb");
+                #else
                 fp = fopen(device_getrom(), "rb");
+                #endif
                 if (fp != NULL)
                     break;
                 else
