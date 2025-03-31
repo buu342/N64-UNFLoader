@@ -673,9 +673,15 @@ static void autodetect_romheader()
 
     // Check for a valid header
     if (fread(buff, 1, 0x40, fp) != 0x40)
+    {
+        fclose(fp);
         return;
+    }
     if (buff[0x3C] != 'E' || buff[0x3D] != 'D')
+    {
+        fclose(fp);
         return;
+    }
     fseek(fp, 0, SEEK_SET);
 
     // If the savetype hasn't been forced
@@ -693,6 +699,7 @@ static void autodetect_romheader()
 
     // Cleanup
     free(buff);
+    fclose(fp);
 }
 
 
