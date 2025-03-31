@@ -240,8 +240,6 @@ void gdb_connect(char* fulladdr)
             #endif
         #endif
         local_socket = INVALID_SOCKET;
-        free(fulladdrcopy);
-        return;
     }
 
     // Cleanup

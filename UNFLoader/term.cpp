@@ -379,7 +379,10 @@ void __log_output(const short color, const int32_t y, const bool allowstack, con
         mesg->str = (char*)malloc(vsnprintf(NULL, 0, str, args) + 1);
         va_end(args); 
         if (mesg->str == NULL)
+        {
+            free(mesg);
             return;
+        }
 
         va_start(args, str);
         vsprintf(mesg->str, str, args);

@@ -535,6 +535,7 @@ void debug_sendtext(char* data)
                 }
                 free(mesg->original);
                 free(mesg);
+                free(help);
                 return;
             }
 
@@ -564,6 +565,9 @@ void debug_sendtext(char* data)
                 }
                 free(mesg->original);
                 free(mesg);
+                free(help->str);
+                free(help);
+                fclose(fp);
                 return;
             }
 
