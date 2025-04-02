@@ -432,14 +432,20 @@ char* gen_filename(const char* filename, const char* fileext)
     {
         finalname = (char*)calloc(snprintf(NULL, 0, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext) + 1, 1);
         if (finalname == NULL)
+        {
+            free(extraname);
             return NULL;
+        }
         sprintf(finalname, "%s%s-%s.%s", debug_getbinaryout(), filename, extraname, fileext);
     }
     else
     {
         finalname = (char*)calloc(snprintf(NULL, 0, "%s-%s.%s", filename, extraname, fileext) + 1, 1);
         if (finalname == NULL)
+        {
+            free(extraname);
             return NULL;
+        }
         sprintf(finalname, "%s-%s.%s", filename, extraname, fileext);
     }
     free(extraname);
