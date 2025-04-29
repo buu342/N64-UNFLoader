@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <math.h>
 #include "device_usb.h"
 #ifdef D2XX
     #include "Include/ftd2xx.h"
@@ -164,6 +166,7 @@ USBStatus device_usb_open(int32_t devnumber, USBHandle* handle)
             return USB_DEVICE_NOT_OPENED;
         (*handle) = (void*)context;
         ftdi_set_latency_timer(context, 1);
+        ftdi_tcioflush(context);
         return USB_OK;
     #endif 
 }
@@ -217,8 +220,13 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
         return USB_OK;
     #else
         uint32_t totalwritten = 0;
+        time_t start = time(NULL);
+        const int timeout = ceilf((float)(((ftdi_context*)handle)->usb_write_timeout)/1000.0f);
+
+        // Keep writing until we've finished
         while (totalwritten < size)
         {
+            time_t curtime = time(NULL);
             int ret = ftdi_write_data((ftdi_context*)handle, ((unsigned char*)buffer)+totalwritten, size-totalwritten);
             if (ret == -666)
             {
@@ -231,6 +239,10 @@ USBStatus device_usb_write(USBHandle handle, void* buffer, uint32_t size, uint32
                 return USB_IO_ERROR;
             }
             totalwritten += ret;
+            if (ret != 0)
+                start = curtime;
+            else if (difftime(curtime, start) >= timeout)
+                return USB_IO_ERROR;
         }
         (*written) = totalwritten;
         return USB_OK;
@@ -267,11 +279,18 @@ USBStatus device_usb_read(USBHandle handle, void* buffer, uint32_t size, uint32_
         return USB_OK;
     #else
         uint32_t readcount = size;
+        time_t start = time(NULL);
+        const int timeout = ceilf((float)(((ftdi_context*)handle)->usb_read_timeout)/1000.0f);
 
         // If we're being asked to read more data than we have in our buffer, wait for the USB to give us more
         while (readcount > readbuffer_left)
+        {
+            time_t curtime = time(NULL);
             if (device_usb_getqueuestatus(handle, NULL) != USB_OK)
                 break;
+            if (difftime(curtime, start) >= timeout)
+                return USB_IO_ERROR;
+        }
 
         // Copy the data
         if (readcount > readbuffer_left)
@@ -348,8 +367,8 @@ USBStatus device_usb_resetdevice(USBHandle handle)
     device_usb_settimeouts
     Sets the timeouts on a USB device
     @param  The USB handle to use
-    @param  The read timeout
-    @param  The write timeout
+    @param  The read timeout (in ms)
+    @param  The write timeout (in ms)
     @return The USB status
 ==============================*/
 
