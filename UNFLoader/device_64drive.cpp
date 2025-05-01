@@ -13,6 +13,7 @@ http://64drive.retroactive.be/support.php
 #include <string.h>
 #include <thread>
 #include <chrono>
+#include <vector>
 
 typedef struct 
 {
@@ -23,12 +24,22 @@ typedef struct
     uint32_t  bytes_read;
 } N64DriveHandle;
 
+typedef struct
+{
+    byte* data;
+    uint32_t header;
+    uint32_t size;
+} USBData;
+
+static std::vector<int> global_ackswanted;
+static std::vector<USBData> global_gotdata;
+
 
 /*********************************
         Function Prototypes
 *********************************/
 
-DeviceError device_sendcmd_64drive(N64DriveHandle* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...);
+static DeviceError device_sendcmd_64drive(N64DriveHandle* cart, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...);
 
 
 /*==============================
@@ -240,7 +251,7 @@ DeviceError device_testdebug_64drive(CartDevice* cart)
     @return The device error, or OK
 ==============================*/
 
-DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
+static DeviceError device_sendcmd_64drive(N64DriveHandle* fthandle, uint8_t command, bool reply, uint32_t* result, uint32_t numparams, ...)
 {
     byte     send_buff[32];
     uint32_t recv_buff[32];
@@ -445,6 +456,107 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
 }
 
 
+static int chartoint(const char* str)
+{
+    return ((((int)str[0])<<24)&0xFF000000) | ((((int)str[1])<<16)&0x00FF0000) | ((((int)str[2])<<8)&0x0000FF00) | ((((int)str[3])<<0)&0x000000FF);
+}
+
+
+static void device_queueack(const char* ack)
+{
+    //global_ackswanted.push_back(chartoint(ack));
+}
+
+
+//  0 -> Nothing left
+// >0 -> Device error
+// DEVICEERR_64D_BADDMA -> DMA@ in memory
+static DeviceError device_checkacks(N64DriveHandle* fthandle)
+{
+    uint32_t size;
+
+    // First, check if we have data to read
+    if (device_usb_getqueuestatus(fthandle->handle, &size) != USB_OK)
+        return DEVICEERR_POLLFAIL;
+
+    // If we do, then check if it's incoming data
+    while (size > 0)
+    {
+        int dataasint;
+        char temp[4];
+        bool found = false;
+        std::vector<int>::iterator it;
+
+        // Read the first 4 bytes, because it might be a CMP or a DMA header
+        if (device_usb_read(fthandle->handle, (byte*)temp, 4, &fthandle->bytes_read) != USB_OK)
+            return DEVICEERR_READFAIL;
+
+        // If we have a DMA header, it's data that needs to be further handled
+        if (strncmp(temp, "DMA@", 4) == 0)
+        {
+            uint32_t read = 0;
+            byte     temp[4];
+            USBData  dat;
+
+            // Get information about the incoming data and store it
+            if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
+                return DEVICEERR_READFAIL;
+            dat.header = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
+            dat.size = dat.header & 0xFFFFFF;
+
+            // Allocate memory for the buffer to store incoming data
+            dat.data = (byte*)malloc(dat.size);
+            if (dat.data == NULL)
+                return DEVICEERR_MALLOCFAIL;
+
+            // Read the data into the buffer, in 512 byte chunks
+            // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
+            device_setuploadprogress(0.0f);
+            while (read < dat.size)
+            {
+                uint32_t readamount = dat.size-read;
+                if (readamount > 512)
+                    readamount = 512;
+                if (device_usb_read(fthandle->handle, dat.data+read, readamount, &fthandle->bytes_read) != USB_OK)
+                    return DEVICEERR_READFAIL;
+                read += fthandle->bytes_read;
+                device_setuploadprogress((((float)read)/((float)dat.size))*100.0f);
+            }
+
+            // Queue a CMP signal for later
+            device_queueack("CMPH");
+            device_setuploadprogress(100.0f);
+            global_gotdata.push_back(dat);
+        }
+        else
+        {
+            /*
+            // Otherwise, we want to go through the list of acks we want and see if the data we read corresponded to something
+            dataasint = chartoint(temp);
+            for (it = global_ackswanted.begin(); it != global_ackswanted.end(); ++it)
+            {
+                if (*it == dataasint)
+                {
+                    found = true;
+                    global_ackswanted.erase(it);
+                    break;
+                }
+            }
+
+            // The ack we got is unexpected. This should not happen!!!
+            if (!found)
+                return DEVICEERR_64D_BADCMP;
+            */
+        }
+
+        // Check for data again
+        if (device_usb_getqueuestatus(fthandle->handle, &size) != USB_OK)
+            return DEVICEERR_POLLFAIL;
+    }
+    return DEVICEERR_OK;
+}
+
+
 /*==============================
     device_senddata_64drive
     Sends data to the 64Drive
@@ -458,12 +570,10 @@ DeviceError device_sendrom_64drive(CartDevice* cart, byte* rom, uint32_t size)
 DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte* data, uint32_t size)
 {
     N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
-    byte     buf[4];
-    uint32_t cmp_magic;
     uint32_t newsize = 0;
     byte*    datacopy = NULL;
     DeviceError err;
-
+    
     // Pad the data to be 512 byte aligned if it is large, if not then to 4 bytes
     if (size > 512)
         newsize = ALIGN(size, 512) + 512; // The extra 512 is to workaround a 64Drive bug
@@ -488,12 +598,8 @@ DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte
     if (device_usb_write(fthandle->handle, datacopy, newsize, &fthandle->bytes_written) != USB_OK)
         return DEVICEERR_WRITEFAIL;
 
-    // Read the CMP signal
-    if (device_usb_read(fthandle->handle, buf, 4, &fthandle->bytes_read) != USB_OK)
-        return DEVICEERR_READFAIL;
-    cmp_magic = swap_endian(buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0]);
-    if (cmp_magic != 0x434D5040)
-        return DEVICEERR_64D_BADCMP;
+    // Queue a CMP signal for later
+    device_queueack("CMP@");
 
     // Free used up resources
     device_setuploadprogress(100.0f);
@@ -517,54 +623,20 @@ DeviceError device_senddata_64drive(CartDevice* cart, USBDataType datatype, byte
 DeviceError device_receivedata_64drive(CartDevice* cart, uint32_t* dataheader, byte** buff)
 {
     N64DriveHandle* fthandle = (N64DriveHandle*) cart->structure;
-    uint32_t size;
+    DeviceError err;
 
-    // First, check if we have data to read
-    if (device_usb_getqueuestatus(fthandle->handle, &size) != USB_OK)
-        return DEVICEERR_POLLFAIL;
+    // Before doing anything, we need to check for any incoming acks
+    err = device_checkacks(fthandle);
+    if (err != DEVICEERR_OK)
+        return err;
 
-    // If we do
-    if (size > 0)
+    // If we have data, pop it out
+    if (!global_gotdata.empty())
     {
-        uint32_t read = 0;
-        byte     temp[4];
-
-        // Ensure we have valid data by reading the header
-        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
-            return DEVICEERR_READFAIL;
-        if (temp[0] != 'D' || temp[1] != 'M' || temp[2] != 'A' || temp[3] != '@')
-            return DEVICEERR_64D_BADDMA;
-
-        // Get information about the incoming data and store it in dataheader
-        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
-            return DEVICEERR_READFAIL;
-        (*dataheader) = swap_endian(temp[3] << 24 | temp[2] << 16 | temp[1] << 8 | temp[0]);
-
-        // Read the data into the buffer, in 512 byte chunks
-        size = (*dataheader) & 0xFFFFFF;
-        (*buff) = (byte*)malloc(size);
-        if ((*buff) == NULL)
-            return DEVICEERR_MALLOCFAIL;
-
-        // Do in 512 byte chunks so we have a progress bar (and because the N64 does it in 512 byte chunks anyway)
-        device_setuploadprogress(0.0f);
-        while (read < size)
-        {
-            uint32_t readamount = size-read;
-            if (readamount > 512)
-                readamount = 512;
-            if (device_usb_read(fthandle->handle, (*buff)+read, readamount, &fthandle->bytes_read) != USB_OK)
-                return DEVICEERR_READFAIL;
-            read += fthandle->bytes_read;
-            device_setuploadprogress((((float)read)/((float)size))*100.0f);
-        }
-
-        // Read the completion signal
-        if (device_usb_read(fthandle->handle, temp, 4, &fthandle->bytes_read) != USB_OK)
-            return DEVICEERR_READFAIL;
-        if (temp[0] != 'C' || temp[1] != 'M' || temp[2] != 'P' || temp[3] != 'H')
-            return DEVICEERR_64D_BADCMP;
-        device_setuploadprogress(100.0f);
+        USBData dat = global_gotdata.back();
+        (*dataheader) = dat.header;
+        (*buff) = dat.data;
+        global_gotdata.pop_back();
     }
     else
     {
