@@ -54,9 +54,4 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
-  <ItemGroup>
-    <Library Include="include\ftd2xx.lib">
-      <Filter>Include</Filter>
-    </Library>
-  </ItemGroup>
 </Project>

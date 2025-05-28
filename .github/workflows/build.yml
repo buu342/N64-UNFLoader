@@ -20,9 +20,10 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      SOLUTION_FILE_PATH: ./UNFLoader/UNFLoader.sln
       BUILD_CONFIGURATION: Release
+      BUILD_PLATFORM: Win32
       BUILD_DIRECTORY: ./UNFLoader/Release
+#      SOLUTION_FILE_PATH: ./UNFLoader/UNFLoader.sln /t:UNFLoader
 
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +39,11 @@ jobs:
         vsversion: 2019
     - name: Build
       working-directory: ${{ env.GITHUB_WORKSPACE }}
-      run: msbuild /m /p:Configuration=${{ env.BUILD_CONFIGURATION }} ${{ env.SOLUTION_FILE_PATH }}
+      run: | 
+        msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM }}" ./UNFLoader/FlashcartLib_Static.vcxproj /p:OutputPath=.
+        msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM }}" ./UNFLoader/UNFLoader.vcxproj /p:OutputPath=.
+#        set MSBuildEmitSolution=1
+#        msbuild /m /p:Configuration="${{ env.BUILD_CONFIGURATION }}" /p:Platform="${{ env.BUILD_PLATFORM }}" ${{ env.SOLUTION_FILE_PATH }}
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -49,7 +54,6 @@ jobs:
   build-linux:
     runs-on: ubuntu-latest
     env:
-      LIBFTD2XX_VERSION: '1.4.27'
       SOURCES_DIRECTORY: ./UNFLoader
       BUILD_DIRECTORY: ./UNFLoader
 
@@ -75,7 +79,6 @@ jobs:
   build-macos:
     runs-on: macos-latest
     env:
-      LIBFTD2XX_VERSION: '1.4.24'
       SOURCES_DIRECTORY: ./UNFLoader/
       BUILD_DIRECTORY: ./UNFLoader
 
