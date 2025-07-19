@@ -45,10 +45,15 @@ endif
 
 
 ifeq ($(OS_NAME),Darwin)
+	slash:= /
+	empty:=
+	space:= $(empty) $(empty)
 	HOMEBREW_PREFIX=$(shell brew --prefix)
 	HOMEBREW_CELLAR=$(shell brew --cellar)
+	LIBUSB_VER=$(subst $(space),$(slash),$(shell brew list libusb --versions| awk  '{print $2}'))
+	LIBFTDI_VER=$(subst $(space),$(slash),$(shell brew list libftdi --versions| awk  '{print $2}'))
 	CFLAGS += -I$(HOMEBREW_PREFIX)/include
-	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/libusb/1.0.28/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/libftdi/1.5_2/lib/libftdi1.a
+	LINKER_OPTIONS += $(shell pkg-config --libs-only-other --static libftdi1) $(HOMEBREW_CELLAR)/$(LIBUSB_VER)/lib/libusb-1.0.a $(HOMEBREW_CELLAR)/$(LIBFTDI_VER)/lib/libftdi1.a
 endif
 
 default: $(APP)
