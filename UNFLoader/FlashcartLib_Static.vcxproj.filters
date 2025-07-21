@@ -33,6 +33,9 @@
     <ClInclude Include="device_sc64.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="device_gopher64.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\ftd2xx.h">
       <Filter>Include</Filter>
     </ClInclude>
@@ -51,6 +54,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="device_sc64.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="device_gopher64.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
