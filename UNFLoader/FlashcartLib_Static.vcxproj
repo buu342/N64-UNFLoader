@@ -170,6 +170,7 @@
     <ClInclude Include="device_64drive.h" />
     <ClInclude Include="device_everdrive.h" />
     <ClInclude Include="device_sc64.h" />
+    <ClInclude Include="device_gopher64.h" />
     <ClInclude Include="include\ftd2xx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -178,6 +179,7 @@
     <ClCompile Include="device_64drive.cpp" />
     <ClCompile Include="device_everdrive.cpp" />
     <ClCompile Include="device_sc64.cpp" />
+    <ClCompile Include="device_gopher64.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="include\ftd2xx.lib" />

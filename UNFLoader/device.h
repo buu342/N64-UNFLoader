@@ -25,7 +25,8 @@
         CART_64DRIVE1  = 1,
         CART_64DRIVE2  = 2,
         CART_EVERDRIVE = 3,
-        CART_SC64      = 4
+        CART_SC64      = 4,
+        CART_GOPHER64  = 5,
     } CartType;
 
     typedef enum {
@@ -57,7 +58,9 @@
         DATATYPE_HEADER     = 0x03,
         DATATYPE_SCREENSHOT = 0x04,
         DATATYPE_HEARTBEAT  = 0x05,
-        DATATYPE_RDBPACKET  = 0x06
+        DATATYPE_RDBPACKET  = 0x06,
+        DATATYPE_TCPTEST    = 0x07,
+        DATATYPE_ROMUPLOAD  = 0x08,
     } USBDataType;
 
     typedef enum {
