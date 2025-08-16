@@ -19,6 +19,7 @@ jobs:
       cd ./UNFLoader/
       ls
       make -f Makefile
+      chmod +x UNFLoader
       #copy to artifacts directory
       mkdir artifact
       mv UNFLoader artifact
@@ -76,6 +77,7 @@ jobs:
       echo Build macOS App
       cd ./UNFLoader/
       make
+      chmod +x UNFLoader
       cd ..
     displayName: 'Build Program'
     continueOnError: false

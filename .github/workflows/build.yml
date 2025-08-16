@@ -14,7 +14,7 @@ on:
 env:
   WINDOWS_ARTIFACT_NAME: UNFLoader-Windows-x86
   LINUX_ARTIFACT_NAME: UNFLoader-Linux-x64
-  MACOS_ARTIFACT_NAME: UNFLoader-macOS-x64
+  MACOS_ARTIFACT_NAME: UNFLoader-macOS-arm64
 
 jobs:
   build-windows:
@@ -67,6 +67,7 @@ jobs:
         run: |
           cd ${{ env.SOURCES_DIRECTORY }}
           make
+          chmod +x UNFLoader
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -93,6 +94,7 @@ jobs:
           echo Build macOS App
           cd ${{ env.SOURCES_DIRECTORY }}
           make
+          chmod +x UNFLoader
           cd ..
 
       - name: Upload artifact
