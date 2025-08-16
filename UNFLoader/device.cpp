@@ -8,6 +8,7 @@ Passes flashcart communication to more specific functions
 #include "device_64drive.h"
 #include "device_everdrive.h"
 #include "device_sc64.h"
+#include "device_gopher64.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -40,6 +41,7 @@ static void device_set_64drive1(CartDevice* cart);
 static void device_set_64drive2(CartDevice* cart);
 static void device_set_everdrive(CartDevice* cart);
 static void device_set_sc64(CartDevice* cart);
+static void device_set_gopher64(CartDevice* cart);
 
 
 /*********************************
@@ -80,6 +82,18 @@ void device_initialize()
 
 DeviceError device_find()
 {
+    // Look for Gopher64
+    if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_GOPHER64))
+    {
+        DeviceError err = device_test_gopher64(&local_cart);
+        if (err == DEVICEERR_OK)
+            device_set_gopher64(&local_cart);
+        else if (err != DEVICEERR_NOTCART)
+            return err;
+        else if (local_cart.carttype == CART_GOPHER64)
+            return DEVICEERR_CARTFINDFAIL;
+    }
+
     // Look for 64drive HW1 (FT2232H Asynchronous FIFO mode)
     if ((local_cart.carttype == CART_NONE || local_cart.carttype == CART_64DRIVE1))
     {
@@ -88,6 +102,8 @@ DeviceError device_find()
             device_set_64drive1(&local_cart);
         else if (err != DEVICEERR_NOTCART)
             return err;
+        else if (local_cart.carttype == CART_64DRIVE1)
+            return DEVICEERR_CARTFINDFAIL;
     }
 
     // Look for 64drive HW2 (FT2232H Asynchronous FIFO mode)
@@ -98,6 +114,8 @@ DeviceError device_find()
             device_set_64drive2(&local_cart);
         else if (err != DEVICEERR_NOTCART)
             return err;
+        else if (local_cart.carttype == CART_64DRIVE2)
+            return DEVICEERR_CARTFINDFAIL;
     }
 
     // Look for an EverDrive
@@ -108,6 +126,8 @@ DeviceError device_find()
             device_set_everdrive(&local_cart);
         else if (err != DEVICEERR_NOTCART)
             return err;
+        else if (local_cart.carttype == CART_EVERDRIVE)
+            return DEVICEERR_CARTFINDFAIL;
     }
 
     // Look for SC64
@@ -118,6 +138,8 @@ DeviceError device_find()
             device_set_sc64(&local_cart);
         else if (err != DEVICEERR_NOTCART)
             return err;
+        else if (local_cart.carttype == CART_SC64)
+            return DEVICEERR_CARTFINDFAIL;
     }
 
     // Finish
@@ -217,6 +239,31 @@ static void device_set_sc64(CartDevice* cart)
     funcPointer_senddata = &device_senddata_sc64;
     funcPointer_receivedata = &device_receivedata_sc64;
     funcPointer_close = &device_close_sc64;
+}
+
+
+/*==============================
+    device_set_gopher64
+    Marks the cart as being Gopher64
+    @param A pointer to the cart context
+    @param The index of the cart
+==============================*/
+
+static void device_set_gopher64(CartDevice* cart)
+{
+    // Set cart settings
+    cart->carttype = CART_GOPHER64;
+
+    // Set function pointers
+    funcPointer_open = &device_open_gopher64;
+    funcPointer_maxromsize = &device_maxromsize_gopher64;
+    funcPointer_rompadding = &device_rompadding_gopher64;
+    funcPointer_explicitcic = &device_explicitcic_gopher64;
+    funcPointer_sendrom = &device_sendrom_gopher64;
+    funcPointer_testdebug = &device_testdebug_gopher64;
+    funcPointer_senddata = &device_senddata_gopher64;
+    funcPointer_receivedata = &device_receivedata_gopher64;
+    funcPointer_close = &device_close_gopher64;
 }
 
 
