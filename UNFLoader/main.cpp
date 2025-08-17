@@ -729,6 +729,7 @@ static void show_args()
     log_simple("  \t %d - %s\n", (int)CART_64DRIVE2, "64Drive HW2");
     log_simple("  \t %d - %s\n", (int)CART_EVERDRIVE, "EverDrive 3.0 or X7");
     log_simple("  \t %d - %s\n", (int)CART_SC64, "SC64");
+    log_simple("  \t %d - %s\n", (int)CART_GOPHER64, "Gopher64");
     log_simple("  -c <int>\t\t   Set CIC emulation (64Drive HW2 only).\n");
     log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_6101, "6101 (NTSC)", (int)CIC_6102, "6102 (NTSC)");
     log_simple("  \t %d - %s\t %d - %s\n", (int)CIC_7101, "7101 (NTSC)", (int)CIC_7102, "7102 (PAL)");

@@ -32,7 +32,7 @@
 *********************************/
 
 // Useful constants for converting between enums and strings
-const char* cart_strings[] = {"64Drive HW1", "64Drive HW2", "EverDrive", "SC64"}; // In order of the CartType enums
+const char* cart_strings[] = {"64Drive HW1", "64Drive HW2", "EverDrive", "SC64", "Gopher64"}; // In order of the CartType enums
 const int   cart_strcount = sizeof(cart_strings)/sizeof(cart_strings[0]);
 const char* cic_strings[] = {"6101", "6102", "7101", "7102", "X103", "X105", "X106", "5101"}; // In order of the CICType enums
 const int   cic_strcount = sizeof(cic_strings)/sizeof(cic_strings[0]);
@@ -242,7 +242,7 @@ uint64_t time_miliseconds()
 CartType cart_strtotype(const char* cartstring)
 {
     // If the cart string is a single number, then it's pretty easy to get the cart enum
-    if (cartstring[0] >= ('0'+((int)CART_64DRIVE1)) && cartstring[0] <= ('0'+((int)CART_SC64)) && cartstring[1] == '\0')
+    if (cartstring[0] >= ('0'+((int)CART_64DRIVE1)) && cartstring[0] <= ('0'+((int)CART_GOPHER64)) && cartstring[1] == '\0')
         return (CartType)(cartstring[0]-'0');
 
     // Check if the user, for some reason, wrote the entire cart string out
