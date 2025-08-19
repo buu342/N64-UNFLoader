@@ -38,8 +38,16 @@ jobs:
 
 - job: UNFLoader_Windows
   pool:
-    vmImage: 'windows-2019'
+    vmImage: 'windows-latest'
   steps:
+  - script: |
+      echo Install VS2019
+      cd $BUILD_SOURCESDIRECTORY
+      cd ".github/windows/"
+      move vsconfig c:\vsconfig
+      ./install.bat
+    displayName: 'Install VS2019'
+    continueOnError: false
        
   # Visual Studio build
   # Build with MSBuild and set the Visual Studio version property
@@ -47,9 +55,8 @@ jobs:
     inputs:
       solution: '**\*.sln' 
       configuration: 'Release'
-      vsVersion: '16.0' # Optional. Options: latest, 16.0, 15.0, 14.0, 12.0, 11.0
-      msbuildArchitecture: 'x86' # Optional. Options: x86, x64
-
+      vsVersion: '16.0'
+      msbuildArchitecture: 'x86'
 
   # Publish build artifacts to Azure Artifacts/TFS or a file share
   - task: PublishBuildArtifacts@1
