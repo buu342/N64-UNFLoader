@@ -496,6 +496,7 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
     {
         uint32_t dataread = 0;
         uint32_t totalread = 0;
+        uint32_t offset = 8;
         byte     temp[4];
 
         // Ensure we have valid data by reading the header
@@ -522,12 +523,13 @@ DeviceError device_receivedata_everdrive(CartDevice* cart, uint32_t* dataheader,
         while (dataread < size)
         {
             uint32_t readamount = size-dataread;
-            if (readamount > 512)
-                readamount = 512;
+            if (readamount > 512 - offset)
+                readamount = 512 - offset;
             if (device_usb_read(fthandle->handle, (*buff)+dataread, readamount, &fthandle->bytes_read) != USB_OK)
                 return DEVICEERR_READFAIL;
             totalread += fthandle->bytes_read;
             dataread += fthandle->bytes_read;
+            offset = 0;
             device_setuploadprogress((((float)dataread)/((float)size))*100.0f);
         }
 
