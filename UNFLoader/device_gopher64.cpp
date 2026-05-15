@@ -158,7 +158,7 @@ DeviceError device_open_gopher64(CartDevice *cart)
     hints.ai_socktype = SOCK_STREAM; // TCP
 
     // Resolve localhost and port
-    if (getaddrinfo("localhost", "64000", &hints, &res) != 0)
+    if (getaddrinfo("localhost", "48646", &hints, &res) != 0)
     {
         delete device;
         return DEVICEERR_NOTCART;
