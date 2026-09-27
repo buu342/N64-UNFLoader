@@ -318,6 +318,15 @@ DeviceError device_sendrom_everdrive(CartDevice* cart, byte* rom, uint32_t size)
         device_setuploadprogress((((float)bytes_done) / ((float)size)) * 100.0f);
         bytes_left -= bytes_do;
         bytes_done += bytes_do;
+
+        // Give the EverDrive's FTDI chip a moment to drain its internal FIFO between
+        // chunks. Without this, sustained back-to-back writes over an added-latency
+        // USB transport (e.g. USB/IP passthrough, such as WSL2 via usbipd-win) can
+        // outrun the chip's hardware flow control and cause a bulk OUT endpoint
+        // STALL (-EPIPE) partway through the upload, aborting it with "Unable to
+        // write to flashcart." A native, non-virtualized USB connection paces
+        // writes closely enough that this was never previously observed.
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
     // Sleep for a bit before sending the PIF command (the delay is needed)
